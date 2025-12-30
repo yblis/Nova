@@ -8,7 +8,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Made by AI](https://img.shields.io/badge/Made%20by-AI-blueviolet?logo=openai)](https://github.com/)
 
-> **🤖 100% AI-Generated Project**  
+> ** 100% AI-Generated Project**  
 > This project was entirely designed and developed by artificial intelligence (Claude Opus 4.5/Gemini 3 Pro), from A to Z.  
 > Human intervention was limited to debugging, minor fixes, and project direction.
 
