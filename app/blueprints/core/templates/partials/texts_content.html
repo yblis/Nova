@@ -1,0 +1,968 @@
+<div class="texts-container flex flex-col sm:flex-row bg-white dark:bg-zinc-900 overflow-hidden" x-data="textsApp">
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div x-show="showTools" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="showTools = false"
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 sm:hidden" style="top: 64px;"></div>
+
+    <!-- Sidebar (Tools) -->
+    <div :class="showTools ? 'w-full sm:w-56' : 'w-0 overflow-hidden'"
+        class="texts-sidebar-mobile sm:relative flex-shrink-0 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300 flex flex-col h-full sm:h-auto z-50 sm:z-auto">
+
+        <div class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center">
+            <h2 class="font-bold text-sm text-zinc-500 uppercase tracking-wider"
+                x-text="t('assistant.toolsTitle', 'Outils')"></h2>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+            <template x-for="tool in tools" :key="tool.id">
+                <button @click="currentTool = tool.id; window.innerWidth < 640 && (showTools = false)"
+                    class="w-full text-left px-3 py-3 rounded-lg text-sm transition-colors flex items-center gap-3"
+                    :class="currentTool === tool.id 
+                        ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800' 
+                        : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800'">
+                    <svg x-show="tool.id === 'reformulation'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <svg x-show="tool.id === 'translation'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                    </svg>
+                    <svg x-show="tool.id === 'correction'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <svg x-show="tool.id === 'email'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <svg x-show="tool.id === 'prompt'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span x-text="t('assistant.tools.' + tool.id, tool.name)" class="font-medium"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full relative w-full sm:w-auto">
+        <!-- Header -->
+        <header
+            class="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-10">
+            <div class="flex items-center gap-3">
+                <button @click="showTools = !showTools"
+                    class="p-2 -ml-2 text-zinc-500 hover:text-brand-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                    :title="t('assistant.common.showTools', 'Afficher/Masquer les outils')">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div class="font-bold text-zinc-900 dark:text-zinc-100"
+                    x-text="currentTool ? t('assistant.tools.' + currentTool, 'Outils') : t('assistant.toolsTitle', 'Outils')">
+                </div>
+
+                <!-- Model Selector -->
+                <div class="relative hidden sm:block" x-data="{open:false}">
+                    <button @click="open=!open"
+                        class="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-brand-600 transition-colors bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <span x-text="currentModel||t('assistant.common.selectModel', 'Sélectionner un modèle')"></span>
+                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.outside="open=false"
+                        class="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden">
+                        <div class="max-h-64 overflow-y-auto p-1">
+                            <template x-for="m in models" :key="m">
+                                <button @click="currentModel=m; open=false"
+                                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
+                                    :class="currentModel===m ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20' : 'text-zinc-700 dark:text-zinc-300'"
+                                    x-text="m"></button>
+                            </template>
+                            <div x-show="models.length === 0" class="px-3 py-3 text-sm text-zinc-500 text-center"
+                                x-text="t('assistant.common.noModel', 'Aucun modèle disponible')">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Mobile Model Selector -->
+                <div class="relative sm:hidden">
+                    <button @click="showModelSelector = !showModelSelector"
+                        class="p-2 text-zinc-400 hover:text-brand-600 transition-colors"
+                        :title="t('models.model', 'Modèle')">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                    <!-- Backdrop -->
+                    <div x-show="showModelSelector" @click="showModelSelector=false" class="fixed inset-0 z-[90]"></div>
+                    <!-- Dropdown -->
+                    <div x-show="showModelSelector" x-transition
+                        class="fixed top-20 left-4 right-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[100] overflow-hidden">
+                        <div class="p-2 border-b border-zinc-200 dark:border-zinc-700">
+                            <span class="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+                                x-text="t('assistant.common.selectModel', 'Sélectionner un modèle')"></span>
+                        </div>
+                        <div class="max-h-64 overflow-y-auto p-1">
+                            <template x-for="m in models" :key="m">
+                                <button @click="currentModel=m; showModelSelector=false"
+                                    class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
+                                    :class="currentModel===m ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20' : 'text-zinc-700 dark:text-zinc-300'"
+                                    x-text="m"></button>
+                            </template>
+                            <div x-show="models.length === 0" class="px-3 py-3 text-sm text-zinc-500 text-center"
+                                x-text="t('assistant.common.noModel', 'Aucun modèle disponible')">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Button -->
+                <button @click="showHistory = !showHistory"
+                    class="p-2 text-zinc-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    :class="showHistory ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600' : ''"
+                    :title="t('assistant.common.history', 'Historique')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- History Panel Backdrop -->
+        <div x-show="showHistory" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" @click="showHistory = false"
+            class="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"></div>
+
+        <!-- History Panel -->
+        <div x-show="showHistory" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-x-full" x-transition:enter-end="opacity-100 translate-x-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-x-0"
+            x-transition:leave-end="opacity-0 translate-x-full"
+            class="fixed top-0 right-0 bottom-0 w-full sm:w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl z-50 flex flex-col">
+
+            <div
+                class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between flex-shrink-0">
+                <h3 class="font-semibold text-zinc-900 dark:text-zinc-100"
+                    x-text="t('assistant.common.history', 'Historique')"></h3>
+                <div class="flex items-center gap-1">
+                    <button @click="clearHistory" x-show="history.length > 0"
+                        class="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
+                        :title="t('assistant.common.clearHistory', 'Tout supprimer')">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                    <button @click="showHistory = false"
+                        class="p-2 text-zinc-400 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                <template x-for="item in history" :key="item.id">
+                    <div @click="loadHistoryItem(item); showHistory = false"
+                        class="p-3 rounded-lg text-sm transition-colors relative group cursor-pointer bg-zinc-50 dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-100 dark:border-zinc-700">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-medium px-2 py-0.5 rounded" :class="{
+                                'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300': item.type === 'reformulation',
+                                'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300': item.type === 'translation',
+                                'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300': item.type === 'correction',
+                                'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300': item.type === 'email',
+                                'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300': item.type === 'prompt',
+                                'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300': item.type === 'summarize'
+                            }" x-text="item.type.toUpperCase()"></span>
+                            <span class="text-xs text-zinc-400" x-text="formatDate(item.created_at)"></span>
+                        </div>
+                        <p class="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2"
+                            x-text="item.input || item.output?.substring(0, 100) || 'Pas de contenu'"></p>
+                        <button @click.stop="deleteHistoryItem(item.id)"
+                            class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-200 dark:hover:bg-zinc-600 rounded text-zinc-400 hover:text-red-500 transition-all">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+                <template x-if="history.length === 0">
+                    <div class="text-center text-zinc-400 py-8 text-sm"
+                        x-text="t('assistant.common.noHistory', 'Aucun historique')"></div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Main Content - Full Height -->
+        <div class="flex-1 overflow-y-auto lg:overflow-hidden lg:flex lg:flex-col">
+            <div class="lg:flex-1 lg:flex lg:flex-col p-4 sm:p-6 lg:min-h-0">
+                <div class="lg:flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:min-h-0">
+
+                    <!-- Left Column: Input -->
+                    <div
+                        class="bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 sm:p-5 flex flex-col lg:min-h-0">
+
+                        <!-- ============ REFORMULATION ============ -->
+                        <template x-if="currentTool === 'reformulation'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <!-- Header with Context Toggle -->
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.reformulation.inputLabel', 'Texte à reformuler')"></label>
+                                    <div class="flex items-center gap-3">
+                                        <!-- Context Toggle -->
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                                                x-text="t('assistant.reformulation.contextLabel', 'Contexte')"></span>
+                                            <button type="button" @click="showContext = !showContext"
+                                                :class="showContext ? 'bg-brand-600' : 'bg-zinc-300 dark:bg-zinc-600'"
+                                                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors">
+                                                <span :class="showContext ? 'translate-x-5' : 'translate-x-1'"
+                                                    class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform"></span>
+                                            </button>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Context Field (collapsible) -->
+                                <div x-show="showContext" x-collapse class="relative">
+                                    <textarea x-model="contextText"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                        rows="2"
+                                        :placeholder="t('assistant.reformulation.contextPlaceholder', 'Collez ici le contexte...')"></textarea>
+                                    <button @click="navigator.clipboard.readText().then(t => contextText = t)"
+                                        class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        :title="t('assistant.common.paste', 'Coller')">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Main Textarea (flex-grow) -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            :placeholder="t('assistant.reformulation.inputPlaceholder', 'Entrez votre texte ici...')"></textarea>
+                                        <button @click="pasteFromClipboard()"
+                                            class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <!-- Stats -->
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                                x-text="inputText.length"></span></span>
+                                        <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                        <span><span x-text="t('assistant.common.paragraphs', 'Paragraphes')"></span>:
+                                            <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\n\s*\n/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Button -->
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.reformulation.processing', 'Reformulation...') : t('assistant.reformulation.button', 'Reformuler')"></span>
+                                </button>
+
+                                <!-- Options Panel -->
+                                <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                                    <button @click="showOptions = !showOptions" type="button"
+                                        class="w-full flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <span x-text="t('assistant.common.options', 'Options')"></span>
+                                        </div>
+                                        <svg :class="showOptions ? 'rotate-180' : ''"
+                                            class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    <div x-show="showOptions" x-collapse class="space-y-4 pt-3">
+                                        <!-- Emoji Toggle -->
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="addEmojis"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span
+                                                x-text="t('assistant.reformulation.addEmojis', 'Ajouter des emojis')"></span>
+                                        </label>
+
+                                        <!-- Options Grid -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <!-- TON -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddTone: false, newTone: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.tone', 'Ton')"></span>
+                                                    <button @click="showAddTone = !showAddTone" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new tone input -->
+                                                <div x-show="showAddTone" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newTone"
+                                                            @keydown.enter="if(newTone.trim()) { options.tones.push(newTone.trim()); newTone = ''; showAddTone = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newTone', 'Nouveau ton...')">
+                                                        <button
+                                                            @click="if(newTone.trim()) { options.tones.push(newTone.trim()); newTone = ''; showAddTone = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(tone, index) in options.tones" :key="tone">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedTone === tone 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedTone = (selectedTone === tone ? '' : tone)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="tone"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedTone === tone) selectedTone = ''; options.tones.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- FORMAT -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddFormat: false, newFormat: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.format', 'Format')"></span>
+                                                    <button @click="showAddFormat = !showAddFormat" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new format input -->
+                                                <div x-show="showAddFormat" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newFormat"
+                                                            @keydown.enter="if(newFormat.trim()) { options.formats.push(newFormat.trim()); newFormat = ''; showAddFormat = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newFormat', 'Nouveau format...')">
+                                                        <button
+                                                            @click="if(newFormat.trim()) { options.formats.push(newFormat.trim()); newFormat = ''; showAddFormat = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(format, index) in options.formats" :key="format">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedFormat === format 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedFormat = (selectedFormat === format ? '' : format)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="format"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedFormat === format) selectedFormat = ''; options.formats.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- LONGUEUR -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddLength: false, newLength: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.length', 'Longueur')"></span>
+                                                    <button @click="showAddLength = !showAddLength" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new length input -->
+                                                <div x-show="showAddLength" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newLength"
+                                                            @keydown.enter="if(newLength.trim()) { options.lengths.push(newLength.trim()); newLength = ''; showAddLength = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newLength', 'Nouvelle longueur...')">
+                                                        <button
+                                                            @click="if(newLength.trim()) { options.lengths.push(newLength.trim()); newLength = ''; showAddLength = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(length, index) in options.lengths" :key="length">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedLength === length 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedLength = (selectedLength === length ? '' : length)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="length"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedLength === length) selectedLength = ''; options.lengths.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ============ TRANSLATION ============ -->
+                        <template x-if="currentTool === 'translation'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.translation.sourceLabel', 'Texte source')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.translation.inputPlaceholder', 'Entrez votre texte ici...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span>Caractères: <span x-text="inputText.length"></span></span>
+                                    <span>Mots: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider"
+                                        x-text="t('assistant.translation.targetLabel', 'Langue cible')"></label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="lang in options.languages" :key="lang">
+                                            <button @click="targetLanguage = lang" type="button"
+                                                :class="targetLanguage === lang ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="lang"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.translation.processing', 'Traduction...') : t('assistant.translation.button', 'Traduire')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ CORRECTION ============ -->
+                        <template x-if="currentTool === 'correction'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.correction.inputLabel', 'Texte à corriger')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.correction.inputPlaceholder', 'Collez votre texte ici...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                            x-text="inputText.length"></span></span>
+                                    <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <details class="group" open>
+                                    <summary
+                                        class="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                        <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <span x-text="t('assistant.common.options', 'Options')"></span>
+                                    </summary>
+                                    <div class="mt-4 grid grid-cols-2 gap-3">
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.spelling"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.spelling', 'Orthographe')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.grammar"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.grammar', 'Grammaire')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.syntax"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.syntax', 'Syntaxe')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.style"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.style', 'Style')"></span>
+                                        </label>
+                                    </div>
+                                </details>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.correction.processing', 'Correction...') : t('assistant.correction.button', 'Corriger')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ EMAIL ============ -->
+                        <template x-if="currentTool === 'email'">
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                        x-text="t('assistant.email.typeLabel', 'Type d\'email')"></label>
+                                    <input type="text" x-model="emailType"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                        :placeholder="t('assistant.email.typePlaceholder', 'Ex: Email de réclamation...')">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                        x-text="t('assistant.email.contextLabel', 'Contenu et contexte')"></label>
+                                    <textarea x-model="inputText"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[100px]"
+                                        :placeholder="t('assistant.email.contextPlaceholder', 'Décrivez le contenu...')"></textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                        x-text="t('assistant.email.senderLabel', 'Prénom NOM')"></label>
+                                    <input type="text" x-model="senderName"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                        :placeholder="t('assistant.email.senderPlaceholder', 'Ex: Jean DUPONT')">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider"
+                                        x-text="t('assistant.email.toneLabel', 'Ton de l\'email')"></label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="tone in options.email_tones" :key="tone">
+                                            <button @click="selectedTone = tone" type="button"
+                                                :class="selectedTone === tone ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="tone"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.email.processing', 'Génération...') : t('assistant.email.button', 'Générer l\'email')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ PROMPT ============ -->
+                        <template x-if="currentTool === 'prompt'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.prompt.inputLabel', 'Décrivez votre besoin')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.prompt.inputPlaceholder', 'Exemple: Je veux...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                            x-text="inputText.length"></span></span>
+                                    <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <details class="group" open>
+                                    <summary
+                                        class="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                        <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <span x-text="t('assistant.prompt.tipsTitle', 'Conseils')"></span>
+                                    </summary>
+                                    <div class="mt-3 p-4 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-sm space-y-4">
+                                        <!-- Tips -->
+                                        <div>
+                                            <div
+                                                class="flex items-center gap-2 text-amber-500 dark:text-amber-400 font-medium mb-2">
+                                                <span>💡</span>
+                                                <span
+                                                    x-text="t('assistant.prompt.tipsSubtitle', 'Tips pour une demande efficace :')"></span>
+                                            </div>
+                                            <ul class="space-y-1 text-zinc-600 dark:text-zinc-400 text-xs">
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipContext', 'Contexte') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipContextDesc', 'Précisez le domaine...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipObjective', 'Objectif') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipObjectiveDesc', 'Expliquez clairement...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipFormat', 'Format') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipFormatDesc', 'Indiquez le type...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipConstraints', 'Contraintes') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipConstraintsDesc', 'Mentionnez les limitations...')"></span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <!-- Exemples -->
+                                        <div>
+                                            <div
+                                                class="flex items-center gap-2 text-amber-500 dark:text-amber-400 font-medium mb-2">
+                                                <span>⭐</span>
+                                                <span
+                                                    x-text="t('assistant.prompt.examplesTitle', 'Exemples de bonnes demandes :')"></span>
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium mb-1">
+                                                        <span>🔍</span> <span
+                                                            x-text="t('assistant.prompt.exAnalysis', 'Analyse') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exAnalysisText', 'Analyser des avis clients...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-medium mb-1">
+                                                        <span>📊</span> <span
+                                                            x-text="t('assistant.prompt.exBusiness', 'Business') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exBusinessText', 'Créer un plan marketing...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium mb-1">
+                                                        <span>💻</span> <span
+                                                            x-text="t('assistant.prompt.exCoding', 'Code') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exCodingText', 'Générer du code Python...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium mb-1">
+                                                        <span>✍️</span> <span
+                                                            x-text="t('assistant.prompt.exCreative', 'Rédaction') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exCreativeText', 'Rédiger des articles...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.prompt.processing', 'Génération...') : t('assistant.prompt.button', 'Générer le prompt')"></span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Right Column: Output -->
+                    <div
+                        class="bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 sm:p-5 flex flex-col min-h-0">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300" x-text="
+                                currentTool === 'reformulation' ? t('assistant.tools.reformulation', 'Reformulation') + ':' :
+                                currentTool === 'translation' ? t('assistant.tools.translation', 'Traduction') + ':' :
+                                currentTool === 'correction' ? t('assistant.tools.correction', 'Correction') + ':' :
+                                currentTool === 'email' ? t('assistant.tools.email', 'Email') + ':' : t('assistant.tools.prompt', 'Générateur de Prompt') + ':'
+                            "></label>
+                            <div class="flex items-center gap-1" x-show="resultText">
+                                <button x-data="{ copied: false }"
+                                    @click="copyResult(); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    :class="copied ? 'text-green-500' : ''"
+                                    :title="copied ? t('common.copied', 'Copié !') : t('assistant.common.copy', 'Copier')">
+                                    <svg x-show="!copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <svg x-show="copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                                <button @click="resultText = ''"
+                                    class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    :title="t('assistant.common.clear', 'Effacer')">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Output Content (flex-grow) -->
+                        <div class="flex-1 flex flex-col min-h-[200px] lg:min-h-0">
+                            <div
+                                class="texts-output flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 overflow-y-auto min-h-[150px]">
+                                <!-- Empty State -->
+                                <div x-show="!resultText && !processing"
+                                    class="h-full flex flex-col items-center justify-center text-zinc-400">
+                                    <svg class="w-10 h-10 mb-2 opacity-30" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p class="text-sm"
+                                        x-text="t('assistant.common.resultWillShow', 'Le résultat s\'affichera ici')">
+                                    </p>
+                                </div>
+                                <!-- Loading State -->
+                                <div x-show="processing" class="h-full flex flex-col items-center justify-center">
+                                    <div class="animate-pulse flex flex-col items-center gap-2">
+                                        <div class="h-2 w-32 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                        <div class="h-2 w-48 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                        <div class="h-2 w-40 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                    </div>
+                                </div>
+                                <!-- Result -->
+                                <div x-show="resultText && !processing">
+                                    <div class="whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200"
+                                        x-text="resultText"></div>
+                                    <template
+                                        x-if="currentTool === 'correction' && synonyms && Object.keys(synonyms).length > 0">
+                                        <div class="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                            <h4
+                                                class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
+                                                Suggestions</h4>
+                                            <div class="space-y-1">
+                                                <template x-for="(synList, word) in synonyms" :key="word">
+                                                    <div class="text-xs">
+                                                        <span class="font-medium text-amber-600" x-text="word"></span>:
+                                                        <span class="text-zinc-500 dark:text-zinc-400"
+                                                            x-text="synList.join(', ')"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Stats -->
+                            <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1" x-show="resultText">
+                                <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                        x-text="resultText.length"></span></span>
+                                <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                        x-text="resultText.trim() ? resultText.trim().split(/\s+/).length : 0"></span></span>
+                                <span><span x-text="t('assistant.common.paragraphs', 'Paragraphes')"></span>: <span
+                                        x-text="resultText.trim() ? resultText.trim().split(/\n\s*\n/).length : 0"></span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('core.static', filename='js/pages/texts-app.js') }}"></script>

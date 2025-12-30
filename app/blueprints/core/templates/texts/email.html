@@ -1,0 +1,96 @@
+{% extends 'texts/base.html' %}
+
+{% block tool_input %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            x-text="t('assistant.email.contextLabel', 'Contenu de l\'email')">Contenu de l'email</label>
+        <div class="flex items-center gap-1">
+            <button @click="pasteFromClipboard()"
+                class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                :title="t('assistant.common.paste', 'Coller')">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </button>
+            <button @click="inputText = ''"
+                class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                :title="t('assistant.common.clear', 'Effacer')">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <textarea x-model="inputText"
+        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[120px]"
+        :placeholder="t('assistant.email.contextPlaceholder', 'Décrivez le contenu de l\'email à générer...')"></textarea>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider"
+                x-text="t('assistant.email.typeLabel', 'Type d\'email')">
+                Type d'email
+            </label>
+            <select x-model="emailType"
+                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                <option value="" x-text="t('assistant.common.select', 'Sélectionner...')">Sélectionner...</option>
+                <option value="professionnel" x-text="t('assistant.email.types.professionnel', 'Professionnel')">
+                    Professionnel</option>
+                <option value="commercial" x-text="t('assistant.email.types.commercial', 'Commercial')">Commercial
+                </option>
+                <option value="candidature" x-text="t('assistant.email.types.candidature', 'Candidature')">Candidature
+                </option>
+                <option value="relance" x-text="t('assistant.email.types.relance', 'Relance')">Relance</option>
+                <option value="remerciement" x-text="t('assistant.email.types.remerciement', 'Remerciement')">
+                    Remerciement</option>
+                <option value="excuse" x-text="t('assistant.email.types.excuse', 'Excuse')">Excuse</option>
+                <option value="invitation" x-text="t('assistant.email.types.invitation', 'Invitation')">Invitation
+                </option>
+                <option value="information" x-text="t('assistant.email.types.information', 'Information')">Information
+                </option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider"
+                x-text="t('assistant.email.senderLabel', 'Nom de l\'expéditeur')">
+                Nom de l'expéditeur
+            </label>
+            <input type="text" x-model="senderName"
+                :placeholder="t('assistant.email.senderPlaceholder', 'Votre nom...')"
+                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+        </div>
+    </div>
+
+    <!-- Ton -->
+    <div>
+        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider"
+            x-text="t('assistant.email.toneLabel', 'Ton')">
+            Ton
+        </label>
+        <div class="flex flex-wrap gap-2">
+            <template x-for="tone in options.email_tones" :key="tone">
+                <button @click="selectedTone = tone" type="button"
+                    :class="selectedTone === tone ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                    class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors" x-text="tone"></button>
+            </template>
+        </div>
+    </div>
+
+    <button @click="process" :disabled="processing || !inputText || !currentModel"
+        class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+        </svg>
+        <span
+            x-text="processing ? t('assistant.email.processing', 'Génération...') : t('assistant.email.button', 'Générer l\'email')"></span>
+    </button>
+</div>
+{% endblock %}

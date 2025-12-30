@@ -1,0 +1,83 @@
+<div class="max-w-3xl mx-auto">
+    <!-- Main Card -->
+    <div
+        class="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-sm overflow-hidden mb-6">
+        <div class="p-8 text-center sm:text-left sm:flex sm:items-start sm:gap-8">
+            <!-- Logo Section -->
+            <div class="flex-shrink-0 mb-6 sm:mb-0">
+                <div
+                    class="w-20 h-20 bg-gradient-to-br from-zinc-900 to-zinc-700 dark:from-zinc-100 dark:to-zinc-300 rounded-2xl flex items-center justify-center text-white dark:text-zinc-900 shadow-lg mx-auto sm:mx-0">
+                    <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- Content Section -->
+            <div class="flex-1">
+                <h2 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">Nova</h2>
+                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3 mb-4">
+                    <span
+                        class="px-2.5 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-medium border border-green-200 dark:border-green-900/50">
+                        v1.0.0 Stable
+                    </span>
+                    <span
+                        class="px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-xs font-medium border border-zinc-200 dark:border-zinc-700">
+                        MIT License
+                    </span>
+                </div>
+
+                <p class="text-zinc-600 dark:text-zinc-400 leading-relaxed mb-6">
+                    Une interface web moderne et élégante pour gérer vos modèles Ollama.
+                    Conçue pour simplifier l'interaction avec vos LLMs locaux, offrir une gestion
+                    intuitive des documents (RAG) et permettre une expérience de chat fluide.
+                </p>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                    <a href="https://github.com/ollama/ollama" target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill-rule="evenodd"
+                                d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
+                                clip-rule="evenodd"></path>
+                        </svg>
+                        GitHub
+                    </a>
+                    <a href="https://ollama.com" target="_blank"
+                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-600 transition-colors border border-zinc-200 dark:border-zinc-600">
+                        Site Officiel
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div
+            class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-zinc-100 dark:divide-zinc-700 border-t border-zinc-100 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+            <div class="p-4 text-center">
+                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Local</div>
+                <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Privacy First</div>
+            </div>
+            <div class="p-4 text-center">
+                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">RAG</div>
+                <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Document Chat</div>
+            </div>
+            <div class="p-4 text-center">
+                <div class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-1">Fast</div>
+                <div class="text-xs text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Optimized UI</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer/Credits -->
+    <div class="text-center">
+        <p class="text-xs text-zinc-400 dark:text-zinc-500">
+            Fait avec <span class="text-red-500">♥</span> par l'IA. Ce projet n'est pas affilié officiellement à Ollama.
+        </p>
+    </div>
+</div>

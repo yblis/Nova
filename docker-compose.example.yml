@@ -1,0 +1,180 @@
+# Docker Compose Example - Nova
+# 
+# Copiez ce fichier vers docker-compose.yml et adaptez selon vos besoins.
+# Configurez également le fichier .env (voir .env.example)
+#
+# Usage:
+#   docker compose up -d --build
+
+services:
+  # ===========================================
+  # SERVICES DE BASE (obligatoires)
+  # ===========================================
+
+  redis:
+    image: redis:7-alpine
+    container_name: nova-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nova
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nova-postgres
+    environment:
+      - POSTGRES_USER=ollama
+      - POSTGRES_PASSWORD=ollama_rag
+      - POSTGRES_DB=ollama_rag
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ollama -d ollama_rag"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nova
+
+  # Qdrant - Base de données vectorielle pour RAG avancé
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: nova-qdrant
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - nova
+
+  # ===========================================
+  # APPLICATION PRINCIPALE
+  # ===========================================
+
+  nova:
+    build: .
+    container_name: nova
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+      - ./logs:/app/logs
+      - gguf_models:/app/models
+      - rag_uploads:/app/rag_uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    command: gunicorn --bind 0.0.0.0:5000 --workers 2 --threads 4 --timeout 120 --access-logfile - --error-logfile - wsgi:app
+    networks:
+      - nova
+
+  # Worker pour tâches asynchrones (téléchargements, indexation)
+  nova-worker:
+    build: .
+    container_name: nova-worker
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    volumes:
+      - ./app:/app/app
+      - ./logs:/app/logs
+      - gguf_models:/app/models
+      - rag_uploads:/app/rag_uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    command: rq worker --url redis://redis:6379/0 ollama
+    networks:
+      - nova
+
+  # ===========================================
+  # SERVICES AUDIO (optionnels - nécessitent GPU NVIDIA)
+  # ===========================================
+
+  # Whisper - Speech to Text (décommentez si GPU disponible)
+  # whisper:
+  #   image: fedirz/faster-whisper-server:latest-cuda
+  #   container_name: nova-whisper
+  #   restart: unless-stopped
+  #   environment:
+  #     - WHISPER_MODEL=small
+  #     - WHISPER_BEAM_SIZE=1
+  #   volumes:
+  #     - whisper_cache:/root/.cache/huggingface
+  #   networks:
+  #     - nova
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+  # AllTalk - Text to Speech (décommentez si GPU disponible)
+  # alltalk:
+  #   image: erew123/alltalk_tts:latest
+  #   container_name: nova-alltalk
+  #   restart: unless-stopped
+  #   environment:
+  #     - DRIVER_AGREED=true
+  #   volumes:
+  #     - alltalk_models:/app/models
+  #   ports:
+  #     - "7851:7851"
+  #   networks:
+  #     - nova
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+
+# ===========================================
+# VOLUMES PERSISTANTS
+# ===========================================
+
+volumes:
+  redis_data:
+  gguf_models:
+  postgres_data:
+  rag_uploads:
+  qdrant_data:
+  whisper_cache:
+  alltalk_models:
+
+# ===========================================
+# RÉSEAUX
+# ===========================================
+
+networks:
+  nova:
+    driver: bridge
+  # Décommentez si vous utilisez Traefik comme reverse proxy
+  # traefik_traefik:
+  #   external: true

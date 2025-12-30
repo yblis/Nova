@@ -1,0 +1,1706 @@
+<!-- Specialists Page - AI Assistants with Custom Knowledge -->
+<div class="specialists-container flex-1 h-full flex flex-col sm:flex-row bg-white dark:bg-zinc-900 overflow-hidden"
+    x-data="specialistsApp">
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div x-show="showSidebar" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="showSidebar = false"
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 sm:hidden"></div>
+
+    <!-- Sidebar - Liste des spécialistes -->
+    <aside class="specialists-sidebar border-r border-zinc-200 dark:border-zinc-800 flex-shrink-0 flex flex-col bg-white dark:bg-zinc-900 h-full overflow-hidden
+                  fixed sm:relative z-[60] sm:z-auto transition-all duration-300 ease-out"
+        :class="showSidebar ? 'translate-x-0 w-full sm:w-80 lg:w-96' : '-translate-x-full sm:translate-x-0 sm:w-0 sm:overflow-hidden'"
+        style="top: 0; bottom: 0; padding-top: env(safe-area-inset-top);">
+
+        <!-- Header - aligné avec le header principal -->
+        <div class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <h2 class="font-bold text-sm text-zinc-400 uppercase tracking-widest"
+                x-text="t('specialists.title', 'Spécialistes')"></h2>
+            <button @click="showCreateModal = true"
+                class="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                title="Ajouter un spécialiste">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Liste des spécialistes -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- Loading -->
+            <div x-show="loading" class="flex items-center justify-center py-12">
+                <div class="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full"></div>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="!loading && specialists.length === 0"
+                class="flex flex-col items-center justify-center py-12 text-center">
+                <div
+                    class="w-16 h-16 mb-4 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <h3 class="font-medium text-zinc-900 dark:text-zinc-100 mb-1"
+                    x-text="t('specialists.empty', 'Aucun spécialiste créé')"></h3>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4"
+                    x-text="t('specialists.emptyDesc', 'Créez votre premier assistant spécialisé')"></p>
+                <button @click="showCreateModal = true"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors">
+                    <span x-text="t('specialists.create', 'Nouveau spécialiste')"></span>
+                </button>
+            </div>
+
+            <!-- Liste -->
+            <template x-for="spec in specialists" :key="spec.id">
+                <div @click="selectSpecialist(spec)" class="specialist-card p-4 rounded-xl border cursor-pointer"
+                    :class="currentSpecialist?.id === spec.id 
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
+                        : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-indigo-300'">
+                    <div class="flex items-start gap-3">
+                        <!-- Avatar with dynamic icon -->
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                            :style="'background-color: ' + (spec.color || '#6366f1') + '20'">
+                            <svg class="w-5 h-5" :style="'color: ' + (spec.color || '#6366f1')" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    :d="getIconPath(spec.icon || 'computer')" />
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-medium text-zinc-900 dark:text-zinc-100 truncate" x-text="spec.name"></h3>
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2"
+                                x-text="spec.description || 'Aucune description'"></p>
+                            <div class="flex items-center gap-3 mt-2 text-xs text-zinc-400 dark:text-zinc-500">
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span x-text="spec.knowledge_count || 0"></span>
+                                </span>
+                                <span class="flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    </svg>
+                                    <span x-text="spec.tools_count || 0"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <!-- Header -->
+        <header
+            class="flex-none h-16 px-4 sm:px-6 flex items-center justify-between bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+            <div class="flex items-center gap-4">
+                <!-- Sidebar Toggle (Mobile + Desktop) -->
+                <button @click="showSidebar = !showSidebar"
+                    class="-ml-2 p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    :title="showSidebar ? 'Masquer les spécialistes' : 'Afficher les spécialistes'">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div x-show="currentSpecialist">
+                    <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100" x-text="currentSpecialist?.name">
+                    </h1>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400"
+                        x-text="currentSpecialist?.model || 'Modèle par défaut'"></p>
+                </div>
+                <div x-show="!currentSpecialist">
+                    <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="t('specialists.title', 'Spécialistes')"></h1>
+                </div>
+            </div>
+
+            <!-- Actions when specialist selected -->
+            <div x-show="currentSpecialist" class="flex items-center gap-2">
+                <button @click="createNewSession()"
+                    class="p-2 rounded-lg text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                    title="Nouvelle conversation">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+                <button @click="openEditModal()"
+                    class="p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    title="Modifier">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </button>
+                <button @click="showKnowledgePanel = !showKnowledgePanel" class="p-2 rounded-lg transition-colors"
+                    :class="showKnowledgePanel ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'"
+                    title="Connaissances">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                </button>
+                <button @click="deleteCurrentSpecialist()"
+                    class="p-2 rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    title="Supprimer">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+
+        </header>
+
+        <!-- Content Area -->
+        <div class="flex-1 flex min-h-0">
+            <!-- Chat Area -->
+            <div class="flex-1 flex flex-col min-w-0 overflow-hidden" x-show="currentSpecialist">
+                <!-- Messages -->
+                <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4" x-ref="messagesContainer">
+                    <!-- Welcome message -->
+                    <div x-show="messages.length === 0"
+                        class="flex flex-col items-center justify-center h-full text-center py-12">
+                        <div class="w-20 h-20 mb-6 rounded-2xl flex items-center justify-center"
+                            :style="'background-color: ' + (currentSpecialist?.color || '#6366f1') + '20'">
+                            <svg class="w-10 h-10" :style="'color: ' + (currentSpecialist?.color || '#6366f1')"
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2"
+                            x-text="currentSpecialist?.name"></h3>
+                        <p class="text-sm text-zinc-500 dark:text-zinc-400 max-w-md"
+                            x-text="currentSpecialist?.description || 'Posez-moi vos questions, je suis là pour vous aider.'">
+                        </p>
+                    </div>
+
+                    <!-- Messages list -->
+                    <template x-for="msg in messages" :key="msg.id">
+                        <div class="max-w-3xl mx-auto w-full" :class="msg.role === 'user' ? 'flex justify-end' : ''">
+                            <!-- Message Content -->
+                            <div class="chat-message-bubble px-4 py-3 rounded-2xl shadow-sm leading-relaxed break-words overflow-x-auto"
+                                style="min-width: 0;"
+                                :class="msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none max-w-[85%] ml-auto' : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-bl-none text-base w-full'">
+
+                                <!-- Inline Header with Icon -->
+                                <div class="flex items-center gap-2 mb-2 pb-2 border-b"
+                                    :class="msg.role === 'user' ? 'border-white/20' : 'border-zinc-200 dark:border-zinc-700'">
+                                    <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                                        :class="msg.role === 'user' ? 'bg-white/20' : 'bg-indigo-600 text-white'">
+                                        <svg x-show="msg.role === 'user'" class="w-4 h-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        <svg x-show="msg.role !== 'user'" class="w-4 h-4" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                    </div>
+                                    <span class="text-xs font-medium"
+                                        :class="msg.role === 'user' ? 'text-white/80' : 'text-zinc-500 dark:text-zinc-400'"
+                                        x-text="msg.role === 'user' ? 'Vous' : (currentSpecialist?.name || 'Assistant')"></span>
+                                </div>
+
+                                <!-- Main Content -->
+                                <div x-html="formatContent(msg.content)"
+                                    :class="msg.role === 'assistant' ? 'min-h-[1rem] markdown-content prose prose-sm dark:prose-invert max-w-none' : 'min-h-[1rem]'">
+                                </div>
+
+                                <!-- Sources (inside message for assistant) -->
+                                <div x-show="msg.role === 'assistant' && msg.sources && msg.sources.length > 0"
+                                    class="mt-3 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <svg class="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span class="text-xs font-medium text-zinc-500">Sources</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(source, sIdx) in (msg.sources || [])" :key="sIdx">
+                                            <span
+                                                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                                                <span x-text="source.name" class="max-w-[150px] truncate"></span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Loading indicator -->
+                    <div x-show="chatLoading" class="flex justify-start">
+                        <div class="bg-zinc-100 dark:bg-zinc-800 rounded-2xl rounded-bl-md px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"
+                                    style="animation-delay: 0ms;"></div>
+                                <div class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"
+                                    style="animation-delay: 150ms;"></div>
+                                <div class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"
+                                    style="animation-delay: 300ms;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="flex-none p-4 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <form @submit.prevent="sendMessage()" class="flex items-center gap-3">
+                        <div class="flex-1 relative">
+                            <textarea x-model="input" x-ref="chatInput"
+                                @keydown.enter.prevent="if (!$event.shiftKey) sendMessage()"
+                                @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"
+                                :placeholder="t('specialists.chat.placeholder', 'Posez une question à cet expert...')"
+                                rows="1"
+                                class="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none max-h-32"></textarea>
+                        </div>
+                        <button type="submit" :disabled="chatLoading || !input.trim()"
+                            class="flex-shrink-0 w-12 h-12 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-colors">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <div x-show="!currentSpecialist" class="flex-1 flex items-center justify-center">
+                <div class="text-center">
+                    <div
+                        class="w-20 h-20 mb-6 mx-auto rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                        <svg class="w-10 h-10 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2">Sélectionnez un spécialiste
+                    </h3>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Ou créez-en un nouveau pour commencer</p>
+                </div>
+            </div>
+            <!-- Backdrop for Knowledge/History Sidebar (mobile/tablet only) -->
+            <div x-show="showKnowledgePanel && currentSpecialist" @click="showKnowledgePanel = false"
+                x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                class="fixed inset-0 bg-black/30 z-40 lg:hidden" style="top: 64px;"></div>
+
+            <!-- Sidebar (Knowledge & History) - Fixed overlay on mobile/tablet -->
+            <aside x-show="showKnowledgePanel && currentSpecialist"
+                x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-x-4"
+                x-transition:enter-end="opacity-100 translate-x-0" x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 translate-x-0" x-transition:leave-end="opacity-0 translate-x-4"
+                class="fixed lg:relative right-0 top-16 lg:top-0 bottom-0 w-80 lg:w-80 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex flex-col overflow-hidden shadow-xl z-50 lg:z-20 lg:flex-shrink-0">
+
+                <!-- Tabs Header -->
+                <div class="flex border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+                    <button @click="currentSidebarTab = 'history'"
+                        :class="currentSidebarTab === 'history' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-800' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'"
+                        class="flex-1 py-3 text-sm font-medium border-b-2 transition-all">
+                        Historique
+                    </button>
+                    <button @click="currentSidebarTab = 'knowledge'"
+                        :class="currentSidebarTab === 'knowledge' ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-white dark:bg-zinc-800' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'"
+                        class="flex-1 py-3 text-sm font-medium border-b-2 transition-all">
+                        <span x-text="t('specialists.knowledge.title', 'Connaissances')"></span>
+                    </button>
+                </div>
+
+                <!-- KNOWLEDGE TAB -->
+                <div x-show="currentSidebarTab === 'knowledge'"
+                    class="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900">
+                    <!-- Upload buttons -->
+                    <div
+                        class="p-4 border-b border-zinc-200 dark:border-zinc-800 space-y-2 bg-zinc-50/30 dark:bg-zinc-900/30">
+                        <label
+                            class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm rounded-lg cursor-pointer transition-all group">
+                            <div
+                                class="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-md text-indigo-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                            </div>
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                x-text="t('specialists.knowledge.addFile', 'Ajouter des fichiers')"></span>
+                            <input type="file" @change="uploadFile($event)" accept=".pdf,.txt,.md,.py,.js,.json"
+                                multiple class="hidden">
+                        </label>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <button @click="showAddUrlModal = true"
+                                class="flex flex-col items-center justify-center gap-1 p-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm rounded-lg transition-all group">
+                                <div
+                                    class="p-1.5 bg-green-50 dark:bg-green-900/30 rounded-md text-green-500 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                </div>
+                                <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                                    x-text="t('specialists.knowledge.addUrl', 'URL')"></span>
+                            </button>
+                            <button @click="showAddTextModal = true"
+                                class="flex flex-col items-center justify-center gap-1 p-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-sm rounded-lg transition-all group">
+                                <div
+                                    class="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                </div>
+                                <span class="text-xs font-medium text-zinc-700 dark:text-zinc-300"
+                                    x-text="t('specialists.knowledge.addText', 'Texte')"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Knowledge list -->
+                    <div class="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                        <div x-show="knowledge.length === 0"
+                            class="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                            <svg class="w-12 h-12 mb-3 opacity-20" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <p class="text-sm">Aucune connaissance ajoutée</p>
+                        </div>
+                        <template x-for="item in knowledge" :key="item.id">
+                            <div
+                                class="group relative flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-700/50 transition-all hover:shadow-sm">
+                                <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" :class="{
+                                        'bg-red-50 dark:bg-red-900/20 text-red-500': item.type === 'pdf',
+                                        'bg-blue-50 dark:bg-blue-900/20 text-blue-500': item.type === 'text_file' || item.type === 'text',
+                                        'bg-green-50 dark:bg-green-900/20 text-green-500': item.type === 'web_url',
+                                        'bg-purple-50 dark:bg-purple-900/20 text-purple-500': item.type === 'image'
+                                    }">
+                                    <svg x-show="item.type === 'pdf'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <svg x-show="item.type === 'text_file' || item.type === 'text'" class="w-5 h-5"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <svg x-show="item.type === 'web_url'" class="w-5 h-5" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 019-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                    </svg>
+                                    <svg x-show="item.type === 'image'" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate"
+                                        x-text="item.name"></p>
+                                    <p class="text-xs text-zinc-500 dark:text-zinc-400"
+                                        x-text="(item.chunk_count || 0) + ' chunks'"></p>
+                                </div>
+                                <div
+                                    class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <!-- Bouton voir les chunks -->
+                                    <button @click="viewKnowledgeChunks(item.id, item.name)"
+                                        x-show="item.chunk_count > 0"
+                                        class="p-1.5 text-zinc-400 hover:text-indigo-500 transition-colors rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                                        title="Voir les chunks">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                    </button>
+                                    <!-- Bouton supprimer -->
+                                    <button @click="deleteKnowledge(item.id)"
+                                        class="p-1.5 text-zinc-400 hover:text-red-500 transition-colors rounded-md hover:bg-red-50 dark:hover:bg-red-900/30"
+                                        title="Supprimer">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- HISTORY TAB -->
+                <div x-show="currentSidebarTab === 'history'"
+                    class="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900">
+                    <div class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2"
+                        x-show="!selectionMode">
+                        <!-- Search -->
+                        <div class="flex-1 min-w-0">
+                            <div class="relative group">
+                                <input type="text" x-model="sessionSearchQuery" placeholder="Rechercher..."
+                                    class="w-full pl-8 pr-7 py-2 text-xs bg-zinc-100 dark:bg-zinc-800 border-none rounded-lg focus:ring-1 focus:ring-indigo-500 placeholder-zinc-400 transition-all">
+                                <svg class="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2.5" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <button x-show="sessionSearchQuery" @click="sessionSearchQuery = ''"
+                                    class="absolute right-2 top-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex items-center gap-1">
+                            <button @click="toggleSelectionMode()"
+                                class="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                                title="Sélectionner">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                            </button>
+                            <button
+                                @click="createNewSession(); if(window.innerWidth < 1024) showKnowledgePanel = false;"
+                                class="p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm shadow-indigo-600/20 transition-colors"
+                                title="Nouvelle conversation">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Selection Mode Header -->
+                    <div x-show="selectionMode"
+                        class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between">
+                        <span class="font-medium text-sm text-indigo-700 dark:text-indigo-300"
+                            x-text="selectedSessions.length + ' sélectionnée(s)'"></span>
+                        <div class="flex items-center gap-1">
+                            <button @click="selectAllSessions()"
+                                class="p-2 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-800/30 transition-colors"
+                                title="Tout sélectionner">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </button>
+                            <button @click="deleteSelectedSessions()" :disabled="selectedSessions.length === 0"
+                                class="p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Supprimer la sélection">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                            <button @click="toggleSelectionMode()"
+                                class="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                title="Annuler">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                        <!-- Loading -->
+                        <div x-show="loadingSessions" class="flex justify-center py-8">
+                            <svg class="animate-spin h-6 w-6 text-indigo-500" xmlns="http://www.w3.org/2000/svg"
+                                fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                </path>
+                            </svg>
+                        </div>
+
+                        <!-- Empty -->
+                        <div x-show="!loadingSessions && filteredSessions.length === 0"
+                            class="flex flex-col items-center justify-center py-12 text-zinc-400 dark:text-zinc-500">
+                            <svg class="w-12 h-12 mb-3 opacity-20" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            <p class="text-sm">Aucune conversation archivée</p>
+                        </div>
+
+                        <!-- List -->
+                        <div x-show="!loadingSessions" class="space-y-1">
+                            <template x-for="session in filteredSessions" :key="session.id">
+                                <div class="group relative rounded-lg transition-colors cursor-pointer flex items-center p-2 gap-3"
+                                    :class="[
+                                        sessionId === session.id && !selectionMode ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+                                        selectionMode && selectedSessions.includes(session.id) ? 'bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800' : 'border border-transparent'
+                                    ]"
+                                    @click="selectionMode ? toggleSessionSelection(session.id) : (loadSession(session), window.innerWidth < 1024 && (showKnowledgePanel = false))">
+
+                                    <!-- Checkbox -->
+                                    <div x-show="selectionMode" class="flex-shrink-0">
+                                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                                            :class="selectedSessions.includes(session.id) ? 'bg-indigo-600 border-indigo-600' : 'border-zinc-300 dark:border-zinc-600'">
+                                            <svg x-show="selectedSessions.includes(session.id)"
+                                                class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24"
+                                                stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate"
+                                            x-text="session.title || 'Conversation sans titre'"></p>
+                                        <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1"
+                                            x-text="new Date(session.updated_at || session.created_at).toLocaleDateString(undefined, {day:'numeric', month:'short'}) + ' ' + new Date(session.updated_at || session.created_at).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})">
+                                        </p>
+                                    </div>
+
+                                    <button x-show="!selectionMode"
+                                        class="p-1.5 rounded-md text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                                        @click.stop="deleteSession(session.id)" title="Supprimer la conversation">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div x-show="showConfirmModal" x-cloak
+        class="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="showConfirmModal = false"
+            class="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6">
+            <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2" x-text="confirmTitle"></h3>
+            <p class="text-zinc-600 dark:text-zinc-400 mb-6 text-sm" x-text="confirmMessage"></p>
+            <div class="flex justify-end gap-3">
+                <button @click="showConfirmModal = false"
+                    class="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    Annuler
+                </button>
+                <button @click="confirmAction()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm shadow-red-600/20 transition-colors">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div x-show="showCreateModal || showEditModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="showCreateModal = false; showEditModal = false"
+            class="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+            <!-- Header -->
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+                    x-text="showEditModal ? 'Modifier le spécialiste' : t('specialists.create', 'Nouveau spécialiste')">
+                </h2>
+            </div>
+
+            <!-- Form -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.name', 'Nom')"></label>
+                    <input type="text" x-model="form.name"
+                        :placeholder="t('specialists.form.namePlaceholder', 'Expert en...')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.description', 'Description')"></label>
+                    <input type="text" x-model="form.description"
+                        :placeholder="t('specialists.form.descriptionPlaceholder', 'Décrivez le rôle de cet assistant')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.systemPrompt', 'Instructions')"></label>
+                    <textarea x-model="form.system_prompt" rows="4"
+                        :placeholder="t('specialists.form.systemPromptPlaceholder', 'Tu es un expert en...')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.provider', 'Fournisseur')"></label>
+                    <select x-model="form.provider_id" @change="loadModelsForProvider($event.target.value)"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Sélectionnez un fournisseur</option>
+                        <template x-for="prov in providers" :key="prov.id">
+                            <option :value="prov.id" x-text="prov.name + ' (' + prov.type + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.model', 'Modèle LLM')"></label>
+                    <select x-model="form.model" :disabled="!form.provider_id"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                        <option value="">Modèle par défaut</option>
+                        <template x-for="model in availableModels" :key="model">
+                            <option :value="model" x-text="model"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Couleur</label>
+                    <div class="flex gap-2">
+                        <template
+                            x-for="color in ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#0ea5e9']">
+                            <button type="button" @click="form.color = color"
+                                class="w-8 h-8 rounded-full border-2 transition-all"
+                                :style="'background-color: ' + color"
+                                :class="form.color === color ? 'border-zinc-900 dark:border-white scale-110' : 'border-transparent'">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Icône</label>
+                    <div class="grid grid-cols-7 gap-2">
+                        <template x-for="icon in availableIcons" :key="icon.id">
+                            <button type="button" @click="form.icon = icon.id"
+                                class="w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                :class="form.icon === icon.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-zinc-200 dark:border-zinc-700'"
+                                :title="icon.name">
+                                <svg class="w-5 h-5"
+                                    :class="form.icon === icon.id ? 'text-indigo-600' : 'text-zinc-500'" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        :d="icon.path" />
+                                </svg>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showCreateModal = false; showEditModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    Annuler
+                </button>
+                <button @click="showEditModal ? updateSpecialist() : createSpecialist()"
+                    :disabled="!form.name || !form.system_prompt"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-colors">
+                    <span x-text="showEditModal ? 'Enregistrer' : 'Créer'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add URL Modal -->
+    <div x-show="showAddUrlModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div @click.outside="showAddUrlModal = false"
+            class="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl">
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ajouter des URLs</h2>
+            </div>
+            <div class="p-6">
+                <textarea x-model="urlToAdd" placeholder="https://example.com/page&#10;https://another-site.com/doc"
+                    rows="5"
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Une URL par ligne.</p>
+            </div>
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showAddUrlModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
+                    Annuler
+                </button>
+                <button @click="addUrl()" :disabled="!urlToAdd || addingUrl"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                    <span x-show="addingUrl"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Ajouter</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Text Modal -->
+    <div x-show="showAddTextModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div @click.outside="showAddTextModal = false"
+            class="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl">
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ajouter du texte</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="text" x-model="textToAdd.name" placeholder="Nom de la connaissance"
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <textarea x-model="textToAdd.content" rows="6" placeholder="Contenu textuel..."
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+            </div>
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showAddTextModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
+                    Annuler
+                </button>
+                <button @click="addText()" :disabled="!textToAdd.name || !textToAdd.content || addingText"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                    <span x-show="addingText"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Ajouter</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Chunks Viewer -->
+    <div x-show="showChunksModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click.self="showChunksModal = false"
+        @keydown.escape.window="showChunksModal = false">
+
+        <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-zinc-200 dark:border-zinc-800"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100">
+
+            <!-- Header -->
+            <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="currentDocName || 'Chunks'"></h3>
+                    <div class="flex items-center gap-4 mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        <span x-text="(currentDocStats.total_chunks || 0) + ' chunks'"></span>
+                        <span x-text="(currentDocStats.total_size || 0).toLocaleString() + ' caractères'"></span>
+                        <span
+                            x-text="'~' + (currentDocStats.estimated_tokens || 0).toLocaleString() + ' tokens'"></span>
+                    </div>
+                </div>
+                <button @click="showChunksModal = false"
+                    class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Chunks List -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <!-- Loading -->
+                <div x-show="loadingChunks" class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="!loadingChunks && currentDocChunks.length === 0"
+                    class="text-center py-12 text-zinc-500 dark:text-zinc-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Aucun chunk trouvé</p>
+                </div>
+
+                <!-- Chunks -->
+                <template x-for="chunk in currentDocChunks" :key="chunk.id || chunk.chunk_index">
+                    <div
+                        class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400"
+                                x-text="'Chunk #' + (chunk.chunk_index + 1)"></span>
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                                x-text="(chunk.size || chunk.content?.length || 0) + ' caractères'"></span>
+                        </div>
+                        <pre class="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words font-sans leading-relaxed max-h-48 overflow-y-auto custom-scrollbar"
+                            x-text="chunk.content"></pre>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+                <button @click="showChunksModal = false"
+                    class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Register specialistsApp component
+    // Enregistrement immédiat si Alpine est déjà prêt (cas SPA navigation)
+    // ou via l'événement alpine:init (cas chargement initial)
+    function registerSpecialistsApp() {
+        if (typeof Alpine !== 'undefined' && Alpine.data) {
+            Alpine.data('specialistsApp', specialistsApp);
+            console.log('[Specialists] Component registered');
+        }
+    }
+
+    // Si Alpine est déjà initialisé (navigation SPA), enregistrer immédiatement
+    if (typeof Alpine !== 'undefined' && Alpine.version) {
+        registerSpecialistsApp();
+    } else {
+        // Sinon attendre l'initialisation d'Alpine
+        document.addEventListener('alpine:init', registerSpecialistsApp);
+    }
+
+    function specialistsApp() {
+        return {
+            // State
+            loading: true,
+            specialists: [],
+            currentSpecialist: null,
+            showSidebar: window.innerWidth >= 640, // Visible par défaut sur desktop
+            showKnowledgePanel: false,
+
+            // Modals
+            showCreateModal: false,
+            showEditModal: false,
+            showAddUrlModal: false,
+            showAddTextModal: false,
+            showChunksModal: false,
+
+            // Confirm Modal
+            showConfirmModal: false,
+            confirmTitle: '',
+            confirmMessage: '',
+            confirmCallback: null,
+
+            // Chunks viewer
+            currentDocChunks: [],
+            currentDocStats: {},
+            currentDocName: '',
+            loadingChunks: false,
+
+
+            confirmAction() {
+                if (this.confirmCallback) {
+                    this.confirmCallback();
+                }
+                this.showConfirmModal = false;
+            },
+
+            openConfirmModal(title, message, callback) {
+                this.confirmTitle = title;
+                this.confirmMessage = message;
+                this.confirmCallback = callback;
+                this.showConfirmModal = true;
+            },
+
+            form: {
+                name: '',
+                description: '',
+                system_prompt: '',
+                model: '',
+                provider_id: '',
+                color: '#6366f1',
+                icon: 'computer'
+            },
+
+            // Available icons for specialists
+            availableIcons: [
+                { id: 'computer', name: 'Ordinateur', path: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                { id: 'chat', name: 'Chat', path: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+                { id: 'code', name: 'Code', path: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
+                { id: 'book', name: 'Livre', path: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' },
+                { id: 'lightbulb', name: 'Idée', path: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+                { id: 'academic', name: 'Académie', path: 'M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222' },
+                { id: 'chart', name: 'Graphique', path: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+                { id: 'globe', name: 'Globe', path: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+                { id: 'briefcase', name: 'Business', path: 'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
+                { id: 'heart', name: 'Santé', path: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+                { id: 'music', name: 'Musique', path: 'M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3' },
+                { id: 'camera', name: 'Photo', path: 'M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z' },
+                { id: 'puzzle', name: 'Puzzle', path: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z' },
+                { id: 'beaker', name: 'Science', path: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z' },
+                { id: 'cog', name: 'Technique', path: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+                { id: 'shield', name: 'Sécurité', path: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+                { id: 'pencil', name: 'Écriture', path: 'M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z' },
+                { id: 'currency', name: 'Finance', path: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+                { id: 'users', name: 'Équipe', path: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+                { id: 'star', name: 'Étoile', path: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z' }
+            ],
+
+            // Helper to get icon path
+            getIconPath(iconId) {
+                const icon = this.availableIcons.find(i => i.id === iconId);
+                return icon ? icon.path : this.availableIcons[0].path;
+            },
+
+            // Knowledge
+            knowledge: [],
+            urlToAdd: '',
+
+            // Sessions History
+            sessions: [],
+            sessionSearchQuery: '',
+            selectionMode: false,
+            selectedSessions: [],
+            currentSidebarTab: 'history',
+            loadingSessions: false,
+
+            addingUrl: false,
+            textToAdd: { name: '', content: '' },
+            addingText: false,
+
+            // Chat
+            messages: [],
+            input: '',
+            chatLoading: false,
+            sessionId: null,
+
+            // Models & Providers
+            models: [], // Global active models (kept for compatibility/fallback)
+            availableModels: [], // Models for the selected provider in form
+            providers: [],
+
+            // Translation helper
+            t(key, fallback) {
+                if (window.t) return window.t(key, fallback);
+                return fallback;
+            },
+
+            // Fonction pour créer un slug à partir d'un nom
+            slugify(text) {
+                return text
+                    .toString()
+                    .toLowerCase()
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+                    .replace(/[^a-z0-9]+/g, '-')     // Remplacer les caractères non-alphanumériques par des tirets
+                    .replace(/^-+|-+$/g, '')         // Retirer les tirets au début et à la fin
+                    .substring(0, 50);               // Limiter la longueur
+            },
+
+            async init() {
+                await this.loadSpecialists();
+                await this.loadProviders();
+                // await this.loadModels(); // On charge les modèles à la demande ou initiaux
+
+                // Restaurer l'état depuis l'URL: /specialists/<specialist_slug>#<session_id>
+                const path = window.location.pathname;
+                const match = path.match(/\/specialists\/([^\/]+)/);
+                const hash = window.location.hash.slice(1); // Retirer le #
+
+                if (match && match[1]) {
+                    const specSlug = decodeURIComponent(match[1]);
+                    // Trouver le spécialiste par slug ou par ID (compatibilité)
+                    const spec = this.specialists.find(s =>
+                        this.slugify(s.name) === specSlug || s.id === specSlug
+                    );
+                    if (spec) {
+                        await this.selectSpecialist(spec, false); // false = ne pas mettre à jour l'URL
+
+                        // Restaurer la session si présente dans le hash
+                        if (hash) {
+                            await this.loadSessions(spec.id);
+                            const session = this.sessions.find(s => s.id === hash);
+                            if (session) {
+                                await this.loadSession(session, false); // false = ne pas mettre à jour l'URL
+                            }
+                        }
+                    }
+                }
+            },
+
+            async loadProviders() {
+                try {
+                    const r = await fetch('/api/settings/providers');
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.providers = data.providers || [];
+                    }
+                } catch (e) {
+                    console.error('Error loading providers:', e);
+                }
+            },
+
+            async loadModelsForProvider(providerId) {
+                if (!providerId) {
+                    this.availableModels = [];
+                    return;
+                }
+                try {
+                    const r = await fetch(`/api/settings/providers/${providerId}/models`);
+                    if (r.ok) {
+                        const data = await r.json();
+                        // Filter embedding models like in global load
+                        const embeddingPatterns = ['embed', 'bge-', 'bge:', 'all-minilm', 'snowflake-arctic', 'paraphrase', '/e5-', ':e5-', '/e5:', 'gte-', 'gte:', 'jina-', 'text-embedding', 'embedding-'];
+                        const seen = new Set();
+                        this.availableModels = (data.models || [])
+                            .map(m => typeof m === 'string' ? m : m.id || m.name)
+                            .filter(name => {
+                                if (!name || seen.has(name)) return false;
+                                seen.add(name);
+                                const lowerName = name.toLowerCase();
+                                return !embeddingPatterns.some(pattern => lowerName.includes(pattern));
+                            });
+                    } else {
+                        this.availableModels = [];
+                    }
+                } catch (e) {
+                    console.error('Error loading provider models:', e);
+                    this.availableModels = [];
+                }
+            },
+
+            async loadModels() {
+                // Kept as fallback or for general usage
+                try {
+                    const r = await fetch('/api/settings/providers/active/models');
+                    if (r.ok) {
+                        const data = await r.json();
+                        if (data.models) {
+                            this.models = data.models.map(m => typeof m === 'string' ? m : m.id || m.name);
+                        }
+                    }
+                } catch (e) { }
+            },
+
+            async loadSpecialists() {
+                this.loading = true;
+                try {
+                    const r = await fetch('/api/specialists');
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.specialists = data.specialists || [];
+                    }
+                } catch (e) {
+                    console.error('Error loading specialists:', e);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async selectSpecialist(spec, updateUrl = true) {
+                this.currentSpecialist = spec;
+                if (window.innerWidth < 640) {
+                    this.showSidebar = false;
+                }
+                this.messages = [];
+                this.sessionId = null;
+                this.sessions = [];
+                this.sessionSearchQuery = '';
+                this.selectionMode = false;
+                this.selectedSessions = [];
+                this.currentSidebarTab = 'history';
+                this.loadSessions(spec.id);
+
+                // Mettre à jour l'URL avec le nom slugifié
+                if (updateUrl) {
+                    const slug = this.slugify(spec.name);
+                    const newUrl = `/specialists/${slug}`;
+                    history.pushState({ specialistId: spec.id, slug: slug }, '', newUrl);
+                }
+
+                // Load full specialist data
+                try {
+                    const r = await fetch(`/api/specialists/${spec.id}`);
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.currentSpecialist = data;
+                        this.knowledge = data.knowledge || [];
+
+
+                        // Switch provider logic
+                        if (data.provider_id) {
+                            // Si le spécialiste a un provider explicit, l'utiliser
+                            await fetch('/api/settings/providers/active', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ provider_id: data.provider_id })
+                            });
+                            window.dispatchEvent(new CustomEvent('providers-changed'));
+                        } else if (data.model) {
+                            // Legacy: Résoudre le provider pour le modèle du spécialiste
+                            try {
+                                const providerResp = await fetch('/api/settings/providers/resolve-model', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ model: data.model })
+                                });
+                                if (providerResp.ok) {
+                                    const providerData = await providerResp.json();
+                                    if (providerData.found && providerData.provider_id) {
+                                        // Changer le provider actif
+                                        await fetch('/api/settings/providers/active', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ provider_id: providerData.provider_id })
+                                        });
+                                        // Mettre à jour le sélecteur de provider global
+                                        window.dispatchEvent(new CustomEvent('providers-changed'));
+                                        console.log(`[Specialists] Provider switched to ${providerData.provider_name} for model ${data.model}`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.log('[Specialists] Could not resolve provider for model:', data.model);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error loading specialist:', e);
+                }
+            },
+
+            async createSpecialist() {
+                try {
+                    const r = await fetch('/api/specialists', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.form)
+                    });
+                    if (r.ok) {
+                        const spec = await r.json();
+                        this.specialists.unshift(spec);
+                        this.selectSpecialist(spec);
+                        this.showCreateModal = false;
+                        this.resetForm();
+                        showToast('Spécialiste créé !');
+                    } else {
+                        const data = await r.json();
+                        showToast(data.error || 'Erreur');
+                    }
+                } catch (e) {
+                    showToast('Erreur lors de la création');
+                }
+            },
+
+            async updateSpecialist() {
+                if (!this.currentSpecialist) return;
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.form)
+                    });
+                    if (r.ok) {
+                        const spec = await r.json();
+                        const idx = this.specialists.findIndex(s => s.id === spec.id);
+                        if (idx >= 0) this.specialists[idx] = spec;
+                        this.currentSpecialist = { ...this.currentSpecialist, ...spec };
+                        this.showEditModal = false;
+                        showToast('Modifications enregistrées !');
+                    }
+                } catch (e) {
+                    showToast('Erreur lors de la mise à jour');
+                }
+            },
+
+            async deleteCurrentSpecialist() {
+                if (!this.currentSpecialist) return;
+                if (!confirm('Supprimer ce spécialiste et toutes ses données ?')) return;
+
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}`, {
+                        method: 'DELETE'
+                    });
+                    if (r.ok) {
+                        this.specialists = this.specialists.filter(s => s.id !== this.currentSpecialist.id);
+                        this.currentSpecialist = null;
+                        this.knowledge = [];
+                        this.messages = [];
+                        showToast('Spécialiste supprimé');
+                    }
+                } catch (e) {
+                    showToast('Erreur lors de la suppression');
+                }
+            },
+
+            resetForm() {
+                this.form = {
+                    name: '',
+                    description: '',
+                    system_prompt: '',
+                    model: '',
+                    provider_id: '',
+                    color: '#6366f1',
+                    icon: 'computer'
+                };
+                this.availableModels = [];
+            },
+
+            openEditModal() {
+                this.form = {
+                    name: this.currentSpecialist.name || '',
+                    description: this.currentSpecialist.description || '',
+                    system_prompt: this.currentSpecialist.system_prompt || '',
+                    model: this.currentSpecialist.model || '',
+                    provider_id: this.currentSpecialist.provider_id || '',
+                    color: this.currentSpecialist.color || '#6366f1',
+                    icon: this.currentSpecialist.icon || 'computer'
+                };
+                if (this.currentSpecialist.provider_id) {
+                    this.loadModelsForProvider(this.currentSpecialist.provider_id);
+                } else {
+                    this.availableModels = [];
+                }
+                this.showEditModal = true;
+            },
+
+            // Knowledge management
+            async uploadFile(event) {
+                if (!this.currentSpecialist) return;
+                const files = event.target.files;
+                if (!files.length) return;
+
+                for (const file of files) {
+                    const formData = new FormData();
+                    formData.append('file', file);
+
+                    try {
+                        const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/knowledge/upload`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (r.ok) {
+                            const item = await r.json();
+                            this.knowledge.unshift(item);
+                            showToast(`${file.name} ajouté`);
+                        } else {
+                            const data = await r.json();
+                            showToast(data.error || 'Erreur upload');
+                        }
+                    } catch (e) {
+                        showToast('Erreur upload');
+                    }
+                }
+                event.target.value = '';
+            },
+
+            async addUrl() {
+                if (!this.currentSpecialist || !this.urlToAdd) return;
+
+                const urls = this.urlToAdd.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+                if (urls.length === 0) return;
+
+                this.addingUrl = true;
+                let successCount = 0;
+                let errorCount = 0;
+
+                try {
+                    for (const url of urls) {
+                        try {
+                            const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/knowledge/web`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: url })
+                            });
+
+                            if (r.ok) {
+                                const item = await r.json();
+                                this.knowledge.unshift(item);
+                                successCount++;
+                            } else {
+                                errorCount++;
+                                console.error(`Failed to add ${url}`);
+                            }
+                        } catch (e) {
+                            errorCount++;
+                            console.error(`Error adding ${url}:`, e);
+                        }
+                    }
+
+                    if (successCount > 0) {
+                        this.urlToAdd = ''; // Clear only if we had some success, or maybe clear all? 
+                        // Let's clear all for simplicity as user can see what's added in the background list
+                        this.showAddUrlModal = false;
+                        showToast(`${successCount} URL(s) ajoutée(s)${errorCount > 0 ? `, ${errorCount} échec(s)` : ''}`);
+                    } else if (errorCount > 0) {
+                        showToast(`Échec de l'ajout des URLs`);
+                    }
+
+                } catch (e) {
+                    showToast('Erreur ajout URL');
+                } finally {
+                    this.addingUrl = false;
+                }
+            },
+
+            async addText() {
+                if (!this.currentSpecialist || !this.textToAdd.name || !this.textToAdd.content) return;
+                this.addingText = true;
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/knowledge/text`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.textToAdd)
+                    });
+                    if (r.ok) {
+                        const item = await r.json();
+                        this.knowledge.unshift(item);
+                        this.textToAdd = { name: '', content: '' };
+                        this.showAddTextModal = false;
+                        showToast('Texte ajouté !');
+                    } else {
+                        const data = await r.json();
+                        showToast(data.error || 'Erreur');
+                    }
+                } catch (e) {
+                    showToast('Erreur ajout texte');
+                } finally {
+                    this.addingText = false;
+                }
+            },
+
+            async deleteKnowledge(knowledgeId) {
+                if (!this.currentSpecialist) return;
+                if (!confirm('Supprimer cette connaissance ?')) return;
+
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/knowledge/${knowledgeId}`, {
+                        method: 'DELETE'
+                    });
+                    if (r.ok) {
+                        this.knowledge = this.knowledge.filter(k => k.id !== knowledgeId);
+                        showToast('Supprimé');
+                    }
+                } catch (e) {
+                    showToast('Erreur suppression');
+                }
+            },
+
+            // Chat
+            async sendMessage() {
+                if (!this.currentSpecialist || this.chatLoading || !this.input.trim()) return;
+
+                const message = this.input.trim();
+                const oldSessionId = this.sessionId;
+                this.input = '';
+                this.chatLoading = true;
+
+                // Add user message immediately
+                this.messages.push({
+                    id: 'temp-' + Date.now(),
+                    role: 'user',
+                    content: message
+                });
+
+                this.$nextTick(() => {
+                    if (this.$refs.messagesContainer) {
+                        this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
+                    }
+                });
+
+                try {
+                    const response = await fetch(`/api/specialists/${this.currentSpecialist.id}/chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message,
+                            session_id: this.sessionId
+                        })
+                    });
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    let assistantMessage = {
+                        id: 'assistant-' + Date.now(),
+                        role: 'assistant',
+                        content: '',
+                        sources: []
+                    };
+                    this.messages.push(assistantMessage);
+                    const assistantIndex = this.messages.length - 1;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+
+                                    if (data.session_id) {
+                                        this.sessionId = data.session_id;
+                                    }
+                                    if (data.sources) {
+                                        this.messages[assistantIndex].sources = data.sources;
+                                    }
+                                    if (data.content) {
+                                        this.messages[assistantIndex].content += data.content;
+                                    }
+                                    if (data.error) {
+                                        showToast(data.error);
+                                    }
+                                } catch (e) {
+                                    // Ignore parse errors
+                                }
+                            }
+                        }
+
+                        // Forcer la réactivité Alpine en réassignant le tableau
+                        this.messages = [...this.messages];
+
+                        this.$nextTick(() => {
+                            if (this.$refs.messagesContainer) {
+                                this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Chat error:', e);
+                    showToast('Erreur de communication');
+                } finally {
+                    this.chatLoading = false;
+                    // Refresh sessions list if new session or updated
+                    if (this.sessionId) {
+                        this.loadSessions(this.currentSpecialist.id);
+                    }
+                }
+            },
+
+            async viewKnowledgeChunks(knowledgeId, knowledgeName) {
+                this.currentDocName = knowledgeName;
+                this.currentDocChunks = [];
+                this.currentDocStats = {};
+                this.showChunksModal = true;
+                this.loadingChunks = true;
+
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/knowledge/${knowledgeId}/chunks`);
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.currentDocChunks = data.chunks || [];
+                        this.currentDocStats = data.stats || {};
+                    } else {
+                        showToast('Erreur chargement chunks');
+                    }
+                } catch (e) {
+                    console.error('Error loading chunks:', e);
+                    showToast('Erreur chargement chunks');
+                } finally {
+                    this.loadingChunks = false;
+                }
+            },
+
+
+            get filteredSessions() {
+                if (!this.sessionSearchQuery) return this.sessions;
+                const query = this.sessionSearchQuery.toLowerCase();
+                return this.sessions.filter(s =>
+                    (s.title && s.title.toLowerCase().includes(query))
+                );
+            },
+
+            toggleSelectionMode() {
+                this.selectionMode = !this.selectionMode;
+                this.selectedSessions = [];
+            },
+
+            toggleSessionSelection(sessionId) {
+                if (this.selectedSessions.includes(sessionId)) {
+                    this.selectedSessions = this.selectedSessions.filter(id => id !== sessionId);
+                } else {
+                    this.selectedSessions.push(sessionId);
+                }
+            },
+
+            selectAllSessions() {
+                if (this.selectedSessions.length === this.filteredSessions.length) {
+                    this.selectedSessions = [];
+                } else {
+                    this.selectedSessions = this.filteredSessions.map(s => s.id);
+                }
+            },
+
+            async deleteSelectedSessions() {
+                this.openConfirmModal(
+                    'Supprimer les conversations ?',
+                    `Voulez-vous vraiment supprimer ${this.selectedSessions.length} conversation(s) ? Cette action est irréversible.`,
+                    async () => {
+                        try {
+                            const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/sessions/bulk`, {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ session_ids: this.selectedSessions })
+                            });
+
+                            if (r.ok) {
+                                const data = await r.json();
+                                this.sessions = this.sessions.filter(s => !this.selectedSessions.includes(s.id));
+
+                                // If current session was deleted, clear it
+                                if (this.sessionId && this.selectedSessions.includes(this.sessionId)) {
+                                    this.createNewSession();
+                                }
+
+                                this.selectedSessions = [];
+                                this.selectionMode = false;
+                                showToast(`${data.deleted_count} conversation(s) supprimée(s)`);
+                            } else {
+                                const err = await r.json();
+                                showToast(err.error || 'Erreur suppression');
+                            }
+                        } catch (e) {
+                            showToast('Erreur suppression');
+                        }
+                    }
+                );
+            },
+
+
+            async loadSessions(specialistId) {
+                this.loadingSessions = true;
+                this.sessions = [];
+                try {
+                    const r = await fetch(`/api/specialists/${specialistId}/sessions`);
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.sessions = data.sessions || [];
+                    }
+                } catch (e) {
+                    console.error('Error loading sessions:', e);
+                } finally {
+                    this.loadingSessions = false;
+                }
+            },
+
+            async loadSession(session, updateUrl = true) {
+                this.sessionId = session.id;
+                this.messages = [];
+                this.chatLoading = true;
+
+                // Mettre à jour l'URL avec le hash de la session
+                if (updateUrl && this.currentSpecialist) {
+                    const slug = this.slugify(this.currentSpecialist.name);
+                    const newUrl = `/specialists/${slug}#${session.id}`;
+                    history.pushState({ specialistId: this.currentSpecialist.id, sessionId: session.id, slug: slug }, '', newUrl);
+                }
+
+                try {
+                    const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/sessions/${session.id}/messages`);
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.messages = data.messages || [];
+                        // Scroll to bottom
+                        this.$nextTick(() => {
+                            if (this.$refs.messagesContainer) {
+                                this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    showToast('Erreur chargement messages');
+                } finally {
+                    this.chatLoading = false;
+                }
+            },
+
+            createNewSession() {
+                this.sessionId = null;
+                this.messages = [];
+                this.input = '';
+            },
+
+            async deleteSession(sessionId) {
+                this.openConfirmModal(
+                    'Supprimer la conversation ?',
+                    'Voulez-vous vraiment supprimer cette conversation ? Cette action est irréversible.',
+                    async () => {
+                        try {
+                            const r = await fetch(`/api/specialists/${this.currentSpecialist.id}/sessions/${sessionId}`, {
+                                method: 'DELETE'
+                            });
+                            if (r.ok) {
+                                this.sessions = this.sessions.filter(s => s.id !== sessionId);
+                                if (this.sessionId === sessionId) {
+                                    this.createNewSession();
+                                }
+                                showToast('Conversation supprimée');
+                            } else {
+                                showToast('Erreur suppression session');
+                            }
+                        } catch (e) {
+                            showToast('Erreur suppression session');
+                        }
+                    }
+                );
+            },
+
+            formatContent(content) {
+                if (!content) return '';
+                try {
+                    if (typeof marked === 'undefined') return content;
+                    let html = marked.parse(content);
+                    // Ajouter un bouton de copie sur chaque bloc <pre>
+                    html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (match, codeContent) => {
+                        return `<div class="code-block-wrapper"><button class="copy-code-btn" onclick="copyCodeBlock(this)" title="Copier le code"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button><pre>${codeContent}</pre></div>`;
+                    });
+                    return html;
+                } catch (e) {
+                    return content
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\n/g, '<br>');
+                }
+            }
+        };
+    }
+</script>
+
+<!-- Charger marked.js pour le rendu markdown (nécessaire pour SPA) -->
+<script>
+    if (typeof marked === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        document.head.appendChild(script);
+    }
+</script>

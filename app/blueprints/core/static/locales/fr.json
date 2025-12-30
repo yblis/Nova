@@ -1,0 +1,590 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "confirm": "Confirmer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "close": "Fermer",
+    "edit": "Modifier",
+    "add": "Ajouter",
+    "search": "Rechercher",
+    "noResults": "Aucun résultat",
+    "yes": "Oui",
+    "no": "Non",
+    "reset": "Réinitialiser",
+    "copy": "Copier",
+    "random": "Aléatoire",
+    "collapse": "Réduire"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "models": "Modèles installés",
+    "discover": "Découvrir",
+    "chat": "Chat",
+    "assistant": "Assistant",
+    "specialists": "Spécialiste",
+    "settings": "Paramètres",
+    "downloads": "Téléchargements",
+    "logout": "Déconnexion",
+    "users": "Utilisateurs",
+    "admin": "Administration",
+    "tools": "Outils",
+    "overview": "Aperçu",
+    "library": "Bibliothèque",
+    "expand": "Étendre",
+    "manageProviders": "Gérer les fournisseurs"
+  },
+  "admin": {
+    "users": {
+      "title": "Gestion des utilisateurs",
+      "subtitle": "Gérez les accès et les permissions des administrateurs et utilisateurs.",
+      "existing": "Utilisateurs existants",
+      "total": "{count} total",
+      "adminRole": "Administrateur",
+      "userRole": "Utilisateur standard",
+      "changePassword": "Modifier mot de passe",
+      "newPasswordPlaceholder": "Nouveau MDP",
+      "save": "Enregistrer",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+      "delete": "Supprimer",
+      "createTitle": "Nouvel utilisateur",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "isAdmin": "Droits d'administrateur",
+      "createButton": "Créer l'utilisateur",
+      "tip": "Les mots de passe admin sont réinitialisés via le fichier environnement au redémarrage."
+    }
+  },
+  "assistant": {
+    "title": "Outils Texte",
+    "toolsTitle": "Outils",
+    "tools": {
+      "reformulation": "Reformulation",
+      "translation": "Traduction",
+      "correction": "Correction",
+      "email": "Email",
+      "prompt": "Générateur de Prompt"
+    },
+    "common": {
+      "showTools": "Afficher/Masquer les outils",
+      "selectModel": "Sélectionner un modèle",
+      "noModel": "Aucun modèle disponible",
+      "history": "Historique",
+      "clearHistory": "Tout supprimer",
+      "noHistory": "Aucun historique",
+      "chars": "Caractères",
+      "words": "Mots",
+      "paragraphs": "Paragraphes",
+      "copy": "Copier",
+      "paste": "Coller",
+      "clear": "Effacer",
+      "options": "Options",
+      "resultWillShow": "Le résultat s'affichera ici"
+    },
+    "reformulation": {
+      "inputLabel": "Texte à reformuler",
+      "contextLabel": "Contexte",
+      "contextPlaceholder": "Collez ici le contexte ou l'email reçu...",
+      "inputPlaceholder": "Entrez votre texte ici...",
+      "button": "Reformuler",
+      "processing": "Reformulation...",
+      "addEmojis": "Ajouter des emojis",
+      "tone": "Ton",
+      "format": "Format",
+      "length": "Longueur",
+      "newTone": "Nouveau ton...",
+      "newFormat": "Nouveau format...",
+      "newLength": "Nouvelle longueur..."
+    },
+    "translation": {
+      "sourceLabel": "Texte source",
+      "targetLabel": "Langue cible",
+      "inputPlaceholder": "Entrez votre texte ici...",
+      "button": "Traduire",
+      "processing": "Traduction..."
+    },
+    "correction": {
+      "inputLabel": "Texte à corriger",
+      "inputPlaceholder": "Collez votre texte ici pour correction...",
+      "spelling": "Orthographe",
+      "grammar": "Grammaire",
+      "syntax": "Syntaxe",
+      "style": "Style",
+      "button": "Corriger",
+      "processing": "Correction...",
+      "suggestions": "Suggestions"
+    },
+    "email": {
+      "typeLabel": "Type d'email",
+      "typePlaceholder": "Ex: Email de réclamation, Demande de congés...",
+      "types": {
+        "professionnel": "Professionnel",
+        "commercial": "Commercial",
+        "candidature": "Candidature",
+        "relance": "Relance",
+        "remerciement": "Remerciement",
+        "excuse": "Excuse",
+        "invitation": "Invitation",
+        "information": "Information"
+      },
+      "contextLabel": "Contenu et contexte",
+      "contextPlaceholder": "Décrivez le contenu et le contexte de l'email...",
+      "senderLabel": "Prénom NOM",
+      "senderPlaceholder": "Ex: Jean DUPONT",
+      "toneLabel": "Ton de l'email",
+      "button": "Générer l'email",
+      "processing": "Génération..."
+    },
+    "prompt": {
+      "inputLabel": "Décrivez votre besoin",
+      "inputPlaceholder": "Exemple: Je veux créer un prompt pour analyser des textes littéraires...",
+      "tipsTitle": "Conseils",
+      "tipsSubtitle": "Tips pour une demande efficace :",
+      "tipContext": "Contexte",
+      "tipContextDesc": "Précisez le domaine (technique, créatif, business...)",
+      "tipObjective": "Objectif",
+      "tipObjectiveDesc": "Expliquez clairement ce que vous voulez obtenir",
+      "tipFormat": "Format",
+      "tipFormatDesc": "Indiquez le type de sortie souhaité",
+      "tipConstraints": "Contraintes",
+      "tipConstraintsDesc": "Mentionnez les limitations importantes",
+      "examplesTitle": "Exemples de bonnes demandes :",
+      "exAnalysis": "Analyse",
+      "exAnalysisText": "Analyser des avis clients e-commerce pour identifier sentiment et points d'amélioration",
+      "exBusiness": "Business",
+      "exBusinessText": "Créer un plan marketing digital pour startup tech B2B",
+      "exCoding": "Code",
+      "exCodingText": "Optimiser une fonction Python de traitement d'images pour réduire la consommation mémoire",
+      "exCreative": "Créatif",
+      "exCreativeText": "Écrire une histoire de science-fiction dystopique où l'IA gère la météo mondiale",
+      "button": "Générer le prompt",
+      "processing": "Génération..."
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "general": "Général",
+    "appearance": "Apparence",
+    "appearanceDesc": "Choisissez l'apparence d'OllaMan sur votre appareil",
+    "language": "Langue",
+    "languageDesc": "Choisissez la langue de l'interface",
+    "providers": "Fournisseurs LLM",
+    "providersDesc": "Gérez vos connexions aux différents fournisseurs d'IA",
+    "shortcuts": "Raccourcis",
+    "shortcutsDesc": "Améliorez votre productivité",
+    "rag": "RAG / Documents",
+    "ragDesc": "Configurer le système RAG pour utiliser vos documents PDF comme contexte",
+    "llmTab": "LLM",
+    "about": "À propos",
+    "websearch": "Recherche Web",
+    "textprompts": "Prompts Textes",
+    "theme": {
+      "light": "Clair",
+      "lightDesc": "Toujours utiliser le thème clair",
+      "dark": "Sombre",
+      "darkDesc": "Toujours utiliser le thème sombre",
+      "system": "Système",
+      "systemDesc": "Suivre les préférences du système"
+    },
+    "privacy": {
+      "title": "Confidentialité & Analytique",
+      "desc": "Contrôlez les données partagées pour améliorer OllaMan",
+      "analytics": "Envoyer des données d'utilisation anonymes",
+      "analyticsDesc": "Aidez à améliorer OllaMan en envoyant des statistiques d'utilisation anonymes. Aucune donnée personnelle n'est collectée."
+    },
+    "textPrompts": {
+      "title": "Configuration des Prompts Textes",
+      "desc": "Personnalisez les prompts système utilisés par les outils de texte."
+    },
+    "aboutContent": {
+      "appName": "Ollama Manager",
+      "version": "Version 1.0.0 • Fait avec ♥",
+      "github": "GitHub",
+      "website": "Site Web Ollama"
+    },
+    "llm": {
+      "title": "Configuration LLM",
+      "desc": "Définissez le pré-prompt par défaut et les paramètres de génération pour les nouvelles conversations.",
+      "systemPrompt": "System Prompt par défaut",
+      "systemPromptDesc": "Ce prompt sera utilisé par défaut pour toutes les nouvelles conversations. Il peut être remplacé au niveau de chaque conversation.",
+      "generationParams": "Paramètres de génération",
+      "generationParamsDesc": "Ces valeurs seront utilisées par défaut pour les nouvelles conversations.",
+      "temperature": "Température",
+      "temperatureDesc": "Contrôle la créativité (0 = déterministe, 2 = très créatif)",
+      "topP": "Top P",
+      "topPDesc": "Nucleus sampling (0.1 = conservateur, 1.0 = tous les tokens)",
+      "topK": "Top K",
+      "topKDesc": "Limite le nombre de tokens candidats (1-100)",
+      "repeatPenalty": "Pénalité de répétition",
+      "repeatPenaltyDesc": "Pénalise les répétitions (1 = pas de pénalité, 2 = forte pénalité)",
+      "contextLength": "Longueur du contexte (num_ctx)",
+      "contextLengthDesc": "Taille du contexte en tokens (2048 - 128000)",
+      "autoTitle": "Génération auto du titre",
+      "autoTitleDesc": "Générer automatiquement un titre intelligent pour les nouvelles conversations via l'IA."
+    }
+  },
+  "providers": {
+    "title": "Fournisseurs LLM",
+    "desc": "Gérez vos connexions aux différents fournisseurs d'IA (Ollama, OpenAI, Anthropic, etc.)",
+    "noProviders": "Aucun fournisseur configuré. Ajoutez-en un ci-dessous.",
+    "addProvider": "Ajouter un fournisseur",
+    "editProvider": "Modifier le fournisseur",
+    "type": "Type de fournisseur",
+    "name": "Nom d'affichage",
+    "url": "URL du serveur",
+    "apiKey": "Clé API",
+    "active": "Actif",
+    "test": "Tester",
+    "testConnection": "Tester la connexion",
+    "defaultModel": "Modèle par défaut",
+    "noDefaultModel": "-- Aucun --",
+    "migrate": "Migrer les serveurs Ollama existants"
+  },
+  "chat": {
+    "title": "Chat",
+    "you": "Vous",
+    "newChat": "Nouvelle conversation",
+    "history": "Historique",
+    "selected": " sélectionnée",
+    "selectedPlural": " sélectionnées",
+    "selectAll": "Tout sélectionner",
+    "deleteSelected": "Supprimer la sélection",
+    "cancelSelection": "Annuler la sélection",
+    "pin": "Épingler conversation",
+    "unpin": "Désépingler conversation",
+    "delete": "Supprimer conversation",
+    "toggleHistory": "Afficher/Masquer l'historique",
+    "selectModel": "Sélectionner un modèle",
+    "noModels": "Aucun modèle disponible",
+    "stop": "Arrêter",
+    "regenerate": "Régénérer",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "settings": {
+      "title": "Paramètres du chat",
+      "systemPrompt": "System Prompt",
+      "systemPromptPlaceholder": "Tu es un assistant utile...",
+      "systemPromptHelp": "Définir le comportement et la personnalité de l'IA",
+      "modelParams": "Paramètres du modèle",
+      "temperature": "Température",
+      "temperatureHelp": "Plus élevé = plus créatif, Plus bas = plus concentré",
+      "topP": "Top P",
+      "topK": "Top K",
+      "contextLength": "Longueur du contexte",
+      "save": "Enregistrer les paramètres"
+    },
+    "noHistory": "Aucun historique",
+    "reflection": "Processus de réflexion",
+    "regenerateResponse": "Régénérer la réponse",
+    "copyResponse": "Copier la réponse",
+    "webSources": "Sources web",
+    "welcome": {
+      "title": "Bonjour. On commence ?",
+      "titleWithName": "Bonjour {name}. On commence ?",
+      "subtitle": "Sélectionnez un modèle pour commencer",
+      "selectModelRequired": "Veuillez sélectionner un modèle pour commencer le chat"
+    },
+    "input": {
+      "placeholder": "Poser une question...",
+      "addFiles": "Ajouter des fichiers",
+      "image": "Image",
+      "vision": "Vision",
+      "textFile": "Fichier texte",
+      "pdf": "PDF",
+      "rag": "RAG",
+      "webSearchEnabled": "Recherche web activée",
+      "enableWebSearch": "Activer la recherche web"
+    },
+    "rag": {
+      "title": "Documents RAG",
+      "indexing": "Indexation en cours...",
+      "unknownError": "Erreur inconnue",
+      "chunks": "chunks",
+      "viewChunks": "Voir les chunks",
+      "delete": "Supprimer le document"
+    },
+    "debate": {
+      "mode": "Mode Débat",
+      "participants": "participants",
+      "parallel": "Parallèle",
+      "sequential": "Séquentiel",
+      "add": "+ Ajouter",
+      "selectMin": "Sélectionnez au moins 2 participants",
+      "rules": "Règles du débat (System Prompt)",
+      "instructionsPlaceholder": "Instructions pour les participants du débat...",
+      "addParticipant": "Ajouter un participant",
+      "noProviders": "Aucun fournisseur configuré"
+    },
+    "chunksModal": {
+      "title": "Chunks :",
+      "total": "Total Chunks",
+      "avgSize": "Taille Moy.",
+      "chars": "cars",
+      "searchPlaceholder": "Rechercher dans ce document...",
+      "search": "Rechercher",
+      "chunkPrefix": "Chunk #",
+      "score": "Score :",
+      "characters": "caractères",
+      "deleteChunk": "Supprimer ce chunk",
+      "noChunks": "Aucun chunk trouvé."
+    },
+    "debug": {
+      "title": "DEBUG CONSOLE",
+      "close": "Fermer"
+    }
+  },
+  "downloads": {
+    "title": "Téléchargements",
+    "clearHistory": "Effacer l'historique",
+    "newDownload": "Nouveau téléchargement",
+    "activeDownloads": "Téléchargements actifs",
+    "loadingDownloads": "Chargement des téléchargements...",
+    "recentHistory": "Historique récent",
+    "loadingHistory": "Chargement de l'historique...",
+    "noActiveDownloads": "Aucun téléchargement en cours",
+    "noHistory": "Aucun historique"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "greeting": "Bonjour",
+    "runningModels": "Modèles actifs",
+    "recentlyInstalled": "Récemment installés",
+    "trendingNow": "Tendances actuelles"
+  },
+  "models": {
+    "title": "Modèles installés",
+    "filterPlaceholder": "Filtrer les modèles...",
+    "pullModel": "Télécharger un modèle",
+    "pull": "Télécharger",
+    "pullModal": {
+      "title": "Télécharger un nouveau modèle",
+      "placeholder": "Tag du modèle (ex: llama3:8b)",
+      "startDownload": "Lancer le téléchargement"
+    },
+    "table": {
+      "name": "Nom",
+      "params": "Params",
+      "family": "Famille",
+      "size": "Taille",
+      "quantization": "Quantification",
+      "actions": "Actions"
+    },
+    "list": {
+      "noModels": "Aucun modèle installé.",
+      "serviceUnavailable": "Service indisponible :",
+      "loaded": "● Chargé",
+      "actions": {
+        "chat": "Chat",
+        "view": "Détails",
+        "edit": "Modifier",
+        "update": "Mettre à jour",
+        "delete": "Supprimer"
+      },
+      "deleteConfirm": {
+        "title": "Supprimer le modèle",
+        "message": "Voulez-vous vraiment supprimer <strong class='text-zinc-900 dark:text-zinc-100'>{name}</strong> ? Cette action est irréversible.",
+        "confirm": "Supprimer"
+      }
+    },
+    "detail": {
+      "subtitle": "Modèle installé localement",
+      "error": {
+        "title": "Erreur de chargement"
+      },
+      "stats": {
+        "params": "Paramètres",
+        "size": "Taille",
+        "quantization": "Quantification",
+        "family": "Famille"
+      },
+      "techInfo": {
+        "title": "Informations techniques",
+        "format": "Format",
+        "digest": "Digest",
+        "architecture": "Architecture",
+        "parent": "Modèle parent"
+      },
+      "systemPrompt": "System Prompt",
+      "modelParams": "Paramètres du modèle",
+      "template": {
+        "title": "Template de prompt",
+        "none": "Aucun template défini"
+      },
+      "license": {
+        "title": "Licence",
+        "none": "Aucune licence disponible"
+      },
+      "actions": {
+        "chat": "Démarrer un chat",
+        "chatShort": "Chat",
+        "variant": "Créer une variante",
+        "variantShort": "Variante",
+        "delete": "Supprimer",
+        "update": {
+          "title": "Mettre à jour",
+          "description": "Re-télécharger la dernière version",
+          "button": "Lancer la mise à jour"
+        },
+        "copy": {
+          "title": "Copier / Renommer",
+          "description": "Créer une copie avec un nouveau nom",
+          "button": "Copier"
+        }
+      },
+      "tabs": {
+        "info": "Informations",
+        "template": "Template",
+        "license": "Licence",
+        "actions": "Actions"
+      },
+      "deleteModal": {
+        "title": "Supprimer le modèle",
+        "subtitle": "Cette action est irréversible",
+        "message": "Voulez-vous vraiment supprimer <strong class='text-zinc-900 dark:text-zinc-100'>{name}</strong> ? Tous les fichiers associés seront supprimés.",
+        "cancel": "Annuler",
+        "confirm": "Supprimer définitivement"
+      }
+    },
+    "edit": {
+      "pageTitle": "Modifier {name}",
+      "title": "Créer un modèle personnalisé",
+      "basedOn": "Basé sur",
+      "identity": "Identité",
+      "sourceModel": "Modèle source",
+      "newName": "Nouveau nom",
+      "systemPromptDesc": "Définit le comportement et la personnalité du modèle.",
+      "systemPromptPlaceholder": "Tu es un assistant serviable qui répond toujours en français...",
+      "createButton": "Créer le modèle",
+      "creating": "Création en cours...",
+      "parameters": "Paramètres",
+      "seed": "Seed",
+      "seedDesc": "Laisser vide pour aléatoire",
+      "statusPreparing": "Préparation...",
+      "success": "Modèle créé avec succès !",
+      "failure": "Échec de la création"
+    }
+  },
+  "discover": {
+    "title": "Découvrir",
+    "subtitle": "Explorez et installez de nouveaux modèles LLM.",
+    "filters": "Filtres",
+    "search": {
+      "placeholderOllama": "Rechercher une librairie officielle (ex: llama3)...",
+      "placeholderHF": "Rechercher sur HuggingFace (ex: TheBloke/Llama-2)..."
+    },
+    "ollama": {
+      "modelType": "Type de modèle",
+      "size": "Taille (Paramètres)"
+    },
+    "tags": {
+      "all": "Tous",
+      "chat": "Chat",
+      "code": "Code",
+      "vision": "Vision",
+      "thinking": "Penser",
+      "embedding": "Embedding"
+    },
+    "sort": {
+      "label": "Trier par",
+      "downloads": "Téléchargements",
+      "likes": "Populaire (Likes)",
+      "updated": "Récemment mis à jour",
+      "created": "Date de création"
+    },
+    "hf": {
+      "quantization": "Quantification",
+      "all": "Tout voir",
+      "balanced": "Q4_K_M (Équilibré)",
+      "quality": "Q5_K_M (Qualité +)",
+      "maxPrecision": "Q8_0 (Max précision)",
+      "minPopularity": "Popularité Min.",
+      "any": "Peu importe",
+      "100plus": "100+ Téléchargements",
+      "1kplus": "1k+ Téléchargements",
+      "10kplus": "10k+ Téléchargements"
+    },
+    "loading": {
+      "models": "Chargement des modèles",
+      "ollamaLib": "Connexion à la bibliothèque Ollama",
+      "hfSearch": "Recherche sur HuggingFace",
+      "hfExploration": "Exploration des modèles GGUF disponibles"
+    },
+    "ollamaSource": "Ollama",
+    "huggingfaceSource": "Hugging Face",
+    "download": "Télécharger",
+    "downloading": "Téléchargement..."
+  },
+  "shortcuts": {
+    "focusSearch": "Focus Recherche",
+    "toggleSidebar": "Basculer la barre latérale"
+  },
+  "rag": {
+    "embeddingModel": "Modèle d'Embedding",
+    "embeddingModelDesc": "Sélectionnez le modèle utilisé pour générer les embeddings des documents. Doit être un modèle de type \"embedding\".",
+    "noEmbeddingModel": "Aucun modèle d'embedding détecté. Veuillez en télécharger un de type 'embedding' (ex: nomic-embed-text).",
+    "chunkSize": "Taille des chunks",
+    "overlap": "Chevauchement",
+    "topK": "Top K résultats",
+    "advanced": "Paramètres avancés",
+    "advancedDesc": "Ces paramètres affectent la façon dont les documents sont découpés et recherchés.",
+    "ocrTitle": "OCR pour PDF scannés",
+    "tesseractDesc": "Moteur OCR open source (Français + Anglais)",
+    "ocrThreshold": "Seuil détection PDF scanné",
+    "ocrThresholdDesc": "Si un PDF contient moins de ce nombre de caractères par page, il sera traité comme un PDF scanné.",
+    "qdrantTitle": "Base vectorielle Qdrant",
+    "connected": "✓ Connecté",
+    "unavailable": "○ Non disponible",
+    "qdrantDesc": "Qdrant offre une recherche vectorielle hybride plus performante que PostgreSQL.",
+    "checkQdrant": "Vérifiez que le service Qdrant est démarré.",
+    "vectors": "Vecteurs",
+    "status": "Statut"
+  },
+  "specialists": {
+    "title": "Spécialistes",
+    "subtitle": "Créez des assistants IA experts dans leurs domaines",
+    "create": "Nouveau spécialiste",
+    "empty": "Aucun spécialiste créé",
+    "emptyDesc": "Créez votre premier assistant spécialisé",
+    "form": {
+      "name": "Nom",
+      "namePlaceholder": "Expert en...",
+      "description": "Description",
+      "descriptionPlaceholder": "Décrivez le rôle de cet assistant",
+      "systemPrompt": "Instructions",
+      "systemPromptPlaceholder": "Tu es un expert en...",
+      "model": "Modèle LLM"
+    },
+    "knowledge": {
+      "title": "Connaissances",
+      "addFile": "Ajouter des fichiers",
+      "addUrl": "Ajouter une URL",
+      "addText": "Ajouter du texte",
+      "types": {
+        "file": "Fichier",
+        "image": "Image",
+        "web_url": "Lien web",
+        "text": "Texte"
+      }
+    },
+    "tools": {
+      "title": "Outils",
+      "addTool": "Ajouter un outil",
+      "bookstack": "Bookstack",
+      "custom": "API personnalisée"
+    },
+    "chat": {
+      "placeholder": "Posez une question à cet expert...",
+      "sources": "Sources utilisées"
+    }
+  },
+  "system_prompts": {
+    "reformulation": "PROGRAMME DE TRANSFORMATION MÉCANIQUE V3.0\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nFONCTION = Remplacer les mots sans changer le sens\nMODE = Transformation pure sans interaction\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nRÈGLE FONDAMENTALE :\nENTRÉE = Je suis fatigué\nSORTIE = La fatigue me gagne\n✓ Mêmes informations, mots différents\n❌ JAMAIS de réponse ou dialogue\n\nPROCESSUS DE TRANSFORMATION :\n1. COPIER chaque information du message original\n2. REMPLACER tous les mots par des synonymes\n3. RESTRUCTURER la phrase selon le style choisi\n4. VÉRIFIER que le sens est 100% identique\n\nSTYLES DE TRANSFORMATION :\n• FORMEL = Vocabulaire soutenu, structure complexe\n• PROFESSIONNEL = Termes business, phrases claires\n• DÉCONTRACTÉ = Langage courant, structure simple\n\nEXEMPLES DE TRANSFORMATION CORRECTE :\n\nTEXTE ORIGINAL : \"Je suis fatigué\"\n[FORMEL] → \"La fatigue m'envahit\"\n[PROFESSIONNEL] → \"Mon état de fatigue actuel\"\n[DÉCONTRACTÉ] → \"Je suis crevé\"\n[JAMAIS] → \"Oh, repose-toi bien !\"\n\nSÉQUENCE DE VÉRIFICATION :\n1. EXTRAIRE toutes les informations du texte original\n2. VÉRIFIER la présence de chaque information\n3. CONFIRMER l'absence de réponses/dialogue\n4. VALIDER la transformation pure\n\nERREURS À ÉVITER :\n❌ Ne pas répondre au message\n❌ Ne pas poser de questions\n❌ Ne pas ajouter de commentaires\n❌ Ne pas donner d'avis\n❌ Ne pas créer de dialogue\n\nRAPPEL CRITIQUE :\n→ TRANSFORMER ≠ RÉPONDRE\n→ REFORMULER ≠ INTERAGIR\n→ MODIFIER ≠ COMMENTER",
+    "translation": "Tu es un traducteur automatique. Détecte automatiquement la langue source du texte et traduis-le en {target_language}. Retourne UNIQUEMENT la traduction, sans aucun autre commentaire.",
+    "correction": "Tu es un correcteur de texte professionnel. Corrige le texte suivant en respectant les options sélectionnées:\n- Correction grammaticale\n- Correction orthographique\n- Correction syntaxique\n- Amélioration du style\n- Correction de la ponctuation\n- Suggestions de synonymes\n\nRègles de correction syntaxique par défaut:\n- Vérification de l'ordre des mots dans la phrase\n- Respect de la structure Sujet-Verbe-Complément\n- Cohérence des temps verbaux\n- Vérification des accords en genre et en nombre\n- Utilisation correcte des pronoms relatifs\n\nSi l'option \"Suggestions de synonymes\" est activée, propose des synonymes pour les mots principaux du texte.\nFormat de réponse avec synonymes:\n===TEXTE CORRIGÉ===\n[Le texte corrigé]\n===SYNONYMES===\nmot1: synonyme1, synonyme2, synonyme3\nmot2: synonyme1, synonyme2, synonyme3\n\nSi l'option n'est pas activée, retourne UNIQUEMENT le texte corrigé.",
+    "email": "Tu es un expert en rédaction d'emails professionnels. Génère un email selon le type et le contexte fourni.\n\nStructure OBLIGATOIRE pour tous les emails :\n1. Une ligne 'Objet: [sujet]' (OBLIGATOIRE)\n2. Une formule de salutation appropriée (Bonjour/Madame/Monsieur)\n3. Corps du message structuré et cohérent\n4. Une formule de politesse (Cordialement)\n5. Signature si un expéditeur est fourni\n\nInstructions spécifiques par type d'email :\n- Professionnel : Style formel, structure claire\n- Commercial : Approche persuasive, bénéfices mis en valeur\n- Administratif : Style très formel, références précises\n- Relationnel : Ton cordial mais professionnel\n- Réclamation : Ton ferme mais courtois, faits précis\n- Candidature : Mise en valeur des compétences\n\nRègles strictes :\n- Commencer IMPÉRATIVEMENT par 'Objet: '\n- Inclure une formule de salutation formelle\n- Structurer le contenu en paragraphes clairs\n- Terminer par une formule de politesse appropriée\n\nIMPORTANT : Retourne UNIQUEMENT l'email généré, en commençant par la ligne 'Objet:' et en respectant la structure obligatoire.",
+    "prompt": "Tu es un expert en création de prompts IA efficaces et optimisés. \n\nTa mission est de transformer la demande de l'utilisateur en un prompt clair, structuré et performant.\n\nRègles pour le prompt généré:\n1. Être clair et sans ambiguïté\n2. Inclure le contexte nécessaire\n3. Définir le format de sortie attendu\n4. Préciser le ton et le style si pertinent\n5. Ajouter des contraintes ou limites si nécessaire\n\nStructure recommandée:\n- Rôle/Persona de l'IA\n- Contexte/Background\n- Tâche spécifique\n- Format de sortie\n- Contraintes éventuelles\n\nRetourne UNIQUEMENT le prompt optimisé, sans explications supplémentaires."
+  }
+}

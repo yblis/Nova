@@ -1,0 +1,156 @@
+{% extends 'settings/base.html' %}
+
+{% block settings_content %}
+<!-- Appearance Section -->
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+        x-text="t('settings.appearance', 'Appearance')"></h2>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+        x-text="t('settings.appearanceDesc', 'Choose how OllaMan looks on your device')"></p>
+
+    <div class="space-y-4">
+        <!-- Light -->
+        <label class="block relative group cursor-pointer">
+            <input type="radio" name="theme" value="light" x-model="theme" @change="updateTheme('light')"
+                class="peer sr-only">
+            <div
+                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                <div
+                    class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.theme.light', 'Light')"></div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                        x-text="t('settings.theme.lightDesc', 'Always use light theme')"></div>
+                </div>
+                <div class="ml-auto">
+                    <div
+                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                        <div
+                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </label>
+
+        <!-- Dark -->
+        <label class="block relative group cursor-pointer">
+            <input type="radio" name="theme" value="dark" x-model="theme" @change="updateTheme('dark')"
+                class="peer sr-only">
+            <div
+                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                <div
+                    class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.theme.dark', 'Dark')"></div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                        x-text="t('settings.theme.darkDesc', 'Always use dark theme')"></div>
+                </div>
+                <div class="ml-auto">
+                    <div
+                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                        <div
+                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </label>
+
+        <!-- System -->
+        <label class="block relative group cursor-pointer">
+            <input type="radio" name="theme" value="system" x-model="theme" @change="updateTheme('system')"
+                class="peer sr-only">
+            <div
+                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                <div
+                    class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.theme.system', 'System')"></div>
+                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                        x-text="t('settings.theme.systemDesc', 'Follow system preferences')"></div>
+                </div>
+                <div class="ml-auto">
+                    <div
+                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                        <div
+                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </label>
+    </div>
+</div>
+
+<!-- Language Section -->
+<div class="mb-10" x-data="{ 
+    currentLocale: localStorage.getItem('locale') || 'fr',
+    locales: [
+        { code: 'fr', name: 'Français', flag: '🇫🇷' },
+        { code: 'en', name: 'English', flag: '🇬🇧' }
+    ],
+    setLocale(code) {
+        if (this.currentLocale === code) return;
+        this.currentLocale = code;
+        localStorage.setItem('locale', code);
+        window.location.reload();
+    }
+}">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+        <span x-text="t('settings.language', 'Langue')"></span>
+    </h2>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+        <span x-text="t('settings.languageDesc', 'Choisissez la langue de l\'interface')"></span>
+    </p>
+
+    <div class="space-y-4">
+        <template x-for="loc in locales" :key="loc.code">
+            <div class="block relative group cursor-pointer" @click="setLocale(loc.code)">
+                <div class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 transition-all flex items-center gap-4 hover:border-blue-500/50"
+                    :class="currentLocale === loc.code ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : ''">
+                    <div
+                        class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-2xl">
+                        <span x-text="loc.flag"></span>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-zinc-900 dark:text-zinc-100" x-text="loc.name">
+                        </div>
+                        <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                            x-text="loc.code === 'fr' ? 'Interface en français' : 'English interface'">
+                        </div>
+                    </div>
+                    <div class="ml-auto">
+                        <div class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 transition-colors"
+                            :class="currentLocale === loc.code ? 'border-blue-500 bg-blue-500' : ''">
+                            <svg x-show="currentLocale === loc.code" class="w-full h-full text-white p-0.5" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+{% endblock %}

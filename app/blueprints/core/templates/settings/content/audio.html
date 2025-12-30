@@ -1,0 +1,204 @@
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h3 class="text-lg font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+            x-text="t('settings.audio.title', 'Audio Configuration')"></h3>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400"
+            x-text="t('settings.audio.description', 'Configure Speech-to-Text and Text-to-Speech settings.')">
+        </p>
+    </div>
+
+    <!-- Loading State -->
+    <div x-show="audioLoading" class="flex justify-center py-8">
+        <svg class="animate-spin h-8 w-8 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+    </div>
+
+    <!-- Content -->
+    <div x-show="!audioLoading" class="space-y-8">
+
+        <!-- Speech-to-Text (STT) -->
+        <div class="bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-base font-semibold leading-6 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span x-text="t('settings.audio.stt.title', 'Speech-to-Text (Dictation)')"></span>
+                </h4>
+                <!-- STT Enable Toggle -->
+                <button type="button" @click="audioConfig.stt_enabled = !audioConfig.stt_enabled"
+                    :class="audioConfig.stt_enabled ? 'bg-brand-600' : 'bg-zinc-200 dark:bg-zinc-700'"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2">
+                    <span :class="audioConfig.stt_enabled ? 'translate-x-5' : 'translate-x-0'"
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                <!-- STT Provider -->
+                <div class="sm:col-span-3">
+                    <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.audio.provider', 'Provider')"></label>
+                    <div class="mt-2">
+                        <select x-model="audioConfig.stt_provider_id"
+                            @change="loadProviderModels(audioConfig.stt_provider_id)"
+                            class="block w-full rounded-md border-0 py-1.5 text-zinc-900 dark:text-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-brand-600 sm:text-sm sm:leading-6">
+                            <option value="" x-text="t('settings.audio.browser_native', 'Browser Native')"></option>
+                            <template x-for="provider in providers" :key="provider.id">
+                                <option :value="provider.id" x-text="provider.name + ' (' + provider.type + ')'">
+                                </option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- STT Model (if provider selected) -->
+                <div class="sm:col-span-3" x-show="audioConfig.stt_provider_id">
+                    <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.audio.model', 'Model')"></label>
+                    <div class="mt-2">
+                        <div x-show="!providerModels[audioConfig.stt_provider_id] && audioConfig.stt_provider_id"
+                            class="text-xs text-zinc-500 mb-1">
+                            Loading...
+                        </div>
+                        <select x-model="audioConfig.stt_model"
+                            class="block w-full rounded-md border-0 py-1.5 text-zinc-900 dark:text-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-brand-600 sm:text-sm sm:leading-6">
+                            <option value="" x-text="t('settings.audio.select_model', 'Select a model...')"></option>
+                            <template x-for="model in providerModels[audioConfig.stt_provider_id] || []"
+                                :key="model.id || model.name || model">
+                                <option :value="model.id || model.name || model"
+                                    x-text="model.name || model.id || model"></option>
+                            </template>
+                        </select>
+                        <p class="mt-1 text-xs text-zinc-500">
+                            Recommended: Whisper, Faster-Whisper, etc.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Text-to-Speech (TTS) -->
+        <div class="bg-white dark:bg-zinc-900 shadow-sm ring-1 ring-zinc-900/5 dark:ring-white/10 rounded-xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h4 class="text-base font-semibold leading-6 text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                    <span x-text="t('settings.audio.tts.title', 'Text-to-Speech')"></span>
+                </h4>
+                <!-- TTS Enable Toggle -->
+                <button type="button" @click="audioConfig.tts_enabled = !audioConfig.tts_enabled"
+                    :class="audioConfig.tts_enabled ? 'bg-brand-600' : 'bg-zinc-200 dark:bg-zinc-700'"
+                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-2">
+                    <span :class="audioConfig.tts_enabled ? 'translate-x-5' : 'translate-x-0'"
+                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6">
+                <!-- TTS Provider -->
+                <div class="sm:col-span-3">
+                    <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.audio.provider', 'Provider')"></label>
+                    <div class="mt-2">
+                        <select x-model="audioConfig.tts_provider_id"
+                            @change="loadProviderModels(audioConfig.tts_provider_id)"
+                            class="block w-full rounded-md border-0 py-1.5 text-zinc-900 dark:text-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-brand-600 sm:text-sm sm:leading-6">
+                            <option value="" x-text="t('settings.audio.browser_native', 'Browser Native')"></option>
+                            <template x-for="provider in providers" :key="provider.id">
+                                <option :value="provider.id" x-text="provider.name + ' (' + provider.type + ')'">
+                                </option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- TTS Model (if provider selected) -->
+                <div class="sm:col-span-3" x-show="audioConfig.tts_provider_id">
+                    <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.audio.model', 'Model')"></label>
+                    <div class="mt-2">
+                        <div x-show="!providerModels[audioConfig.tts_provider_id] && audioConfig.tts_provider_id"
+                            class="text-xs text-zinc-500 mb-1">
+                            Loading...
+                        </div>
+                        <select x-model="audioConfig.tts_model"
+                            class="block w-full rounded-md border-0 py-1.5 text-zinc-900 dark:text-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-brand-600 sm:text-sm sm:leading-6">
+                            <option value="" x-text="t('settings.audio.select_model', 'Select a model...')"></option>
+                            <template x-for="model in providerModels[audioConfig.tts_provider_id] || []"
+                                :key="model.id || model.name || model">
+                                <option :value="model.id || model.name || model"
+                                    x-text="model.name || model.id || model"></option>
+                            </template>
+                        </select>
+                        <p class="mt-1 text-xs text-zinc-500">
+                            Recommended: tts-1, tts-1-hd, etc.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- TTS Voice -->
+                <div class="sm:col-span-3">
+                    <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                        x-text="t('settings.audio.voice', 'Voice Name (Optional)')"></label>
+                    <div class="mt-2">
+                        <input type="text" x-model="audioConfig.tts_voice"
+                            class="block w-full rounded-md border-0 py-1.5 text-zinc-900 dark:text-zinc-100 dark:bg-zinc-800 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700 focus:ring-2 focus:ring-inset focus:ring-brand-600 sm:text-sm sm:leading-6"
+                            placeholder="e.g. alloy, echo, fable (OpenAI) or just empty">
+                    </div>
+                </div>
+
+                <!-- TTS Speed -->
+                <div class="sm:col-span-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium leading-6 text-zinc-900 dark:text-zinc-100"
+                            x-text="t('settings.audio.speed', 'Speed')"></label>
+                        <span class="text-sm font-mono text-zinc-500" x-text="audioConfig.tts_speed + 'x'"></span>
+                    </div>
+                    <input type="range" x-model="audioConfig.tts_speed" min="0.25" max="4.0" step="0.25"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+        </div>
+
+        <!-- Startup Sound -->
+        <div class="relative flex items-start">
+            <div class="flex h-6 items-center">
+                <input id="play_start_sound" name="play_start_sound" type="checkbox"
+                    x-model="audioConfig.play_start_sound"
+                    class="h-4 w-4 rounded border-zinc-300 dark:border-zinc-700 text-brand-600 focus:ring-brand-600 bg-transparent">
+            </div>
+            <div class="ml-3 text-sm leading-6">
+                <label for="play_start_sound" class="font-medium text-zinc-900 dark:text-zinc-100"
+                    x-text="t('settings.audio.startup_sound', 'Play startup sound')"></label>
+                <p class="text-zinc-500 dark:text-zinc-400"
+                    x-text="t('settings.audio.startup_sound_help', 'Play a subtle sound when the application is ready.')">
+                </p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-x-6 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+            <button type="button" @click="saveAudioConfig()" :disabled="audioSaving"
+                class="rounded-md bg-brand-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                <svg x-show="audioSaving" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <span x-text="t('common.save', 'Save')"></span>
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,149 @@
+{% extends layout_template|default('base.html') %}
+{% block title %}Téléchargements • Ollama Manager{% endblock %}
+
+{% block content %}
+<div class="flex-1 h-full flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden" x-data="{ modelTag: '' }">
+
+    <!-- Header -->
+    <header
+        class="flex-none h-16 px-6 flex items-center justify-between bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 z-10">
+        <div class="flex items-center gap-4">
+            <!-- Mobile Menu Toggle -->
+            <button @click="mobileMenuOpen = true"
+                class="sm:hidden -ml-2 p-2 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight"
+                x-text="t('downloads.title', 'Bibliothèque de modèles')"></h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button hx-post="/api/downloads/clear" hx-target="#downloads-history" hx-swap="innerHTML"
+                class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/50 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <span x-text="t('downloads.clearHistory', 'Effacer l\'historique')"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-8">
+
+        <!-- Sections Container -->
+        <div class="max-w-4xl mx-auto space-y-8">
+
+            <!-- Hero / Install Section -->
+            <div
+                class="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden relative group">
+                <!-- Background Decoration -->
+                <div
+                    class="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-brand-500/5 rounded-full blur-3xl pointer-events-none">
+                </div>
+
+                <div class="p-6 sm:p-8 relative">
+                    <div class="flex items-start gap-4 mb-6">
+                        <div
+                            class="flex-none p-3 bg-brand-50 dark:bg-brand-900/20 rounded-xl text-brand-600 dark:text-brand-400">
+                            <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+                                x-text="t('downloads.installTitle', 'Installer un nouveau modèle')"></h2>
+                            <p class="text-zinc-500 dark:text-zinc-400 mt-1 max-w-lg text-sm leading-relaxed"
+                                x-text="t('downloads.installDesc', 'Recherchez et téléchargez des modèles directement depuis la librairie Ollama. Essayez llama3, mistral, ou gemma.')">
+                            </p>
+                        </div>
+                    </div>
+
+                    <form hx-post="/api/models/pull" hx-swap="none"
+                        hx-on:htmx:after-request="htmx.trigger('#active-downloads', 'load')"
+                        @submit="setTimeout(() => modelTag = '', 100)" class="relative max-w-2xl">
+                        <div class="relative group/input">
+                            <div
+                                class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within/input:text-brand-500 transition-colors">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                            <input type="text" name="name" x-model="modelTag"
+                                class="w-full pl-12 pr-32 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:focus:border-brand-400 transition-all text-zinc-900 dark:text-zinc-100 placeholder-zinc-400"
+                                placeholder="llama3:latest" required>
+
+                            <div class="absolute right-2 top-2 bottom-2">
+                                <button type="submit"
+                                    class="h-full px-6 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium text-sm hover:bg-zinc-800 dark:hover:bg-white hover:scale-105 active:scale-95 transition-all shadow-lg shadow-zinc-900/10 dark:shadow-black/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    :disabled="!modelTag">
+                                    <span x-text="t('downloads.pullButton', 'Pull')"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 mt-3 text-xs text-zinc-500 font-mono">
+                            <span>Populaire:</span>
+                            <button type="button" @click="modelTag = 'llama3'"
+                                class="hover:text-brand-600 underline decoration-dotted">llama3</button>
+                            <button type="button" @click="modelTag = 'mistral'"
+                                class="hover:text-brand-600 underline decoration-dotted">mistral</button>
+                            <button type="button" @click="modelTag = 'gemma:7b'"
+                                class="hover:text-brand-600 underline decoration-dotted">gemma:7b</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Active Downloads -->
+            <div id="active-downloads-section" class="space-y-4">
+                <div class="flex items-center gap-2 px-1">
+                    <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest"
+                        x-text="t('downloads.activeDownloads', 'EN COURS')"></h3>
+                    <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50"></div>
+                </div>
+
+                <!-- HTMX Poll Container -->
+                <div id="active-downloads" hx-get="/api/downloads/active" hx-trigger="load, every 1s"
+                    class="space-y-3 min-h-[100px]">
+                    <!-- Placeholder skeleton or empty state -->
+                    <div
+                        class="bg-white dark:bg-zinc-900 rounded-xl p-8 border border-zinc-200 dark:border-zinc-800 text-center border-dashed">
+                        <div
+                            class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-zinc-50 dark:bg-zinc-800 text-zinc-300 dark:text-zinc-600 mb-3">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-zinc-500 dark:text-zinc-400"
+                            x-text="t('downloads.noActive', 'Aucun téléchargement en cours')"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History -->
+            <div class="space-y-4">
+                <div class="flex items-center gap-2 px-1">
+                    <h3 class="text-sm font-bold text-zinc-400 uppercase tracking-widest"
+                        x-text="t('downloads.history', 'HISTORIQUE')"></h3>
+                    <div class="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/50"></div>
+                </div>
+
+                <div id="downloads-history"
+                    class="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden divide-y divide-zinc-100 dark:divide-zinc-800"
+                    hx-get="/api/downloads/history" hx-trigger="load, every 5s">
+                    <div class="p-8 text-center text-zinc-500 dark:text-zinc-400"
+                        x-text="t('downloads.loadingHistory', 'Chargement de l\'historique...')">
+                        Chargement de l'historique...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

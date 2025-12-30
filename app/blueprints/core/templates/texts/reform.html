@@ -1,0 +1,159 @@
+{% extends 'texts/base.html' %}
+
+{% block tool_input %}
+<div class="flex flex-col lg:h-full gap-3">
+    <!-- Header with Context Toggle -->
+    <div class="flex items-center justify-between">
+        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            x-text="t('assistant.reformulation.inputLabel', 'Texte à reformuler')">Texte à reformuler</label>
+        <div class="flex items-center gap-3">
+            <!-- Context Toggle -->
+            <label class="flex items-center gap-2 cursor-pointer">
+                <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                    x-text="t('assistant.reformulation.contextLabel', 'Contexte')">Contexte</span>
+                <button type="button" @click="showContext = !showContext"
+                    :class="showContext ? 'bg-brand-600' : 'bg-zinc-300 dark:bg-zinc-600'"
+                    class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors">
+                    <span :class="showContext ? 'translate-x-5' : 'translate-x-1'"
+                        class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform"></span>
+                </button>
+            </label>
+        </div>
+    </div>
+
+    <!-- Context Field (collapsible) -->
+    <div x-show="showContext" x-collapse class="relative">
+        <textarea x-model="contextText"
+            class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+            rows="2"
+            :placeholder="t('assistant.reformulation.contextPlaceholder', 'Collez ici le contexte ou l\'email reçu...')"></textarea>
+        <button @click="navigator.clipboard.readText().then(t => contextText = t)"
+            class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+            :title="t('assistant.common.paste', 'Coller')">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Main Textarea -->
+    <div class="flex-1 flex flex-col min-h-0">
+        <div class="relative flex-1">
+            <textarea x-model="inputText"
+                class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                :placeholder="t('assistant.reformulation.inputPlaceholder', 'Entrez votre texte ici...')"></textarea>
+            <button @click="pasteFromClipboard()"
+                class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                :title="t('assistant.common.paste', 'Coller')">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </button>
+        </div>
+        <!-- Stats -->
+        <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+            <span><span x-text="t('assistant.common.chars', 'Caractères')">Caractères</span>: <span
+                    x-text="inputText.length"></span></span>
+            <span><span x-text="t('assistant.common.words', 'Mots')">Mots</span>: <span
+                    x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+            <span><span x-text="t('assistant.common.paragraphs', 'Paragraphes')">Paragraphes</span>: <span
+                    x-text="inputText.trim() ? inputText.trim().split(/\n\s*\n/).length : 0"></span></span>
+        </div>
+    </div>
+
+    <!-- Action Button -->
+    <button @click="process" :disabled="processing || !inputText || !currentModel"
+        class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+        <span
+            x-text="processing ? t('assistant.reformulation.processing', 'Reformulation...') : t('assistant.reformulation.button', 'Reformuler')"></span>
+    </button>
+
+    <!-- Options Panel -->
+    <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+        <button @click="showOptions = !showOptions" type="button"
+            class="w-full flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 py-2">
+            <div class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span x-text="t('assistant.common.options', 'Options')">Options</span>
+            </div>
+            <svg :class="showOptions ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none"
+                viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        </button>
+
+        <div x-show="showOptions" x-collapse class="space-y-4 pt-3">
+            <!-- Emoji Toggle -->
+            <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                <input type="checkbox" x-model="addEmojis"
+                    class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                <span x-text="t('assistant.reformulation.addEmojis', 'Ajouter des emojis')">Ajouter des emojis</span>
+            </label>
+
+            <!-- Options Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <!-- TON -->
+                <div
+                    class="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
+                    <span
+                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-2 block"
+                        x-text="t('assistant.reformulation.tone', 'Ton')">Ton</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="tone in options.tones" :key="tone">
+                            <button @click="selectedTone = (selectedTone === tone ? '' : tone)" type="button"
+                                :class="selectedTone === tone ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'"
+                                class="px-2 py-1 text-xs font-medium rounded-md border transition-all hover:opacity-80"
+                                x-text="tone"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- FORMAT -->
+                <div
+                    class="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
+                    <span
+                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-2 block"
+                        x-text="t('assistant.reformulation.format', 'Format')">Format</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="format in options.formats" :key="format">
+                            <button @click="selectedFormat = (selectedFormat === format ? '' : format)" type="button"
+                                :class="selectedFormat === format ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'"
+                                class="px-2 py-1 text-xs font-medium rounded-md border transition-all hover:opacity-80"
+                                x-text="format"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- LONGUEUR -->
+                <div
+                    class="bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700">
+                    <span
+                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider mb-2 block"
+                        x-text="t('assistant.reformulation.length', 'Longueur')">Longueur</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="length in options.lengths" :key="length">
+                            <button @click="selectedLength = (selectedLength === length ? '' : length)" type="button"
+                                :class="selectedLength === length ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'"
+                                class="px-2 py-1 text-xs font-medium rounded-md border transition-all hover:opacity-80"
+                                x-text="length"></button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

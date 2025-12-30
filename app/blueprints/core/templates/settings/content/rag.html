@@ -1,0 +1,209 @@
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">RAG / Documents</h2>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+        Configurer le système RAG (Retrieval Augmented Generation) pour utiliser vos documents PDF
+        comme contexte.
+    </p>
+
+    <!-- Loading State -->
+    <div x-show="ragLoading" class="flex items-center justify-center py-12">
+        <div class="animate-spin w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full">
+        </div>
+    </div>
+
+    <!-- RAG Config Form -->
+    <div x-show="!ragLoading" class="space-y-6">
+
+        <!-- Embedding Model Selection -->
+        <div class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+            <div class="flex items-start gap-4">
+                <div class="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-500">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Modèle
+                        d'Embedding
+                    </h3>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                        Sélectionnez le modèle utilisé pour générer les embeddings des documents.
+                        <span class="text-red-500">Doit être un modèle de type "embedding" (ex:
+                            nomic-embed-text).</span>
+                    </p>
+
+                    <div class="mb-4">
+                        <select x-model="ragConfig.embedding_model"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                            <option value="">-- Sélectionner un modèle --</option>
+                            <template x-for="model in ragConfig.available_models" :key="model.name">
+                                <option :value="model.name" x-text="model.name + ' (' + model.dimensions + ' dims)'">
+                                </option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div x-show="ragConfig.available_models.length === 0"
+                        class="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+                        <strong>Aucun modèle d'embedding détecté.</strong><br>
+                        Vous devez d'abord télécharger un modèle d'embedding via la page
+                        <a href="/discover" class="underline text-amber-600 dark:text-amber-400">Discover</a>.
+                        <br><br>
+                        Exemples : <code class="bg-amber-100 dark:bg-amber-900 px-1 rounded">nomic-embed-text</code>,
+                        <code class="bg-amber-100 dark:bg-amber-900 px-1 rounded">all-minilm</code>,
+                        <code class="bg-amber-100 dark:bg-amber-900 px-1 rounded">mxbai-embed-large</code>
+                    </div>
+
+                    <div x-show="ragConfig.embedding_model" class="mt-2 text-sm text-green-600 dark:text-green-400">
+                        ✓ Modèle configuré : <span x-text="ragConfig.embedding_model" class="font-mono"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Settings (Always visible) -->
+        <div class="mt-8">
+            <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
+                Paramètres avancés
+            </h4>
+            <div
+                class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 space-y-6">
+                <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                    Ces paramètres affectent la façon dont les documents sont découpés et
+                    recherchés.
+                </p>
+
+                <!-- Chunking Settings -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                            Taille des chunks
+                        </label>
+                        <input type="number" x-model.number="ragConfig.chunk_size" min="100" max="2000" step="50"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                        <p class="text-xs text-zinc-400 mt-1">Caractères par morceau</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                            Chevauchement
+                        </label>
+                        <input type="number" x-model.number="ragConfig.chunk_overlap" min="0" max="200" step="10"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                        <p class="text-xs text-zinc-400 mt-1">Caractères communs</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                            Top K résultats
+                        </label>
+                        <input type="number" x-model.number="ragConfig.top_k" min="1" max="20" step="1"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                        <p class="text-xs text-zinc-400 mt-1">Chunks utilisés</p>
+                    </div>
+                </div>
+
+                <!-- OCR Configuration -->
+                <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        OCR pour PDF scannés
+                    </h4>
+                    <!-- Tesseract OCR (simplifié) -->
+                    <div class="space-y-4">
+                        <div
+                            class="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                            <div
+                                class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 dark:bg-green-900/40 rounded-full">
+                                <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-green-700 dark:text-green-400">
+                                    Tesseract OCR</div>
+                                <div class="text-xs text-green-600 dark:text-green-500">Moteur OCR
+                                    open source (Français + Anglais)</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                                Seuil détection PDF scanné
+                            </label>
+                            <input type="number" x-model.number="ragConfig.ocr_threshold" min="10" max="200" step="10"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                            <p class="text-xs text-zinc-400 mt-1">
+                                Si un PDF contient moins de ce nombre de caractères par page, il
+                                sera traité comme un PDF scanné.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Qdrant Configuration -->
+                <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                            </svg>
+                            Base vectorielle Qdrant
+                        </h4>
+                        <!-- Qdrant Toggle -->
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs"
+                                :class="ragConfig.qdrant_available ? 'text-green-600 dark:text-green-400' : 'text-zinc-500'">
+                                <span x-text="ragConfig.qdrant_available ? '✓ Connecté' : '○ Non disponible'"></span>
+                            </span>
+                            <div class="relative inline-flex items-center cursor-pointer"
+                                @click="ragConfig.use_qdrant = !ragConfig.use_qdrant"
+                                :class="{ 'opacity-50 cursor-not-allowed': !ragConfig.qdrant_available }">
+                                <div class="w-11 h-6 rounded-full transition-colors"
+                                    :class="ragConfig.use_qdrant && ragConfig.qdrant_available ? 'bg-blue-600 dark:bg-blue-500' : 'bg-zinc-200 dark:bg-zinc-700'">
+                                </div>
+                                <div class="absolute top-[2px] left-[2px] bg-white border border-zinc-300 rounded-full h-5 w-5 transition-transform"
+                                    :class="ragConfig.use_qdrant && ragConfig.qdrant_available ? 'translate-x-full border-white' : ''">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                        Qdrant offre une recherche vectorielle hybride plus performante que
+                        PostgreSQL.
+                        <span x-show="!ragConfig.qdrant_available" class="text-amber-600 dark:text-amber-400">
+                            Vérifiez que le service Qdrant est démarré.
+                        </span>
+                    </p>
+                    <!-- Qdrant Stats -->
+                    <div x-show="ragConfig.qdrant_available && ragConfig.qdrant_stats" class="mt-2 flex gap-4 text-xs">
+                        <span class="text-zinc-500">
+                            Vecteurs: <span class="font-mono text-blue-600 dark:text-blue-400"
+                                x-text="ragConfig.qdrant_stats?.vectors_count || 0"></span>
+                        </span>
+                        <span class="text-zinc-500">
+                            Status: <span class="font-mono" x-text="ragConfig.qdrant_stats?.status || 'N/A'"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="flex justify-end">
+            <button @click="saveRagConfig" :disabled="ragSaving"
+                class="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                <span x-show="ragSaving"
+                    class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                <span x-text="ragSaving ? 'Enregistrement...' : 'Enregistrer'"></span>
+            </button>
+        </div>
+    </div>
+</div>

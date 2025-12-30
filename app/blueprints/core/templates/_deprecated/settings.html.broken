@@ -1,0 +1,1262 @@
+{% extends 'base.html' %}
+{% block title %}Settings • Ollama Manager{% endblock %}
+{% block styles %}
+{{ super() }}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+{% block content %}
+<div style="width: 100%; max-width: 100%; overflow-x: hidden; min-height: 100%; display: flex; flex-direction: column; box-sizing: border-box;"
+    x-data="settingsPage">
+
+    <!-- Header -->
+    <div class="px-4 sm:px-8 py-4 sm:py-6 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0">
+        <h1 class="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100"
+            x-text="t('settings.title', 'Settings')"></h1>
+    </div>
+
+    <!-- Mobile Tabs (scrollable) -->
+    <div
+        class="md:hidden overflow-x-auto border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 flex-shrink-0">
+        <div class="flex px-4 py-2 gap-1">
+            <button @click="activeTab='general'"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='general' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.general', 'General')">
+            </button>
+            <button @click="activeTab='providers'; loadProviders()"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='providers' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.providers', 'Fournisseurs')">
+            </button>
+            <button @click="activeTab='shortcuts'"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='shortcuts' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.shortcuts', 'Shortcuts')">
+            </button>
+            <button @click="activeTab='rag'; loadRagConfig()"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='rag' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.rag', 'RAG')">
+            </button>
+            <button @click="activeTab='llm'; loadLlmConfig()"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='llm' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.llm', 'LLM')">
+            </button>
+            <button @click="activeTab='about'"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='about' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.about', 'About')">
+            </button>
+
+            <button @click="activeTab='websearch'; loadWebSearchConfig()"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='websearch' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.websearch', 'Web')">
+            </button>
+            <button @click="activeTab='textprompts'; loadTextPromptsConfig()"
+                class="px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors"
+                :class="activeTab==='textprompts' ? 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400' : 'text-zinc-600 dark:text-zinc-400'"
+                x-text="t('settings.textprompts', 'Prompts Textes')">
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden min-h-0">
+
+        <!-- Desktop Settings Sidebar (hidden on mobile) -->
+        <aside
+            class="hidden md:block w-64 flex-shrink-0 overflow-y-auto border-r border-zinc-200 dark:border-zinc-800 py-6 px-4 space-y-1">
+            <button @click="activeTab='general'"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='general' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                General
+            </button>
+
+            <button @click="activeTab='providers'; loadProviders()"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='providers' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                </svg>
+                Fournisseurs LLM
+            </button>
+
+            <button @click="activeTab='shortcuts'"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='shortcuts' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Shortcuts
+            </button>
+
+            <button @click="activeTab='rag'; loadRagConfig()"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='rag' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                RAG / Documents
+            </button>
+
+            <button @click="activeTab='about'"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='about' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                About
+            </button>
+
+            <button @click="activeTab='llm'; loadLlmConfig()"
+                class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                :class="activeTab==='llm' ? 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+                LLM
+            </button>
+
+            <div class="pt-4 mt-2 border-t border-zinc-100 dark:border-zinc-800/50">
+
+                <button @click="activeTab='websearch'; loadWebSearchConfig()"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mt-1"
+                    :class="activeTab==='websearch' ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                    Recherche Web
+                </button>
+
+                <button @click="activeTab='textprompts'; loadTextPromptsConfig()"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors mt-1"
+                    :class="activeTab==='textprompts' ? 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Prompts Textes
+                </button>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 w-full lg:max-w-4xl mx-auto">
+
+            <!-- General Tab -->
+            <div x-show="activeTab === 'general'">
+                <!-- Appearance Section -->
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.appearance', 'Appearance')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.appearanceDesc', 'Choose how OllaMan looks on your device')"></p>
+
+                    <div class="space-y-4">
+                        <!-- Light -->
+                        <label class="block relative group cursor-pointer">
+                            <input type="radio" name="theme" value="light" x-model="theme"
+                                @change="updateTheme('light')" class="peer sr-only">
+                            <div
+                                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                                        x-text="t('settings.theme.light', 'Light')"></div>
+                                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('settings.theme.lightDesc', 'Always use light theme')"></div>
+                                </div>
+                                <div class="ml-auto">
+                                    <div
+                                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                                        <div
+                                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <!-- Dark -->
+                        <label class="block relative group cursor-pointer">
+                            <input type="radio" name="theme" value="dark" x-model="theme" @change="updateTheme('dark')"
+                                class="peer sr-only">
+                            <div
+                                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-500 flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                                        x-text="t('settings.theme.dark', 'Dark')"></div>
+                                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('settings.theme.darkDesc', 'Always use dark theme')"></div>
+                                </div>
+                                <div class="ml-auto">
+                                    <div
+                                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                                        <div
+                                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+
+                        <!-- System -->
+                        <label class="block relative group cursor-pointer">
+                            <input type="radio" name="theme" value="system" x-model="theme"
+                                @change="updateTheme('system')" class="peer sr-only">
+                            <div
+                                class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 peer-checked:border-blue-500 peer-checked:bg-blue-50/50 dark:peer-checked:bg-blue-900/20 transition-all flex items-center gap-4 hover:border-blue-500/50">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 flex items-center justify-center">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-zinc-900 dark:text-zinc-100"
+                                        x-text="t('settings.theme.system', 'System')"></div>
+                                    <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('settings.theme.systemDesc', 'Follow system preferences')"></div>
+                                </div>
+                                <div class="ml-auto">
+                                    <div
+                                        class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 peer-checked:bg-blue-500 relative">
+                                        <div
+                                            class="absolute inset-0 m-auto w-2 h-2 rounded-full bg-white opacity-0 peer-checked:opacity-100">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Language Section -->
+                <div class="mb-10" x-data="{ 
+                    currentLocale: localStorage.getItem('locale') || 'fr',
+                    locales: [
+                        { code: 'fr', name: 'Français', flag: '🇫🇷' },
+                        { code: 'en', name: 'English', flag: '🇬🇧' }
+                    ],
+                    setLocale(code) {
+                        if (this.currentLocale === code) return;
+                        this.currentLocale = code;
+                        localStorage.setItem('locale', code);
+                        // Reload page to apply translations everywhere
+                        window.location.reload();
+                    }
+                }">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">
+                        <span x-text="t('settings.language', 'Langue')"></span>
+                    </h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                        <span x-text="t('settings.languageDesc', 'Choisissez la langue')"></span>
+                    </p>
+
+                    <div class="space-y-4">
+                        <template x-for="loc in locales" :key="loc.code">
+                            <div class="block relative group cursor-pointer" @click="setLocale(loc.code)">
+                                <div class="p-4 rounded-xl border-2 border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 transition-all flex items-center gap-4 hover:border-blue-500/50"
+                                    :class="currentLocale === loc.code ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20' : ''">
+                                    <div
+                                        class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-2xl">
+                                        <span x-text="loc.flag"></span>
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-zinc-900 dark:text-zinc-100" x-text="loc.name">
+                                        </div>
+                                        <div class="text-sm text-zinc-500 dark:text-zinc-400"
+                                            x-text="loc.code === 'fr' ? 'Interface en français' : 'English interface'">
+                                        </div>
+                                    </div>
+                                    <div class="ml-auto">
+                                        <div class="w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600 peer-checked:border-blue-500 transition-colors"
+                                            :class="currentLocale === loc.code ? 'border-blue-500 bg-blue-500' : ''">
+                                            <svg x-show="currentLocale === loc.code"
+                                                class="w-full h-full text-white p-0.5" fill="none" viewBox="0 0 24 24"
+                                                stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                    d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Providers Tab -->
+            <div x-show="activeTab === 'providers'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('providers.title', 'Fournisseurs LLM')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('providers.desc', 'Gérez vos connexions aux différents fournisseurs')"></p>
+
+                    <!-- Migration Button (if old servers exist) -->
+                    <div x-show="providers.length === 0" class="mb-6">
+                        <button @click="migrateFromServers()"
+                            class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                            x-text="t('providers.migrate', 'Migrer les serveurs Ollama existants')">
+                        </button>
+                    </div>
+
+                    <!-- Provider List -->
+                    <div class="space-y-3 mb-8">
+                        <template x-for="provider in providers" :key="provider.id">
+                            <div class="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all"
+                                :class="provider.id === activeProviderId ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'">
+
+                                <div class="flex-1 min-w-0 cursor-pointer" @click="setActiveProvider(provider.id)">
+                                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                        <!-- Provider Type Badge -->
+                                        <span class="px-2 py-0.5 rounded-full text-xs font-bold" :class="{
+                                                'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400': provider.type === 'ollama',
+                                                'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400': provider.type === 'lmstudio',
+                                                'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400': provider.type === 'openai',
+                                                'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400': provider.type === 'anthropic',
+                                                'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400': provider.type === 'gemini',
+                                                'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400': provider.type === 'mistral',
+                                                'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400': provider.type === 'groq',
+                                                'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400': provider.type === 'openrouter',
+                                                'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400': provider.type === 'deepseek',
+                                                'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400': provider.type === 'qwen',
+                                                'bg-slate-100 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400': provider.type === 'openai_compatible'
+                                            }" x-text="providerTypes[provider.type]?.name || provider.type"></span>
+                                        <div class="font-semibold text-zinc-900 dark:text-zinc-100 truncate"
+                                            x-text="provider.name"></div>
+                                        <span x-show="provider.id === activeProviderId"
+                                            class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 text-xs font-bold"
+                                            x-text="t('providers.active', 'Actif')"></span>
+                                    </div>
+                                    <div class="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+                                        <span x-show="provider.url" class="font-mono truncate"
+                                            x-text="provider.url"></span>
+                                        <span x-show="provider.has_api_key" class="flex items-center gap-1">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                            </svg>
+                                            <span x-text="provider.api_key_masked || '•••••'"></span>
+                                        </span>
+                                    </div>
+                                    <!-- Test Result -->
+                                    <div x-show="testResult && testResult.id === provider.id" class="mt-2">
+                                        <span class="text-xs px-2 py-1 rounded"
+                                            :class="testResult?.ok ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'"
+                                            x-text="testResult?.message || ''"></span>
+                                    </div>
+                                    <!-- Default Model Selector -->
+                                    <div x-show="(testResult && testResult.id === provider.id && testResult.ok) || provider.default_model"
+                                        class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path
+                                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                            </svg>
+                                            <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400"
+                                                x-text="t('providers.defaultModel', 'Modèle par défaut')"></label>
+                                        </div>
+                                        <div class="mt-1.5 flex items-center gap-2">
+                                            <select @change="setProviderDefaultModel(provider.id, $event.target.value)"
+                                                class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                                <option value="" x-text="t('providers.noDefaultModel', '-- Aucun --')">
+                                                </option>
+                                                <template x-for="m in (providerModels[provider.id] || [])"
+                                                    :key="typeof m === 'string' ? m : m.id || m.name">
+                                                    <option :value="typeof m === 'string' ? m : m.id || m.name"
+                                                        :selected="provider.default_model === (typeof m === 'string' ? m : m.id || m.name)"
+                                                        x-text="typeof m === 'string' ? m : m.id || m.name"></option>
+                                                </template>
+                                            </select>
+                                            <span x-show="provider.default_model"
+                                                class="text-xs text-amber-600 dark:text-amber-400 font-medium"
+                                                x-text="provider.default_model"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <!-- Test Button -->
+                                    <button @click="testProvider(provider.id)"
+                                        :disabled="testingProviderId === provider.id"
+                                        class="p-2 text-zinc-400 hover:text-green-600 dark:hover:text-green-400 transition-colors disabled:opacity-50"
+                                        title="Tester la connexion">
+                                        <svg x-show="testingProviderId !== provider.id" class="w-5 h-5" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        <svg x-show="testingProviderId === provider.id" class="w-5 h-5 animate-spin"
+                                            fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                    </button>
+                                    <!-- Edit Button -->
+                                    <button @click="editProvider(provider)"
+                                        class="p-2 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                        title="Modifier">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                    </button>
+                                    <!-- Set Active Button -->
+                                    <button @click="setActiveProvider(provider.id)"
+                                        x-show="provider.id !== activeProviderId"
+                                        class="p-2 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                                        title="Activer">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                    <!-- Delete Button -->
+                                    <button @click="deleteProvider(provider.id)"
+                                        class="p-2 text-zinc-400 hover:text-red-600 transition-colors"
+                                        title="Supprimer">
+                                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div x-show="providers.length === 0 && !providersLoading" class="text-center py-8 text-zinc-500"
+                            x-text="t('providers.noProviders', 'Aucun fournisseur configuré')">
+                        </div>
+                        <div x-show="providersLoading" class="text-center py-8 text-zinc-500">
+                            <svg class="w-6 h-6 animate-spin mx-auto" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Add/Edit Provider Form -->
+                    <form @submit.prevent="saveProvider"
+                        class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                        <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4"
+                            x-text="editingProviderId ? t('providers.editProvider', 'Modifier le fournisseur') : t('providers.addProvider', 'Ajouter un fournisseur')">
+                        </h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <!-- Provider Type -->
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                    x-text="t('providers.type', 'Type de fournisseur')"></label>
+                                <select x-model="formProvider.type" :disabled="editingProviderId"
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                                    <template x-for="(info, key) in providerTypes" :key="key">
+                                        <option :value="key" x-text="info.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+
+                            <!-- Name -->
+                            <div>
+                                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                    x-text="t('providers.name', 'Nom d\'affichage')"></label>
+                                <input x-model="formProvider.name" type="text" placeholder="ex: Mon OpenAI" required
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                            </div>
+
+                            <!-- URL (conditional) -->
+                            <div
+                                x-show="providerTypes[formProvider.type]?.requires_url || formProvider.type === 'ollama' || formProvider.type === 'lmstudio'">
+                                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                    x-text="t('providers.url', 'URL du serveur')"></label>
+                                <input x-model="formProvider.url" type="text"
+                                    :placeholder="providerTypes[formProvider.type]?.default_url || 'http://localhost:11434'"
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                            </div>
+
+                            <!-- API Key (conditional) -->
+                            <div
+                                x-show="providerTypes[formProvider.type]?.requires_api_key || formProvider.type === 'openai_compatible'">
+                                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                                    <span x-text="t('providers.apiKey', 'Clé API')"></span>
+                                    <span x-show="formProvider.type === 'openai_compatible'"
+                                        class="text-zinc-400">(optionnel)</span>
+                                    <span x-show="editingProviderId && formProvider.type !== 'openai_compatible'"
+                                        class="text-zinc-400">(laisser vide pour conserver)</span>
+                                </label>
+                                <div class="relative">
+                                    <input x-model="formProvider.api_key" :type="showApiKey ? 'text' : 'password'"
+                                        :placeholder="formProvider.type === 'openai_compatible' ? 'Clé API (si nécessaire)' : 'sk-...'"
+                                        class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                                    <button type="button" @click="showApiKey = !showApiKey"
+                                        class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                                        <svg x-show="!showApiKey" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <svg x-show="showApiKey" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OpenRouter Extra Headers -->
+                        <div x-show="formProvider.type === 'openrouter'"
+                            class="mb-4 p-4 rounded-lg bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800">
+                            <p class="text-xs text-pink-600 dark:text-pink-400 mb-2">
+                                <strong>OpenRouter</strong> requiert des headers HTTP supplémentaires pour
+                                l'attribution.
+                            </p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-pink-500 dark:text-pink-400 mb-1">HTTP-Referer</label>
+                                    <input x-model="formProvider.extra_headers['HTTP-Referer']" type="text"
+                                        placeholder="https://your-app.com"
+                                        class="w-full rounded-lg border border-pink-200 dark:border-pink-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-pink-500 dark:text-pink-400 mb-1">X-Title</label>
+                                    <input x-model="formProvider.extra_headers['X-Title']" type="text"
+                                        placeholder="My App Name"
+                                        class="w-full rounded-lg border border-pink-200 dark:border-pink-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Provider Description -->
+                        <div class="mb-4 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-700/50">
+                            <p class="text-xs text-zinc-600 dark:text-zinc-400"
+                                x-text="providerTypes[formProvider.type]?.description || ''"></p>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row justify-end gap-2">
+                            <button type="button" x-show="editingProviderId" @click="cancelProviderEdit()"
+                                class="px-4 py-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 text-sm font-medium transition-colors"
+                                x-text="t('common.cancel', 'Annuler')">
+                            </button>
+                            <button type="submit" :disabled="providersSaving"
+                                class="w-full sm:w-auto px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                                x-text="editingProviderId ? t('common.save', 'Enregistrer') : t('common.add', 'Ajouter')">
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Shortcuts Tab -->
+            <div x-show="activeTab === 'shortcuts'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.shortcuts', 'Keyboard Shortcuts')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.shortcutsDesc', 'Boost your productivity')"></p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Shortcut Item -->
+                        <div
+                            class="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                x-text="t('chat.newChat', 'New Chat')"></span>
+                            <kbd
+                                class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs font-mono text-zinc-500">⌘
+                                N</kbd>
+                        </div>
+                        <div
+                            class="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                x-text="t('shortcuts.focusSearch', 'Focus Search')"></span>
+                            <kbd
+                                class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs font-mono text-zinc-500">⌘
+                                K</kbd>
+                        </div>
+                        <div
+                            class="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                x-text="t('nav.settings', 'Settings')"></span>
+                            <kbd
+                                class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs font-mono text-zinc-500">⌘
+                                ,</kbd>
+                        </div>
+                        <div
+                            class="flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                x-text="t('shortcuts.toggleSidebar', 'Toggle Sidebar')"></span>
+                            <kbd
+                                class="px-2 py-1 rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-xs font-mono text-zinc-500">⌘
+                                B</kbd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Tab -->
+            <div x-show="activeTab === 'about'">
+                <div class="text-center py-12">
+                    <div
+                        class="w-16 h-16 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center text-white mb-6 shadow-xl shadow-brand-500/30">
+                        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2"
+                        x-text="t('settings.aboutContent.appName', 'Ollama Manager')"></h2>
+                    <p class="text-zinc-500 dark:text-zinc-400 mb-8"
+                        x-text="t('settings.aboutContent.version', 'Version 1.0.0 • Made with ♥')"></p>
+
+                    <div class="flex items-center justify-center gap-4">
+                        <a href="https://github.com/ollama/ollama" target="_blank"
+                            class="px-4 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                            x-text="t('settings.aboutContent.github', 'GitHub')"></a>
+                        <a href="https://ollama.com" target="_blank"
+                            class="px-4 py-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                            x-text="t('settings.aboutContent.website', 'Ollama Website')">
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- RAG Tab -->
+            <div x-show="activeTab === 'rag'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.rag', 'RAG / Documents')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.ragDesc', 'Configurer le système RAG pour utiliser vos documents PDF comme contexte.')">
+                    </p>
+
+                    <!-- Loading State -->
+                    <div x-show="ragLoading" class="flex items-center justify-center py-12">
+                        <div class="animate-spin w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full">
+                        </div>
+                    </div>
+
+                    <!-- RAG Config Form -->
+                    <div x-show="!ragLoading" class="space-y-6">
+
+                        <!-- Embedding Model Selection -->
+                        <div
+                            class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <div class="flex items-start gap-4">
+                                <div class="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-500">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                                        x-text="t('rag.embeddingModel', 'Modèle d\'Embedding')">
+                                    </h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                                        <span
+                                            x-text="t('rag.embeddingModelDesc', 'Sélectionnez le modèle utilisé')"></span>
+                                        <span class="text-red-500">(nomic-embed-text)</span>
+                                    </p>
+
+                                    <div class="mb-4">
+                                        <select x-model="ragConfig.embedding_model"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                            <option value="">-- Sélectionner un modèle --</option>
+                                            <template x-for="model in ragConfig.available_models" :key="model.name">
+                                                <option :value="model.name"
+                                                    x-text="model.name + ' (' + model.dimensions + ' dims)'"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+
+                                    <div x-show="ragConfig.available_models.length === 0"
+                                        class="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
+                                        <strong
+                                            x-text="t('rag.noEmbeddingModel', 'Aucun modèle d\'embedding détecté')"></strong><br>
+                                        <a href="/discover"
+                                            class="underline text-amber-600 dark:text-amber-400">Discover</a>.
+                                        <br><br>
+                                        Exemples : <code
+                                            class="bg-amber-100 dark:bg-amber-900 px-1 rounded">nomic-embed-text</code>,
+                                        <code class="bg-amber-100 dark:bg-amber-900 px-1 rounded">all-minilm</code>,
+                                        <code
+                                            class="bg-amber-100 dark:bg-amber-900 px-1 rounded">mxbai-embed-large</code>
+                                    </div>
+
+                                    <div x-show="ragConfig.embedding_model"
+                                        class="mt-2 text-sm text-green-600 dark:text-green-400">
+                                        ✓ Modèle configuré : <span x-text="ragConfig.embedding_model"
+                                            class="font-mono"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings (collapsible) -->
+                        <details class="group">
+                            <summary
+                                class="cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+                                ▸ <span x-text="t('rag.advanced', 'Paramètres avancés')"></span>
+                            </summary>
+                            <div
+                                class="mt-4 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 space-y-6">
+                                <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-4"
+                                    x-text="t('rag.advancedDesc', 'Ces paramètres affectent la façon dont les documents sont découpés et recherchés.')">
+                                </p>
+
+                                <!-- Chunking Settings -->
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                            x-text="t('rag.chunkSize', 'Taille des chunks')">
+                                        </label>
+                                        <input type="number" x-model.number="ragConfig.chunk_size" min="100" max="2000"
+                                            step="50"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <p class="text-xs text-zinc-400 mt-1">Caractères par morceau</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                            x-text="t('rag.overlap', 'Chevauchement')">
+                                        </label>
+                                        <input type="number" x-model.number="ragConfig.chunk_overlap" min="0" max="200"
+                                            step="10"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <p class="text-xs text-zinc-400 mt-1">Caractères communs</p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                            x-text="t('rag.topK', 'Top K résultats')">
+                                        </label>
+                                        <input type="number" x-model.number="ragConfig.top_k" min="1" max="20" step="1"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                        <p class="text-xs text-zinc-400 mt-1">Chunks utilisés</p>
+                                    </div>
+                                </div>
+
+                                <!-- OCR Configuration -->
+                                <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                    <h4
+                                        class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                        </svg>
+                                        <span x-text="t('rag.ocrTitle', 'OCR pour PDF scannés')"></span>
+                                    </h4>
+                                    <!-- Tesseract OCR (simplifié) -->
+                                    <div class="space-y-4">
+                                        <div
+                                            class="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                            <div
+                                                class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 dark:bg-green-900/40 rounded-full">
+                                                <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                            <div class="flex-1">
+                                                <div class="font-medium text-green-700 dark:text-green-400">Tesseract
+                                                    OCR</div>
+                                                <div class="text-xs text-green-600 dark:text-green-500"
+                                                    x-text="t('rag.tesseractDesc', 'Moteur OCR open source (Français + Anglais)')">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                                x-text="t('rag.ocrThreshold', 'Seuil détection PDF scanné')">
+                                            </label>
+                                            <input type="number" x-model.number="ragConfig.ocr_threshold" min="10"
+                                                max="200" step="10"
+                                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                            <p class="text-xs text-zinc-400 mt-1"
+                                                x-text="t('rag.ocrThresholdDesc', 'Si un PDF contient moins de ce nombre de caractères par page...')">
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Qdrant Configuration -->
+                            <div class="pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h4
+                                        class="text-sm font-medium text-zinc-700 dark:text-zinc-300 flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                                        </svg>
+                                        <span x-text="t('rag.qdrantTitle', 'Base vectorielle Qdrant')"></span>
+                                    </h4>
+                                    <!-- Qdrant Toggle -->
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-xs"
+                                            :class="ragConfig.qdrant_available ? 'text-green-600 dark:text-green-400' : 'text-zinc-500'">
+                                            <span
+                                                x-text="ragConfig.qdrant_available ? t('rag.connected', '✓ Connecté') : t('rag.unavailable', '○ Non disponible')"></span>
+                                        </span>
+                                        <div class="relative inline-flex items-center cursor-pointer"
+                                            @click="ragConfig.use_qdrant = !ragConfig.use_qdrant"
+                                            :class="{ 'opacity-50 cursor-not-allowed': !ragConfig.qdrant_available }">
+                                            <div class="w-11 h-6 rounded-full transition-colors"
+                                                :class="ragConfig.use_qdrant && ragConfig.qdrant_available ? 'bg-blue-600 dark:bg-blue-500' : 'bg-zinc-200 dark:bg-zinc-700'">
+                                            </div>
+                                            <div class="absolute top-[2px] left-[2px] bg-white border border-zinc-300 rounded-full h-5 w-5 transition-transform"
+                                                :class="ragConfig.use_qdrant && ragConfig.qdrant_available ? 'translate-x-full border-white' : ''">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                    <span
+                                        x-text="t('rag.qdrantDesc', 'Qdrant offre une recherche vectorielle hybride plus performante que PostgreSQL.')"></span>
+                                    <span x-show="!ragConfig.qdrant_available"
+                                        class="text-amber-600 dark:text-amber-400"
+                                        x-text="t('rag.checkQdrant', 'Vérifiez que le service Qdrant est démarré.')">
+                                    </span>
+                                </p>
+                                <!-- Qdrant Stats -->
+                                <div x-show="ragConfig.qdrant_available && ragConfig.qdrant_stats"
+                                    class="mt-2 flex gap-4 text-xs">
+                                    <span class="text-zinc-500">
+                                        <span x-text="t('rag.vectors', 'Vecteurs')"></span>: <span
+                                            class="font-mono text-blue-600 dark:text-blue-400"
+                                            x-text="ragConfig.qdrant_stats?.vectors_count || 0"></span>
+                                    </span>
+                                    <span class="text-zinc-500">
+                                        <span x-text="t('rag.status', 'Statut')"></span>: <span class="font-mono"
+                                            x-text="ragConfig.qdrant_stats?.status || 'N/A'"></span>
+                                    </span>
+                                </div>
+                            </div>
+                    </div>
+                    </details>
+
+                    <!-- Save Button -->
+                    <div class="flex justify-end">
+                        <button @click="saveRagConfig" :disabled="ragSaving"
+                            class="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            <span x-show="ragSaving"
+                                class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                            <span
+                                x-text="ragSaving ? t('common.loading', 'Enregistrement...') : t('common.save', 'Enregistrer')"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web Search Tab -->
+            <div x-show="activeTab === 'websearch'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.websearch.title', 'Recherche Web')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.websearch.desc', 'Configurez SearXNG pour permettre à l\'IA d\'effectuer des recherches web en temps réel.')">
+                    </p>
+
+                    <!-- Loading State -->
+                    <div x-show="webSearchLoading" class="flex items-center justify-center py-12">
+                        <div class="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full">
+                        </div>
+                    </div>
+
+                    <!-- Web Search Config Form -->
+                    <div x-show="!webSearchLoading" class="space-y-6">
+
+                        <!-- SearXNG URL Configuration -->
+                        <div
+                            class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <div class="flex items-start gap-4">
+                                <div class="p-2 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-500">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                                        x-text="t('settings.websearch.server', 'Serveur SearXNG')">
+                                    </h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4"
+                                        x-text="t('settings.websearch.serverDesc', 'Entrez l\'URL de votre instance SearXNG. Le format JSON doit être activé sur le serveur.')">
+                                    </p>
+
+                                    <!-- Prerequisite alert -->
+                                    <div
+                                        class="mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-700 dark:text-amber-300">
+                                        <strong>⚠️ <span
+                                                x-text="t('settings.websearch.prerequisites', 'Prérequis SearXNG')"></span>
+                                            :</strong>
+                                        <span
+                                            x-text="t('settings.websearch.prerequisitesDesc', 'Le format JSON doit être activé dans')"></span>
+                                        <code class="bg-amber-100 dark:bg-amber-900 px-1 rounded">settings.yml</code> :
+                                        <pre
+                                            class="mt-2 p-2 bg-amber-100/50 dark:bg-amber-900/30 rounded text-xs overflow-x-auto">search:
+  formats:
+    - html
+    - json</pre>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2"
+                                            x-text="t('settings.websearch.serverUrl', 'URL du serveur')"></label>
+                                        <input type="text" x-model="webSearchConfig.searxng_url"
+                                            placeholder="https://searx.example.com"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500">
+                                    </div>
+
+                                    <!-- Status indicator -->
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <div class="w-2.5 h-2.5 rounded-full transition-colors"
+                                            :class="webSearchConfig.is_available ? 'bg-green-500' : 'bg-zinc-400'">
+                                        </div>
+                                        <span class="text-sm"
+                                            :class="webSearchConfig.is_available ? 'text-green-600 dark:text-green-400' : 'text-zinc-500'"
+                                            x-text="webSearchConfig.is_available ? t('settings.websearch.connected', 'Connecté') : t('settings.websearch.notConnected', 'Non connecté')"></span>
+                                    </div>
+
+                                    <!-- Test button -->
+                                    <button @click="testWebSearch"
+                                        :disabled="webSearchTesting || !webSearchConfig.searxng_url"
+                                        class="px-4 py-2 bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                        <span x-show="webSearchTesting"
+                                            class="animate-spin w-4 h-4 border-2 border-zinc-500 border-t-transparent rounded-full"></span>
+                                        <svg x-show="!webSearchTesting" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                        </svg>
+                                        <span
+                                            x-text="webSearchTesting ? t('settings.websearch.testing', 'Test en cours...') : t('settings.websearch.testConnection', 'Tester la connexion')"></span>
+                                    </button>
+
+                                    <!-- Test result message -->
+                                    <div x-show="webSearchTestMessage" class="mt-3 p-3 rounded-lg text-sm"
+                                        :class="webSearchTestSuccess ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'"
+                                        x-text="webSearchTestMessage"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Advanced Settings -->
+                        <details class="group">
+                            <summary
+                                class="cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+                                ▸ <span x-text="t('settings.websearch.advanced', 'Paramètres avancés')"></span>
+                            </summary>
+                            <div
+                                class="mt-4 p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                            x-text="t('settings.websearch.maxResults', 'Nombre de résultats')">
+                                        </label>
+                                        <input type="number" x-model.number="webSearchConfig.max_results" min="1"
+                                            max="20" step="1"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500">
+                                        <p class="text-xs text-zinc-400 mt-1"
+                                            x-text="t('settings.websearch.maxResultsDesc', 'Maximum de résultats par recherche')">
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1"
+                                            x-text="t('settings.websearch.timeout', 'Timeout (secondes)')">
+                                        </label>
+                                        <input type="number" x-model.number="webSearchConfig.timeout" min="1" max="60"
+                                            step="1"
+                                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500">
+                                        <p class="text-xs text-zinc-400 mt-1"
+                                            x-text="t('settings.websearch.timeoutDesc', 'Délai max pour la recherche')">
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                        <!-- Save Button -->
+                        <div class="flex justify-end">
+                            <button @click="saveWebSearchConfig" :disabled="webSearchSaving"
+                                class="px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                <span x-show="webSearchSaving"
+                                    class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                <span
+                                    x-text="webSearchSaving ? t('common.loading', 'Enregistrement...') : t('common.save', 'Enregistrer')"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Prompts Tab -->
+            <div x-show="activeTab === 'textprompts'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.textPrompts.title', 'Configuration des Prompts Textes')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.textPrompts.desc', 'Personnalisez les prompts système...')">
+                    </p>
+
+                    <!-- Loading State -->
+                    <div x-show="textPromptsLoading" class="flex items-center justify-center py-12">
+                        <div class="animate-spin w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full">
+                        </div>
+                    </div>
+
+                    <!-- Config Form -->
+                    <div x-show="!textPromptsLoading" class="space-y-6">
+                        <template x-for="(prompt, key) in textPrompts" :key="key">
+                            <div
+                                class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                                <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-2 capitalize" x-text="key">
+                                </h3>
+                                <textarea x-model="textPrompts[key]" rows="6"
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500 resize-y"></textarea>
+                            </div>
+                        </template>
+
+                        <div class="flex justify-end gap-2">
+                            <button @click="resetTextPrompts" :disabled="textPromptsSaving"
+                                class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                                x-text="t('common.reset', 'Réinitialiser')">
+                            </button>
+                            <button @click="saveTextPromptsConfig" :disabled="textPromptsSaving"
+                                class="px-6 py-2 bg-pink-600 hover:bg-pink-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2">
+                                <span x-show="textPromptsSaving"
+                                    class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                <span
+                                    x-text="textPromptsSaving ? t('common.loading', 'Enregistrement...') : t('common.save', 'Enregistrer')"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Tab -->
+            <div x-show="activeTab === 'llm'">
+                <div class="mb-10">
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                        x-text="t('settings.llm.title', 'Configuration LLM')"></h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                        x-text="t('settings.llm.desc', 'Définissez le pré-prompt par défaut...')">
+                    </p>
+
+                    <!-- Loading State -->
+                    <div x-show="llmLoading" class="flex items-center justify-center py-12">
+                        <div class="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full">
+                        </div>
+                    </div>
+
+                    <!-- LLM Config Form -->
+                    <div x-show="!llmLoading" class="space-y-6">
+
+                        <!-- System Prompt -->
+                        <div
+                            class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <div class="flex items-start gap-4">
+                                <div class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-500">
+                                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                                        x-text="t('settings.llm.systemPrompt', 'System Prompt par défaut')"></h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4"
+                                        x-text="t('settings.llm.systemPromptDesc', 'Ce prompt sera utilisé par défaut...')">
+                                    </p>
+
+                                    <textarea x-model="llmConfig.default_system_prompt"
+                                        placeholder="Ex: Tu es un assistant intelligent et serviable. Réponds toujours de manière concise et précise..."
+                                        rows="4"
+                                        class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-y"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Parameters Sliders -->
+                        <div
+                            class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                                x-text="t('settings.llm.generationParams', 'Paramètres de génération')">
+                            </h3>
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+                                x-text="t('settings.llm.generationParamsDesc', 'Ces valeurs seront utilisées par défaut...')">
+                            </p>
+
+                            <div class="space-y-6">
+                                <!-- Temperature -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                            x-text="t('settings.llm.temperature', 'Temperature')"></label>
+                                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                                            x-text="llmConfig.temperature.toFixed(2)"></span>
+                                    </div>
+                                    <input type="range" x-model.number="llmConfig.temperature" min="0" max="2"
+                                        step="0.05"
+                                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                                    <p class="text-xs text-zinc-400 mt-1"
+                                        x-text="t('settings.llm.temperatureDesc', 'Contrôle la créativité')"></p>
+                                </div>
+
+                                <!-- Top P -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                            x-text="t('settings.llm.topP', 'Top P')">
+                                        </label>
+                                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                                            x-text="llmConfig.top_p.toFixed(2)"></span>
+                                    </div>
+                                    <input type="range" x-model.number="llmConfig.top_p" min="0" max="1" step="0.05"
+                                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                                    <p class="text-xs text-zinc-400 mt-1"
+                                        x-text="t('settings.llm.topPDesc', 'Nucleus sampling')"></p>
+                                </div>
+
+                                <!-- Top K -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                            x-text="t('settings.llm.topK', 'Top K')">
+                                        </label>
+                                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                                            x-text="llmConfig.top_k"></span>
+                                    </div>
+                                    <input type="range" x-model.number="llmConfig.top_k" min="1" max="100" step="1"
+                                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                                    <p class="text-xs text-zinc-400 mt-1"
+                                        x-text="t('settings.llm.topKDesc', 'Limite le nombre de tokens candidats')">
+                                    </p>
+                                </div>
+
+                                <!-- Repeat Penalty -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                            x-text="t('settings.llm.repeatPenalty', 'Repeat Penalty')">
+                                        </label>
+                                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                                            x-text="llmConfig.repeat_penalty.toFixed(2)"></span>
+                                    </div>
+                                    <input type="range" x-model.number="llmConfig.repeat_penalty" min="1" max="2"
+                                        step="0.05"
+                                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                                    <p class="text-xs text-zinc-400 mt-1"
+                                        x-text="t('settings.llm.repeatPenaltyDesc', 'Pénalise les répétitions')"></p>
+                                </div>
+
+                                <!-- Context Length -->
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                            x-text="t('settings.llm.contextLength', 'Context Length')">
+                                        </label>
+                                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                                            x-text="llmConfig.num_ctx.toLocaleString()"></span>
+                                    </div>
+                                    <input type="range" x-model.number="llmConfig.num_ctx" min="2048" max="128000"
+                                        step="1024"
+                                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                                    <p class="text-xs text-zinc-400 mt-1"
+                                        x-text="t('settings.llm.contextLengthDesc', 'Taille du contexte en tokens')">
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Génération auto du titre -->
+                        <div
+                            class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+                                        x-text="t('settings.llm.autoTitle', 'Génération auto du titre')"></h3>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('settings.llm.autoTitleDesc', 'Générer automatiquement un titre intelligent')">
+                                    </p>
+                                </div>
+                                <div class="relative inline-flex items-center cursor-pointer"
+                                    @click="llmConfig.auto_generate_title = !llmConfig.auto_generate_title">
+                                    <div class="w-11 h-6 rounded-full transition-colors"
+                                        :class="llmConfig.auto_generate_title ? 'bg-purple-600 dark:bg-purple-500' : 'bg-zinc-200 dark:bg-zinc-700'">
+                                    </div>
+                                    <div class="absolute top-[2px] left-[2px] bg-white border border-zinc-300 rounded-full h-5 w-5 transition-transform"
+                                        :class="llmConfig.auto_generate_title ? 'translate-x-full border-white' : ''">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Button -->
+                        <div class="flex justify-end">
+                            <button @click="saveLlmConfig" :disabled="llmSaving"
+                                class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                <span x-show="llmSaving"
+                                    class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                <span
+                                    x-text="llmSaving ? t('common.loading', 'Enregistrement...') : t('common.save', 'Enregistrer')"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+
+<!-- settingsPage component is registered in base.html -->
+{% endblock %}

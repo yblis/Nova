@@ -1,0 +1,169 @@
+{% extends 'settings/base.html' %}
+
+{% block settings_init %}loadLlmConfig(){% endblock %}
+
+{% block settings_content %}
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Configuration LLM</h2>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+        Définissez le pré-prompt par défaut et les paramètres de génération pour les nouvelles
+        conversations.
+    </p>
+
+    <!-- Loading State -->
+    <div x-show="llmLoading" class="flex items-center justify-center py-12">
+        <div class="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full">
+        </div>
+    </div>
+
+    <!-- LLM Config Form -->
+    <div x-show="!llmLoading" class="space-y-6">
+
+        <!-- System Prompt -->
+        <div class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+            <div class="flex items-start gap-4">
+                <div class="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-500">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">System Prompt
+                        par
+                        défaut</h3>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                        Ce prompt sera utilisé par défaut pour toutes les nouvelles conversations.
+                        Il peut être remplacé au niveau de chaque conversation.
+                    </p>
+
+                    <textarea x-model="llmConfig.default_system_prompt"
+                        placeholder="Ex: Tu es un assistant intelligent et serviable. Réponds toujours de manière concise et précise..."
+                        rows="4"
+                        class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-y"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parameters Sliders -->
+        <div class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+            <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Paramètres de génération
+            </h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+                Ces valeurs seront utilisées par défaut pour les nouvelles conversations.
+            </p>
+
+            <div class="space-y-6">
+                <!-- Temperature -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Temperature</label>
+                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                            x-text="llmConfig.temperature.toFixed(2)"></span>
+                    </div>
+                    <input type="range" x-model.number="llmConfig.temperature" min="0" max="2" step="0.05"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                    <p class="text-xs text-zinc-400 mt-1">Contrôle la créativité (0 = déterministe,
+                        2 =
+                        très créatif)</p>
+                </div>
+
+                <!-- Top P -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Top
+                            P</label>
+                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                            x-text="llmConfig.top_p.toFixed(2)"></span>
+                    </div>
+                    <input type="range" x-model.number="llmConfig.top_p" min="0" max="1" step="0.05"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                    <p class="text-xs text-zinc-400 mt-1">Nucleus sampling (0.1 = conservateur, 1.0
+                        =
+                        tous les tokens)</p>
+                </div>
+
+                <!-- Top K -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Top
+                            K</label>
+                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                            x-text="llmConfig.top_k"></span>
+                    </div>
+                    <input type="range" x-model.number="llmConfig.top_k" min="1" max="100" step="1"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                    <p class="text-xs text-zinc-400 mt-1">Limite le nombre de tokens candidats
+                        (1-100)
+                    </p>
+                </div>
+
+                <!-- Repeat Penalty -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Repeat
+                            Penalty</label>
+                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                            x-text="llmConfig.repeat_penalty.toFixed(2)"></span>
+                    </div>
+                    <input type="range" x-model.number="llmConfig.repeat_penalty" min="1" max="2" step="0.05"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                    <p class="text-xs text-zinc-400 mt-1">Pénalise les répétitions (1 = pas de
+                        pénalité,
+                        2 = forte pénalité)</p>
+                </div>
+
+                <!-- Context Length -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Context
+                            Length (num_ctx)</label>
+                        <span class="text-sm font-mono text-purple-600 dark:text-purple-400"
+                            x-text="llmConfig.num_ctx.toLocaleString()"></span>
+                    </div>
+                    <input type="range" x-model.number="llmConfig.num_ctx" min="2048" max="128000" step="1024"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-purple-600">
+                    <p class="text-xs text-zinc-400 mt-1">Taille du contexte en tokens (2048 -
+                        128000)
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Génération auto du titre -->
+        <div class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-1">Génération auto
+                        du
+                        titre</h3>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                        Générer automatiquement un titre intelligent pour les nouvelles
+                        conversations
+                        via l'IA.
+                    </p>
+                </div>
+                <div class="relative inline-flex items-center cursor-pointer"
+                    @click="llmConfig.auto_generate_title = !llmConfig.auto_generate_title">
+                    <div class="w-11 h-6 rounded-full transition-colors"
+                        :class="llmConfig.auto_generate_title ? 'bg-purple-600 dark:bg-purple-500' : 'bg-zinc-200 dark:bg-zinc-700'">
+                    </div>
+                    <div class="absolute top-[2px] left-[2px] bg-white border border-zinc-300 rounded-full h-5 w-5 transition-transform"
+                        :class="llmConfig.auto_generate_title ? 'translate-x-full border-white' : ''">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="flex justify-end">
+            <button @click="saveLlmConfig" :disabled="llmSaving"
+                class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                <span x-show="llmSaving"
+                    class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                <span x-text="llmSaving ? 'Enregistrement...' : 'Enregistrer'"></span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

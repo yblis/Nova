@@ -1,0 +1,261 @@
+{% extends 'settings/base.html' %}
+
+{% block settings_init %}loadProviders(){% endblock %}
+
+{% block settings_content %}
+<div class="mb-10">
+    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
+        x-text="t('providers.title', 'LLM Providers')"></h2>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-6"
+        x-text="t('providers.desc', 'Manage your connections to various AI providers (Ollama, OpenAI, Anthropic, etc.)')">
+    </p>
+
+    <!-- Migration Button (if old servers exist) -->
+    <div x-show="providers.length === 0" class="mb-6">
+        <button @click="migrateFromServers()"
+            class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+            x-text="t('providers.migrate', 'Migrate existing Ollama servers')"></button>
+    </div>
+
+    <!-- Provider List -->
+    <div class="space-y-3 mb-8">
+        <template x-for="provider in providers" :key="provider.id">
+            <div class="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 transition-all"
+                :class="provider.id === activeProviderId ? 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800' : 'bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700'">
+
+                <div class="flex-1 min-w-0 cursor-pointer" @click="setActiveProvider(provider.id)">
+                    <div class="flex items-center gap-2 mb-1 flex-wrap">
+                        <!-- Provider Type Badge -->
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold" :class="{
+                            'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400': provider.type === 'ollama',
+                            'bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400': provider.type === 'lmstudio',
+                            'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400': provider.type === 'openai',
+                            'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400': provider.type === 'anthropic',
+                            'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400': provider.type === 'gemini',
+                            'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400': provider.type === 'mistral',
+                            'bg-cyan-100 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400': provider.type === 'groq',
+                            'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400': provider.type === 'openrouter',
+                            'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400': provider.type === 'deepseek',
+                            'bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400': provider.type === 'qwen',
+                            'bg-slate-100 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400': provider.type === 'openai_compatible'
+                        }" x-text="providerTypes[provider.type]?.name || provider.type"></span>
+                        <div class="font-semibold text-zinc-900 dark:text-zinc-100 truncate" x-text="provider.name">
+                        </div>
+                        <span x-show="provider.id === activeProviderId"
+                            class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 text-xs font-bold">Actif</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+                        <span x-show="provider.url" class="font-mono truncate" x-text="provider.url"></span>
+                        <span x-show="provider.has_api_key" class="flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            <span x-text="provider.api_key_masked || '•••••'"></span>
+                        </span>
+                    </div>
+                    <!-- Test Result -->
+                    <div x-show="testResult && testResult.id === provider.id" class="mt-2">
+                        <span class="text-xs px-2 py-1 rounded"
+                            :class="testResult?.ok ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'"
+                            x-text="testResult?.message"></span>
+                    </div>
+                    <!-- Default Model Selector -->
+                    <div x-show="testResult && testResult.id === provider.id && testResult.ok || provider.default_model"
+                        class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                            <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Modèle
+                                par défaut</label>
+                        </div>
+                        <div class="mt-1.5 flex items-center gap-2">
+                            <select @change="setProviderDefaultModel(provider.id, $event.target.value)"
+                                class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                <option value="">-- Aucun --</option>
+                                <template x-for="m in (providerModels[provider.id] || [])"
+                                    :key="typeof m === 'string' ? m : m.id || m.name">
+                                    <option :value="typeof m === 'string' ? m : m.id || m.name"
+                                        :selected="provider.default_model === (typeof m === 'string' ? m : m.id || m.name)"
+                                        x-text="typeof m === 'string' ? m : m.id || m.name">
+                                    </option>
+                                </template>
+                            </select>
+                            <span x-show="provider.default_model"
+                                class="text-xs text-amber-600 dark:text-amber-400 font-medium"
+                                x-text="provider.default_model"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <!-- Test Button -->
+                    <button @click="testProvider(provider.id)" :disabled="testingProviderId === provider.id"
+                        class="p-2 text-zinc-400 hover:text-green-600 dark:hover:text-green-400 transition-colors disabled:opacity-50"
+                        title="Tester la connexion">
+                        <svg x-show="testingProviderId !== provider.id" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        <svg x-show="testingProviderId === provider.id" class="w-5 h-5 animate-spin" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                        </svg>
+                    </button>
+                    <!-- Edit Button -->
+                    <button @click="editProvider(provider)"
+                        class="p-2 text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        title="Modifier">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                    </button>
+                    <!-- Set Active Button -->
+                    <button @click="setActiveProvider(provider.id)" x-show="provider.id !== activeProviderId"
+                        class="p-2 text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                        title="Activer">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </button>
+                    <!-- Delete Button -->
+                    <button @click="deleteProvider(provider.id)"
+                        class="p-2 text-zinc-400 hover:text-red-600 transition-colors" title="Supprimer">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <div x-show="providers.length === 0 && !providersLoading" class="text-center py-8 text-zinc-500">
+            Aucun fournisseur configuré. Ajoutez-en un ci-dessous.
+        </div>
+        <div x-show="providersLoading" class="text-center py-8 text-zinc-500">
+            <svg class="w-6 h-6 animate-spin mx-auto" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Add/Edit Provider Form -->
+    <form @submit.prevent="saveProvider"
+        class="p-6 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+        <h3 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4"
+            x-text="editingProviderId ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'"></h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Provider Type -->
+            <div>
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Type
+                    de
+                    fournisseur</label>
+                <select x-model="formProvider.type" :disabled="editingProviderId"
+                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                    <template x-for="(info, key) in providerTypes" :key="key">
+                        <option :value="key" x-text="info.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <!-- Name -->
+            <div>
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">Nom
+                    d'affichage</label>
+                <input x-model="formProvider.name" type="text" placeholder="ex: Mon OpenAI" required
+                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+            </div>
+
+            <!-- URL (conditional) -->
+            <div
+                x-show="providerTypes[formProvider.type]?.requires_url || formProvider.type === 'ollama' || formProvider.type === 'lmstudio'">
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">URL
+                    du
+                    serveur</label>
+                <input x-model="formProvider.url" type="text"
+                    :placeholder="providerTypes[formProvider.type]?.default_url || 'http://localhost:11434'"
+                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+            </div>
+
+            <!-- API Key (conditional) -->
+            <div
+                x-show="providerTypes[formProvider.type]?.requires_api_key || formProvider.type === 'openai_compatible'">
+                <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                    Clé API
+                    <span x-show="formProvider.type === 'openai_compatible'" class="text-zinc-400">(optionnel)</span>
+                    <span x-show="editingProviderId && formProvider.type !== 'openai_compatible'"
+                        class="text-zinc-400">(laisser vide pour
+                        conserver)</span>
+                </label>
+                <div class="relative">
+                    <input x-model="formProvider.api_key" :type="showApiKey ? 'text' : 'password'"
+                        :placeholder="formProvider.type === 'openai_compatible' ? 'Clé API (si nécessaire)' : 'sk-...'"
+                        class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+                    <button type="button" @click="showApiKey = !showApiKey"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
+                        <svg x-show="!showApiKey" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <svg x-show="showApiKey" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- OpenRouter Extra Headers -->
+        <div x-show="formProvider.type === 'openrouter'"
+            class="mb-4 p-4 rounded-lg bg-pink-50 dark:bg-pink-900/20 border border-pink-200 dark:border-pink-800">
+            <p class="text-xs text-pink-600 dark:text-pink-400 mb-2">
+                <strong>OpenRouter</strong> requiert des headers HTTP supplémentaires pour
+                l'attribution.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-pink-500 dark:text-pink-400 mb-1">HTTP-Referer</label>
+                    <input x-model="formProvider.extra_headers['HTTP-Referer']" type="text"
+                        placeholder="https://your-app.com"
+                        class="w-full rounded-lg border border-pink-200 dark:border-pink-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-pink-500 dark:text-pink-400 mb-1">X-Title</label>
+                    <input x-model="formProvider.extra_headers['X-Title']" type="text" placeholder="My App Name"
+                        class="w-full rounded-lg border border-pink-200 dark:border-pink-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/20 focus:border-pink-500">
+                </div>
+            </div>
+        </div>
+
+        <!-- Provider Description -->
+        <div class="mb-4 p-3 rounded-lg bg-zinc-100 dark:bg-zinc-700/50">
+            <p class="text-xs text-zinc-600 dark:text-zinc-400"
+                x-text="providerTypes[formProvider.type]?.description || ''"></p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row justify-end gap-2">
+            <button type="button" x-show="editingProviderId" @click="cancelProviderEdit()"
+                class="px-4 py-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 text-sm font-medium transition-colors">
+                Annuler
+            </button>
+            <button type="submit" :disabled="providersSaving"
+                class="w-full sm:w-auto px-4 py-2 bg-emerald-600 dark:bg-emerald-500 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                x-text="editingProviderId ? 'Enregistrer' : 'Ajouter'">
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

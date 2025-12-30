@@ -1,0 +1,8 @@
+{% extends layout_template|default('base.html') %}
+
+{% block title %}Paramètres • Ollama Manager{% endblock %}
+
+{% block content %}
+<script src="{{ url_for('core.static', filename='js/components/settings-page.js') }}?v=6"></script>
+{% include 'partials/settings.html' %}
+{% endblock %}

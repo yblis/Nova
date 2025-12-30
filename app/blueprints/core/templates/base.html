@@ -1,0 +1,2624 @@
+<!doctype html>
+<html lang="fr" class="h-full">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#18181b" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('core.static', filename='img/icon.svg') }}" />
+    <link rel="apple-touch-icon" href="{{ url_for('core.static', filename='img/icon.svg') }}" />
+    <title>{% block title %}Ollama Manager{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>(function () { try { const t = localStorage.getItem('theme'); const p = window.matchMedia('(prefers-color-scheme: dark)').matches; if (t === 'dark' || ((!t || t === 'system') && p)) document.documentElement.classList.add('dark'); } catch (e) { } })()</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#eef6ff', 100: '#d9ebff', 200: '#b7d8ff', 300: '#8fc1ff', 400: '#64a6ff', 500: '#3c8dff', 600: '#1d74f0', 700: '#185ec4', 800: '#144e9f', 900: '#123f7f' }
+                    },
+                    boxShadow: { card: '0 2px 10px rgba(0,0,0,0.06)' } // Softer shadow for cards
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js Collapse plugin (must load before main Alpine) -->
+    <script defer src="https://unpkg.com/@alpinejs/collapse@3.14.3/dist/cdn.min.js"></script>
+    <!-- i18n translations (must load before Alpine) -->
+    <script src="{{ url_for('core.static', filename='js/utilities/i18n.js') }}"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"
+        integrity="sha384-iZD2X8o1Zdq0HR5H/7oa8W30WS4No+zWCKUPD7fHRay9I1Gf+C4F8sVmw7zec1wW"
+        crossorigin="anonymous"></script>
+    <script>
+        // Pre-register Alpine components before Alpine starts
+        // This ensures components are available when HTMX swaps in new content
+        document.addEventListener('alpine:init', () => {
+            // chatApp component for /chat page
+            Alpine.data('chatApp', () => ({
+                models: [],
+                currentModel: new URLSearchParams(window.location.search).get('model') || '',
+                sessions: [],
+                currentSessionId: null,
+                messages: [],
+                input: '',
+                loading: false,
+                sidebarOpen: window.innerWidth >= 640,
+                debug: false,
+                debugLogs: [],
+                showSettings: false,
+                systemPrompt: '',
+                modelConfig: { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 },
+                pendingImages: [],
+                pendingFiles: [],
+                abortController: null,
+                ragDocuments: [],
+                pdfUploading: false,
+                // Chunks Visualization
+                showChunksModal: false,
+                currentDocChunks: [],
+                currentDocStats: {},
+                currentDocFilename: '',
+                currentDocSearchQuery: '',
+                currentDocId: null,
+                // Web Search
+                webSearchEnabled: false,
+                webSearchAvailable: false,
+                // Multi-selection mode
+                selectionMode: false,
+                selectedSessions: [],
+                sessionSearchQuery: '',
+                // Multi-LLM Debate Mode
+                debateMode: false,
+                participants: [],
+                availableProviders: [],
+                showParticipantSelector: false,
+                debateLoading: false,
+                debateModeOption: 'parallel',
+                showDebateSettings: false,
+                // Features: Vision, STT, TTS
+                isDragging: false,
+                isRecording: false,
+                recognition: null,
+                mediaRecorder: null,
+                audioChunks: [],
+                speakingId: null,
+                speechSynthesis: window.speechSynthesis,
+                currentAudio: null, // For backend TTS playback
+                availableVoices: [],
+                voiceSettings: {
+                    lang: 'fr-FR',
+                    voiceURI: '',
+                    rate: 1.0,
+                    pitch: 1.0,
+                    autoRead: false
+                },
+                audioBackendConfig: {},
+                debateSystemPrompt: `Tu participes à un débat/discussion avec d'autres IA.
+ Règles du débat :
+ 1. Exprime tes opinions de manière claire et argumentée
+ 2. Réagis aux arguments des autres participants quand pertinent
+ 3. Sois respectueux mais n'hésite pas à défendre ton point de vue
+ 4. Apporte des perspectives uniques basées sur tes connaissances
+ 5. Reste concis et pertinent`,
+
+                get filteredSessions() {
+                    if (!this.sessionSearchQuery.trim()) {
+                        return this.sessions;
+                    }
+                    const query = this.sessionSearchQuery.toLowerCase();
+                    return this.sessions.filter(session => {
+                        const title = (session.title || 'Nouvelle conversation').toLowerCase();
+                        return title.includes(query);
+                    });
+                },
+
+                log(msg) { this.debugLogs.push(`[${new Date().toISOString().split('T')[1].split('.')[0]}] ${msg}`); console.log(`[ChatDebug] ${msg}`); },
+                async init() {
+                    this.log("App initializing...");
+                    // Lire le paramètre model de l'URL (important pour la navigation SPA)
+                    const urlModel = new URLSearchParams(window.location.search).get('model');
+
+                    if (urlModel) {
+                        this.currentModel = urlModel;
+                        this.log("Model from URL: " + urlModel);
+
+                        // Tenter de résoudre et changer le provider avant de charger les modèles
+                        await this.resolveProviderForModel(urlModel);
+                    }
+
+                    await this.loadModels();
+                    await this.loadSessions();
+                    this.checkWebSearchAvailable();
+
+                    // Load session from URL hash if present
+                    const hashSessionId = window.location.hash.slice(1);
+                    if (hashSessionId && this.sessions.some(s => s.id === hashSessionId)) {
+                        await this.loadSession(hashSessionId);
+                    }
+
+                    // Listen for hash changes (browser back/forward)
+                    window.addEventListener('hashchange', () => {
+                        const hash = window.location.hash.slice(1);
+                        if (hash && hash !== this.currentSessionId) {
+                            if (this.sessions.some(s => s.id === hash)) {
+                                this.loadSession(hash);
+                            }
+                        } else if (!hash && this.currentSessionId) {
+                            this.newChat();
+                        }
+                    });
+
+                    // Load voices
+                    this.loadVoices();
+                    if (window.speechSynthesis) {
+                        window.speechSynthesis.onvoiceschanged = () => this.loadVoices();
+                    }
+
+                    // Load saved voice settings
+                    const savedVoiceSettings = localStorage.getItem('voiceSettings');
+                    if (savedVoiceSettings) {
+                        try {
+                            this.voiceSettings = { ...this.voiceSettings, ...JSON.parse(savedVoiceSettings) };
+                        } catch (e) { }
+                    }
+
+                    // Listen for provider changes
+                    window.addEventListener('provider-changed', async () => {
+                        this.log("Provider changed, reloading models...");
+                        await this.loadModels();
+                        // If we have a current session but the model is no longer available, 
+                        // we might want to warn the user or just let them try.
+                        // For now, reloading models is the most important step so the dropdown updates.
+                    });
+
+                    // Listen for audio config changes
+                    window.addEventListener('audio-config-changed', () => {
+                        this.loadAudioBackendConfig();
+                    });
+
+                    // Initial load of audio config
+                    this.loadAudioBackendConfig();
+                },
+
+                async loadAudioBackendConfig() {
+                    try {
+                        const r = await fetch('/api/settings/audio/config');
+                        if (r.ok) {
+                            this.audioBackendConfig = await r.json();
+                        }
+                    } catch (e) {
+                        console.error("Failed to load audio config", e);
+                    }
+                },
+
+                async resolveProviderForModel(modelName) {
+                    try {
+                        const r = await fetch('/api/settings/providers/resolve-model', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ model: modelName })
+                        });
+
+                        if (r.ok) {
+                            const data = await r.json();
+                            if (data.found && data.provider_id) {
+                                this.log(`Found provider ${data.provider_name} for model ${modelName}`);
+
+                                // Vérifier si c'est déjà le provider actif pour éviter un appel inutile
+                                // Note: on ne connait pas le provider actif ici facilement sans un autre appel,
+                                // donc on force le changement pour être sûr.
+
+                                await fetch('/api/settings/providers/active', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ provider_id: data.provider_id })
+                                });
+
+                                // Notifier que le provider a changé (pour mettre à jour le header si besoin)
+                                window.dispatchEvent(new CustomEvent('providers-changed'));
+                            }
+                        }
+                    } catch (e) {
+                        this.log("Error resolving provider: " + e);
+                    }
+                },
+                async loadModels() {
+                    try {
+                        // D'abord essayer de charger les modèles du provider actif
+                        const r = await fetch('/api/settings/providers/active/models');
+                        if (r.ok) {
+                            const data = await r.json();
+                            if (data.models && data.models.length > 0) {
+                                // Filtrer les modèles d'embedding et extraire les IDs uniques
+                                const embeddingPatterns = ['embed', 'bge-', 'bge:', 'all-minilm', 'snowflake-arctic', 'paraphrase', '/e5-', ':e5-', '/e5:', 'gte-', 'gte:', 'jina-', 'text-embedding', 'embedding-'];
+                                const seen = new Set();
+                                this.models = data.models
+                                    .map(m => {
+                                        // Préférer id pour l'unicité, mais utiliser name comme fallback
+                                        if (typeof m === 'string') return m;
+                                        return m.id || m.name || '';
+                                    })
+                                    .filter(name => {
+                                        if (!name || seen.has(name)) return false;
+                                        seen.add(name);
+                                        const lowerName = name.toLowerCase();
+                                        return !embeddingPatterns.some(pattern => lowerName.includes(pattern));
+                                    });
+
+                                // Check if currentModel is valid in the new list
+                                const isValidCurrent = this.currentModel && this.models.includes(this.currentModel);
+                                this.log(`currentModel: "${this.currentModel}", isValid: ${isValidCurrent}, models count: ${this.models.length}`);
+
+                                // Use provider_default_model ONLY if currentModel is not set or invalid
+                                if (!isValidCurrent && this.models.length > 0) {
+                                    if (data.provider_default_model && this.models.includes(data.provider_default_model)) {
+                                        this.log(`Setting to provider default: ${data.provider_default_model}`);
+                                        this.currentModel = data.provider_default_model;
+                                    } else {
+                                        this.log(`Setting to first model: ${this.models[0]}`);
+                                        this.currentModel = this.models[0];
+                                    }
+                                } else if (isValidCurrent) {
+                                    this.log(`Keeping URL model: ${this.currentModel}`);
+                                }
+                                this.log(`Loaded ${this.models.length} models from active provider`);
+                                return;
+                            }
+                        }
+                        // Fallback sur l'ancien endpoint Ollama
+                        const fallback = await fetch('/api/models', { headers: { 'Accept': 'application/json' } });
+                        if (fallback.ok) {
+                            const data = await fallback.json();
+                            if (data.models) {
+                                const embeddingPatterns = ['embed', 'bge-', 'bge:', 'all-minilm', 'snowflake-arctic', 'paraphrase', '/e5-', ':e5-', '/e5:', 'gte-', 'gte:', 'jina-'];
+                                this.models = data.models
+                                    .map(m => m.name)
+                                    .filter(name => {
+                                        const lowerName = name.toLowerCase();
+                                        return !embeddingPatterns.some(pattern => lowerName.includes(pattern));
+                                    });
+                                // Vérifier si currentModel (venant de l'URL) est valide
+                                const isValidCurrent = this.currentModel && this.models.includes(this.currentModel);
+                                if (!isValidCurrent && this.models.length > 0) {
+                                    this.currentModel = this.models[0];
+                                }
+                            }
+                        }
+                    } catch (e) { this.log("Models fetch error: " + e); }
+                },
+                async checkWebSearchAvailable() {
+                    try {
+                        const r = await fetch('/api/settings/web_search/config');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.webSearchAvailable = data.is_available || false;
+                        }
+                    } catch (e) { this.webSearchAvailable = false; }
+                },
+                async loadSessions() { try { const r = await fetch('/api/chat/sessions?t=' + new Date().getTime()); if (r.ok) { const data = await r.json(); this.sessions = data.sessions || []; return true; } } catch (e) { this.log("Error loading sessions: " + e); } return false; },
+                async loadSession(id) {
+                    if (this.selectionMode) return; // Don't load session in selection mode
+                    if (this.currentSessionId === id) return;
+                    this.currentSessionId = id; this.loading = true;
+                    if (window.innerWidth < 640) this.sidebarOpen = false;
+
+                    // Update URL hash to persist session
+                    if (window.location.hash.slice(1) !== id) {
+                        history.replaceState(null, '', '#' + id);
+                    }
+
+                    try {
+                        const r = await fetch(`/api/chat/sessions/${id}`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            const sessionModel = data.model; // Sauvegarder le modèle de la session
+                            // Map messages et extraire participant info de extra_data
+                            this.messages = (data.messages || []).map(m => {
+                                const extra = m.extra_data || {};
+                                return {
+                                    ...m,
+                                    participant_id: extra.participant_id || m.participant_id,
+                                    participant_name: extra.participant_name || m.participant_name,
+                                    color: extra.participant_color || m.color
+                                };
+                            });
+                            this.currentModel = sessionModel;
+                            this.systemPrompt = data.system_prompt || '';
+                            this.modelConfig = data.model_config || { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 };
+
+                            // Résoudre le provider pour ce modèle et le définir comme actif
+                            if (sessionModel) {
+                                try {
+                                    const providerResp = await fetch('/api/settings/providers/resolve-model', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ model: sessionModel })
+                                    });
+                                    if (providerResp.ok) {
+                                        const providerData = await providerResp.json();
+                                        if (providerData.found && providerData.provider_id) {
+                                            // Changer le provider actif
+                                            await fetch('/api/settings/providers/active', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ provider_id: providerData.provider_id })
+                                            });
+                                            // Recharger les modèles du nouveau provider
+                                            await this.loadModels();
+                                            // Forcer le modèle de la session (peut avoir été écrasé par loadModels)
+                                            this.currentModel = sessionModel;
+                                            // Mettre à jour le sélecteur de provider global
+                                            window.dispatchEvent(new CustomEvent('providers-changed'));
+                                            this.log(`Provider switched to ${providerData.provider_name} for model ${sessionModel}`);
+                                        }
+                                    }
+                                } catch (e) {
+                                    this.log('Could not resolve provider for model: ' + sessionModel);
+                                }
+                            }
+
+                            // Restaurer l'état du débat si c'est une session de débat
+                            if (this.modelConfig.debate_participants && this.modelConfig.debate_participants.length > 0) {
+                                this.debateMode = true;
+                                this.participants = this.modelConfig.debate_participants;
+                                this.debateModeOption = this.modelConfig.debate_mode || 'parallel';
+                            } else {
+                                this.debateMode = false;
+                                this.participants = [];
+                            }
+
+                            this.scrollToBottom();
+                            this.loadRagDocuments(id);
+                        }
+                    } catch (e) { this.log("Error loading session: " + e); } finally { this.loading = false; }
+                },
+                newChat() { this.currentSessionId = null; this.messages = []; this.systemPrompt = ''; this.modelConfig = { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 }; this.pendingImages = []; this.pendingFiles = []; this.ragDocuments = []; this.sidebarOpen = window.innerWidth >= 640; this.selectionMode = false; this.selectedSessions = []; this.debateMode = false; this.participants = []; this.showParticipantSelector = false; this.showDebateSettings = false; if (window.location.hash) { history.replaceState(null, '', window.location.pathname + window.location.search); } },
+                async deleteSession(id) { showConfirmDialog({ title: 'Supprimer la conversation', message: 'Voulez-vous vraiment supprimer cette conversation ?', type: 'danger', confirmText: 'Supprimer', onConfirm: async () => { try { await fetch(`/api/chat/sessions/${id}`, { method: 'DELETE' }); this.sessions = this.sessions.filter(s => s.id !== id); if (this.currentSessionId === id) this.newChat(); } catch (e) { } } }); },
+                async togglePin(id) {
+                    // Optimistic update
+                    const session = this.sessions.find(s => s.id === id);
+                    if (!session) return;
+
+                    session.is_pinned = !session.is_pinned;
+
+                    // Re-sort locally: pinned first, then by date desc
+                    this.sortSessions();
+
+                    try {
+                        const r = await fetch(`/api/chat/sessions/${id}/pin`, { method: 'POST' });
+                        if (!r.ok) {
+                            // Revert on error
+                            session.is_pinned = !session.is_pinned;
+                            this.sortSessions();
+                            showToast('Erreur lors de l\'épinglage');
+                        }
+                    } catch (e) {
+                        session.is_pinned = !session.is_pinned;
+                        this.sortSessions();
+                        showToast('Erreur connexion');
+                    }
+                },
+                sortSessions() {
+                    this.sessions.sort((a, b) => {
+                        if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+                        return (b.updated_at || 0) - (a.updated_at || 0);
+                    });
+                },
+
+                // Multi-selection methods
+                toggleSelectionMode() {
+                    this.selectionMode = !this.selectionMode;
+                    if (!this.selectionMode) {
+                        this.selectedSessions = [];
+                    }
+                },
+                toggleSessionSelection(id) {
+                    const idx = this.selectedSessions.indexOf(id);
+                    if (idx > -1) {
+                        this.selectedSessions.splice(idx, 1);
+                    } else {
+                        this.selectedSessions.push(id);
+                    }
+                },
+                isSessionSelected(id) {
+                    return this.selectedSessions.includes(id);
+                },
+                selectAllSessions() {
+                    if (this.selectedSessions.length === this.sessions.length) {
+                        this.selectedSessions = [];
+                    } else {
+                        this.selectedSessions = this.sessions.map(s => s.id);
+                    }
+                },
+                async deleteSelectedSessions() {
+                    if (this.selectedSessions.length === 0) return;
+                    const count = this.selectedSessions.length;
+                    showConfirmDialog({
+                        title: 'Supprimer les conversations',
+                        message: `Voulez-vous vraiment supprimer ${count} conversation${count > 1 ? 's' : ''} ?`,
+                        type: 'danger',
+                        confirmText: 'Supprimer',
+                        onConfirm: async () => {
+                            try {
+                                await fetch('/api/chat/sessions/bulk', {
+                                    method: 'DELETE',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ session_ids: this.selectedSessions })
+                                });
+                                this.sessions = this.sessions.filter(s => !this.selectedSessions.includes(s.id));
+                                if (this.selectedSessions.includes(this.currentSessionId)) {
+                                    this.newChat();
+                                }
+                                this.selectedSessions = [];
+                                this.selectionMode = false;
+                                showToast(`${count} conversation${count > 1 ? 's' : ''} supprimée${count > 1 ? 's' : ''}`);
+                            } catch (e) {
+                                showToast('Erreur lors de la suppression');
+                            }
+                        }
+                    });
+                },
+                async deleteAllSessions() {
+                    if (this.sessions.length === 0) return;
+                    const count = this.sessions.length;
+                    showConfirmDialog({
+                        title: 'Supprimer toutes les conversations',
+                        message: `Voulez-vous vraiment supprimer <strong>toutes</strong> les ${count} conversation${count > 1 ? 's' : ''} ? Cette action est irréversible.`,
+                        type: 'danger',
+                        confirmText: 'Tout supprimer',
+                        onConfirm: async () => {
+                            try {
+                                await fetch('/api/chat/sessions/all', { method: 'DELETE' });
+                                this.sessions = [];
+                                this.newChat();
+                                this.selectionMode = false;
+                                this.selectedSessions = [];
+                                showToast('Toutes les conversations ont été supprimées');
+                            } catch (e) {
+                                showToast('Erreur lors de la suppression');
+                            }
+                        }
+                    });
+                },
+
+                formatContent(content) {
+                    try {
+                        if (typeof marked === 'undefined') return content;
+                        let html = marked.parse(content);
+                        // Ajouter un bouton de copie sur chaque bloc <pre>
+                        html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (match, codeContent) => {
+                            return `<div class="code-block-wrapper"><button class="copy-code-btn" onclick="copyCodeBlock(this)" title="Copier le code"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button><pre>${codeContent}</pre></div>`;
+                        });
+                        return html;
+                    } catch (e) { return content; }
+                },
+                formatUserContent(content, images) {
+                    if (!content) return '';
+                    if (images && images.length > 0) {
+                        content = content.replace(/^\[\d+ image\(s\) attached\]\s*/i, '');
+                    }
+                    // Escape HTML first for security
+                    const div = document.createElement('div');
+                    div.textContent = content;
+                    let escaped = div.innerHTML;
+                    // Convert line breaks to <br> tags
+                    escaped = escaped.replace(/\n/g, '<br>');
+                    // Support basic markdown: inline code with backticks
+                    escaped = escaped.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+                    return escaped;
+                },
+                formatDate(timestamp) { if (!timestamp) return ''; const d = new Date(timestamp * 1000); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); },
+                async handleImageUpload(event) { for (const file of event.target.files) { try { const base64 = await this.fileToBase64(file); this.pendingImages.push({ name: file.name, data: base64.split(',')[1] }); } catch (e) { } } event.target.value = ''; },
+                async handleDrop(event) {
+                    this.isDragging = false;
+                    const items = event.dataTransfer.items;
+                    if (!items) return;
+
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (item.kind === 'file') {
+                            const file = item.getAsFile();
+                            if (file.type.startsWith('image/')) {
+                                try {
+                                    const base64 = await this.fileToBase64(file);
+                                    this.pendingImages.push({ name: file.name, data: base64.split(',')[1] });
+                                } catch (e) { }
+                            } else if (file.name.endsWith('.pdf')) {
+                                // PDF handling (simplified version of handlePdfUpload)
+                                // Only works if we simulate the event or call handlePdfUpload logic directly
+                                // For now, we'll just handle images and text files generally
+                                if (this.ALLOWED_TEXT_EXTENSIONS && this.ALLOWED_TEXT_EXTENSIONS.includes('.' + file.name.split('.').pop())) {
+                                    // Handle text file upload logic if needed, or just list allowed types
+                                }
+                                // Simplification: we might need to refactor handlePdfUpload to accept a file directly
+                                // For now, let's just show a toast for other files or implement generic handler
+                            }
+                        }
+                    }
+                },
+                async handlePaste(event) {
+                    const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                    for (let index in items) {
+                        const item = items[index];
+                        if (item.kind === 'file' && item.type.startsWith('image/')) {
+                            const blob = item.getAsFile();
+                            try {
+                                const base64 = await this.fileToBase64(blob);
+                                this.pendingImages.push({ name: 'pasted-image.png', data: base64.split(',')[1] });
+                            } catch (e) { }
+                        }
+                    }
+                },
+                toggleDictation() {
+                    if (this.isRecording) {
+                        this.stopRecording();
+                        return;
+                    }
+
+                    // Check if STT is disabled in settings
+                    if (this.audioBackendConfig.stt_enabled === false) {
+                        showToast('La reconnaissance vocale est désactivée.', 'error');
+                        return;
+                    }
+
+                    // Check if Backend STT is configured
+                    if (this.audioBackendConfig.stt_provider_id && this.audioBackendConfig.stt_model) {
+                        this.startBackendRecording();
+                        return;
+                    }
+
+                    // Fallback to Browser Native STT
+                    if (!('webkitSpeechRecognition' in window)) {
+                        showToast('Reconnaissance vocale non supportée sur ce navigateur.', 'error');
+                        return;
+                    }
+
+                    this.recognition = new webkitSpeechRecognition();
+                    this.recognition.lang = this.voiceSettings.lang;
+                    this.recognition.continuous = false;
+                    this.recognition.interimResults = false;
+
+                    this.recognition.onstart = () => {
+                        this.isRecording = true;
+                    };
+
+                    this.recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        this.input += (this.input ? ' ' : '') + transcript;
+                        this.$nextTick(() => {
+                            if (this.$refs.chatInput) this.adjustTextareaHeight(this.$refs.chatInput);
+                        });
+                    };
+
+                    this.recognition.onerror = (event) => {
+                        console.error('Speech recognition error', event.error);
+                        this.isRecording = false;
+                        showToast('Erreur de reconnaissance vocale: ' + event.error);
+                    };
+
+                    this.recognition.onend = () => {
+                        this.isRecording = false;
+                    };
+
+                    this.recognition.start();
+                },
+
+                async startBackendRecording() {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                        // Use a format well-supported by both browser and Whisper
+                        let mimeType = 'audio/webm;codecs=opus';
+                        if (!MediaRecorder.isTypeSupported(mimeType)) {
+                            mimeType = 'audio/webm';
+                        }
+                        if (!MediaRecorder.isTypeSupported(mimeType)) {
+                            mimeType = 'audio/mp4';
+                        }
+
+                        this.mediaRecorder = new MediaRecorder(stream, { mimeType });
+                        this.audioChunks = [];
+
+                        this.mediaRecorder.ondataavailable = (event) => {
+                            this.audioChunks.push(event.data);
+                        };
+
+                        // Store mimeType before onstop (mediaRecorder may be nullified by stopRecording)
+                        const recordedMimeType = this.mediaRecorder.mimeType;
+
+                        this.mediaRecorder.onstop = async () => {
+                            const audioBlob = new Blob(this.audioChunks, { type: recordedMimeType });
+                            // Determine file extension from mimeType
+                            const ext = recordedMimeType.includes('mp4') ? 'm4a' : 'webm';
+
+                            // Send to backend
+                            const formData = new FormData();
+                            formData.append('file', audioBlob, `recording.${ext}`);
+
+                            try {
+                                const r = await fetch('/api/chat/audio/transcribe', {
+                                    method: 'POST',
+                                    body: formData
+                                });
+                                if (r.ok) {
+                                    const data = await r.json();
+                                    if (data.text) {
+                                        this.input += (this.input ? ' ' : '') + data.text;
+                                        this.$nextTick(() => {
+                                            if (this.$refs.chatInput) this.adjustTextareaHeight(this.$refs.chatInput);
+                                        });
+                                    }
+                                } else {
+                                    showToast('Erreur lors de la transcription');
+                                }
+                            } catch (e) {
+                                showToast('Erreur de connexion');
+                            } finally {
+                                this.isRecording = false;
+                                // Stop all tracks
+                                stream.getTracks().forEach(track => track.stop());
+                            }
+                        };
+
+                        this.mediaRecorder.start();
+                        this.isRecording = true;
+                    } catch (err) {
+                        console.error('Error accessing microphone:', err);
+                        showToast('Impossible d\'accéder au microphone');
+                        this.isRecording = false;
+                    }
+                },
+
+                stopRecording() {
+                    if (this.recognition) {
+                        this.recognition.stop();
+                        this.recognition = null;
+                    }
+                    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                        this.mediaRecorder.stop();
+                        this.mediaRecorder = null;
+                    }
+                    this.isRecording = false;
+                },
+                loadVoices() {
+                    if (!window.speechSynthesis) return;
+                    // Get voices and filter/sort
+                    let voices = window.speechSynthesis.getVoices();
+                    // Prioritize current language
+                    voices.sort((a, b) => {
+                        if (a.lang === this.voiceSettings.lang && b.lang !== this.voiceSettings.lang) return -1;
+                        if (a.lang !== this.voiceSettings.lang && b.lang === this.voiceSettings.lang) return 1;
+                        return a.name.localeCompare(b.name);
+                    });
+                    this.availableVoices = voices;
+                    // Set default voice if not set
+                    if (!this.voiceSettings.voiceURI && voices.length > 0) {
+                        // Try to find a voice matching the default lang
+                        const defaultVoice = voices.find(v => v.lang.startsWith(this.voiceSettings.lang.split('-')[0]));
+                        if (defaultVoice) {
+                            this.voiceSettings.voiceURI = defaultVoice.voiceURI;
+                        } else {
+                            this.voiceSettings.voiceURI = voices[0].voiceURI;
+                        }
+                    }
+                },
+                saveVoiceSettings() {
+                    localStorage.setItem('voiceSettings', JSON.stringify(this.voiceSettings));
+                    showToast('Paramètres audio sauvegardés');
+                },
+                toggleSpeech(text, messageId) {
+                    // Check if already playing this message
+                    if (this.speakingId === messageId) {
+                        this.stopSpeech();
+                        this.speakingId = null;
+                        return;
+                    }
+
+                    this.stopSpeech(); // Stop any current speech
+
+                    // Mark as loading/playing
+                    this.speakingId = messageId;
+
+                    // Check Backend TTS
+                    if (this.audioBackendConfig.tts_provider_id && this.audioBackendConfig.tts_model) {
+                        this.playBackendSpeech(text, messageId);
+                        return;
+                    }
+
+                    // Fallback to Native TTS
+                    this.playNativeSpeech(text, messageId);
+                },
+
+                stopSpeech() {
+                    // Stop Native
+                    if (window.speechSynthesis) window.speechSynthesis.cancel();
+
+                    // Stop Backend Audio
+                    if (this.currentAudio) {
+                        this.currentAudio.pause();
+                        this.currentAudio = null;
+                    }
+
+                    this.speakingId = null;
+                },
+
+                async playBackendSpeech(text, messageId) {
+                    try {
+                        const r = await fetch('/api/chat/audio/speak', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                text: text,
+                                speed: parseFloat(this.voiceSettings.rate) || 1.0,
+                                // Voice is handled by backend default or we can map it here if needed
+                            })
+                        });
+
+                        if (!r.ok) throw new Error('TTS Backend Error');
+
+                        const blob = await r.blob();
+                        const url = URL.createObjectURL(blob);
+                        this.currentAudio = new Audio(url);
+
+                        this.currentAudio.onended = () => {
+                            this.speakingId = null;
+                            URL.revokeObjectURL(url);
+                        };
+
+                        this.currentAudio.onerror = () => {
+                            this.speakingId = null;
+                            showToast('Erreur lecture audio');
+                        };
+
+                        this.currentAudio.play();
+                    } catch (e) {
+                        console.error('TTS Error', e);
+                        this.speakingId = null;
+                        showToast('Erreur connexion TTS');
+                    }
+                },
+
+                playNativeSpeech(text, messageId) {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = this.voiceSettings.lang;
+                    utterance.rate = parseFloat(this.voiceSettings.rate);
+                    utterance.pitch = parseFloat(this.voiceSettings.pitch);
+
+                    if (this.voiceSettings.voiceURI) {
+                        const voice = this.availableVoices.find(v => v.voiceURI === this.voiceSettings.voiceURI);
+                        if (voice) utterance.voice = voice;
+                    }
+
+                    utterance.onend = () => {
+                        this.speakingId = null;
+                    };
+                    utterance.onerror = () => {
+                        this.speakingId = null;
+                    };
+
+                    this.speechSynthesis.speak(utterance);
+                },
+                async handleFileUpload(event) { const file = event.target.files[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const r = await fetch('/api/chat/upload', { method: 'POST', body: formData }); if (r.ok) { this.pendingFiles.push(await r.json()); } else { showToast((await r.json()).error || 'Failed to upload file'); } } catch (e) { showToast('Failed to upload file'); } event.target.value = ''; },
+                fileToBase64(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = () => resolve(reader.result); reader.onerror = error => reject(error); }); },
+                async loadRagDocuments(sessionId) {
+                    if (!sessionId) { this.ragDocuments = []; return; }
+                    try {
+                        const r = await fetch(`/api/chat/sessions/${sessionId}/documents`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.ragDocuments = data.documents || [];
+
+                            // Polling automatique si des documents sont en cours de traitement
+                            if (this.ragDocuments.some(d => d.status === 'processing' || d.status === 'pending')) {
+                                if (this._ragPollingTimeout) clearTimeout(this._ragPollingTimeout);
+                                this._ragPollingTimeout = setTimeout(() => this.loadRagDocuments(sessionId), 2000);
+                            }
+                        }
+                    } catch (e) { this.ragDocuments = []; }
+                },
+                async handlePdfUpload(event) {
+                    const file = event.target.files[0]; if (!file) return;
+
+                    if (!this.currentSessionId) {
+                        if (!this.currentModel) {
+                            showToast('Veuillez d\'abord sélectionner un modèle');
+                            event.target.value = '';
+                            return;
+                        }
+                        try {
+                            const r = await fetch('/api/chat/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: this.currentModel }) });
+                            if (r.ok) {
+                                this.currentSessionId = (await r.json()).id;
+                                this.loadSessions();
+                            } else {
+                                showToast('Erreur création session');
+                                event.target.value = '';
+                                return;
+                            }
+                        } catch (e) {
+                            showToast('Erreur lors de la création de la session');
+                            event.target.value = '';
+                            return;
+                        }
+                    }
+
+                    this.pdfUploading = true;
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('session_id', this.currentSessionId);
+
+                    try {
+                        const r = await fetch('/api/chat/upload-pdf', { method: 'POST', body: formData });
+                        const data = await r.json();
+                        if (r.ok) {
+                            await this.loadRagDocuments(this.currentSessionId);
+                        } else {
+                            showToast(data.error || 'Erreur lors de l\'upload du PDF');
+                        }
+                    } catch (e) {
+                        showToast('Erreur lors de l\'upload du PDF');
+                    } finally {
+                        this.pdfUploading = false;
+                        event.target.value = '';
+                    }
+                },
+                async deleteRagDocument(docId, filename) { if (!confirm(`Supprimer le document "${filename}" ?`)) return; try { const r = await fetch(`/api/chat/documents/${docId}`, { method: 'DELETE' }); if (r.ok) { this.ragDocuments = this.ragDocuments.filter(d => d.id !== docId); } else { showToast((await r.json()).error || 'Erreur lors de la suppression'); } } catch (e) { showToast('Erreur lors de la suppression'); } },
+                async viewChunks(docId, filename) {
+                    this.currentDocFilename = filename;
+                    this.currentDocId = docId;
+                    this.showChunksModal = true;
+                    this.currentDocChunks = [];
+                    this.currentDocStats = {};
+                    this.currentDocSearchQuery = '';
+                    try {
+                        const r = await fetch(`/api/rag/documents/${docId}/chunks`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.currentDocChunks = data.chunks || [];
+                            this.currentDocStats = data.stats || {};
+                        }
+                    } catch (e) {
+                        console.error('Failed to load chunks', e);
+                        showToast('Erreur chargement chunks');
+                    }
+                },
+                async searchChunks() {
+                    if (!this.currentDocSearchQuery.trim()) {
+                        // If empty, reload all chunks
+                        this.viewChunks(this.currentDocId, this.currentDocFilename);
+                        return;
+                    }
+                    try {
+                        const r = await fetch(`/api/rag/documents/${this.currentDocId}/search`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ query: this.currentDocSearchQuery })
+                        });
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.currentDocChunks = data.results || [];
+                        }
+                    } catch (e) {
+                        showToast('Erreur recherche');
+                    }
+                },
+                async deleteChunk(chunkId) {
+                    if (!confirm('Supprimer ce chunk ?')) return;
+                    try {
+                        const r = await fetch(`/api/rag/chunks/${chunkId}`, { method: 'DELETE' });
+                        if (r.ok) {
+                            this.currentDocChunks = this.currentDocChunks.filter(c => c.id !== chunkId);
+                            // Update stats locally (simple approximation)
+                            this.currentDocStats.total_chunks = (this.currentDocStats.total_chunks || 1) - 1;
+                        } else {
+                            showToast('Erreur suppression chunk');
+                        }
+                    } catch (e) {
+                        showToast('Erreur suppression chunk');
+                    }
+                },
+                async saveSettings() {
+                    if (!this.currentSessionId) { if (!this.currentModel) { showToast('Please select a model first'); return; } try { const r = await fetch('/api/chat/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: this.currentModel }) }); if (r.ok) { this.currentSessionId = (await r.json()).id; this.loadSessions(); } } catch (e) { return; } }
+                    try { const r = await fetch(`/api/chat/sessions/${this.currentSessionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system_prompt: this.systemPrompt, model_config: this.modelConfig }) }); if (r.ok) { this.showSettings = false; } else { showToast((await r.json()).error || 'Failed to save settings'); } } catch (e) { showToast('Failed to save settings'); }
+                },
+                async sendMessage() {
+                    if (this.loading || (!this.input.trim() && this.pendingImages.length === 0 && this.pendingFiles.length === 0) || !this.currentModel) return;
+                    const userMsg = this.input.trim(); const imagesToSend = [...this.pendingImages]; const filesToSend = [...this.pendingFiles];
+                    this.input = ''; this.pendingImages = []; this.pendingFiles = [];
+
+                    // Reset textarea height and refocus
+                    this.$nextTick(() => {
+                        if (this.$refs.chatInput) {
+                            this.$refs.chatInput.style.height = 'auto';
+                            this.$refs.chatInput.rows = 1;
+                            // Force focus to ensure cursor stays/moves to the correct input, especially on first message
+                            this.$refs.chatInput.focus();
+                        }
+                    });
+
+                    let displayContent = ''; if (imagesToSend.length > 0) { displayContent += `[${imagesToSend.length} image(s) attached]\n\n`; } if (filesToSend.length > 0) { displayContent += filesToSend.map(f => `[File: ${f.filename}]`).join('\n') + '\n\n'; } displayContent += userMsg;
+                    this.messages.push({ role: 'user', content: displayContent.trim(), images: imagesToSend.length > 0 ? imagesToSend.map(img => img.data) : undefined }); this.loading = true; this.scrollToBottom();
+                    try {
+                        this.abortController = new AbortController();
+                        const response = await fetch('/api/chat/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: this.currentModel, message: userMsg, session_id: this.currentSessionId, images: imagesToSend.map(img => img.data), files: filesToSend, web_search: this.webSearchEnabled }), signal: this.abortController.signal });
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        const assistantMsg = { role: 'assistant', content: '' }; this.messages.push(assistantMsg); const msgIndex = this.messages.length - 1;
+                        if (!response.body) throw new Error("ReadableStream not supported.");
+                        const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop() || ''; for (const line of lines) { if (line.startsWith('data: ')) { try { const json = JSON.parse(line.substring(6)); if (json.session_id && !this.currentSessionId) { this.currentSessionId = json.session_id; this.loadSessions(); } if (json.error) { this.messages[msgIndex].content += "\n\n*[System Error: " + json.error + "]*"; this.loadSessions(); } if (json.content) { this.messages[msgIndex].content += json.content; this.scrollToBottom(); } if (json.thinking) { if (!this.messages[msgIndex].thinking) this.messages[msgIndex].thinking = ""; this.messages[msgIndex].thinking += json.thinking; this.scrollToBottom(); } if (json.web_sources) { this.messages[msgIndex].web_sources = json.web_sources; } if (json.title_update) { const session = this.sessions.find(s => s.id === json.session_id); if (session) { session.title = json.title_update; } } } catch (e) { } } }
+
+                                // Auto-read response if enabled
+                                if (this.voiceSettings.autoRead && this.messages[msgIndex].content) {
+                                    setTimeout(() => {
+                                        this.toggleSpeech(this.messages[msgIndex].content, 'msg-' + msgIndex);
+                                    }, 500);
+                                }
+
+                            }
+                        } catch (readError) { this.messages[msgIndex].content += "\n*[Stream Error: " + readError + "]*"; } finally { this.loading = false; this.abortController = null; this.loadSessions(); }
+                    } catch (e) { this.messages.push({ role: 'system', content: 'Error: ' + e }); } finally { this.loading = false; this.abortController = null; }
+                },
+                stopGeneration() { if (this.abortController) { this.abortController.abort(); this.abortController = null; this.loading = false; if (this.messages.length > 0) { const lastMsg = this.messages[this.messages.length - 1]; if (lastMsg.role === 'assistant') { lastMsg.content += '\n\n*[Generation stopped]*'; } } this.loadSessions(); } },
+                scrollToBottom() { this.$nextTick(() => { const c = document.getElementById('chat-container'); if (c) c.scrollTop = c.scrollHeight; }); },
+
+                adjustTextareaHeight(el) {
+                    // Reset height to auto to calculate new scrollHeight correctly
+                    el.style.height = 'auto';
+                    // Set new height based on scrollHeight, max 200px (approx 8-9 lines)
+                    const newHeight = Math.min(el.scrollHeight, 200);
+                    el.style.height = newHeight + 'px';
+                    // Add scrollbar if content exceeds max height
+                    el.style.overflowY = el.scrollHeight > 200 ? 'auto' : 'hidden';
+                },
+
+                handleKeydown(event) {
+                    // Check if it's Enter key
+                    if (event.key === 'Enter') {
+                        // If Shift + Enter, let default behavior happen (new line)
+                        if (event.shiftKey) return;
+
+                        // Check device type (desktop vs mobile) using window width
+                        // Mobile behavior (< 768px): Enter = new line
+                        if (window.innerWidth < 768) return;
+
+                        // Desktop behavior (>= 768px): Enter = send
+                        // Prevent default new line behavior and send message
+                        event.preventDefault();
+                        if (this.debateMode) {
+                            this.sendDebateMessage();
+                        } else {
+                            this.sendMessage();
+                        }
+                    }
+                },
+
+                // Copy assistant response to clipboard
+                copyResponse(content) {
+                    navigator.clipboard.writeText(content).then(() => {
+                        showToast('Réponse copiée !');
+                    }).catch(err => {
+                        console.error('Failed to copy:', err);
+                        showToast('Erreur lors de la copie');
+                    });
+                },
+
+                // Regenerate a response
+                async regenerateResponse(msgIndex) {
+                    if (this.loading || !this.currentModel) return;
+
+                    // Find the user message before this assistant message
+                    let userMsgIndex = msgIndex - 1;
+                    while (userMsgIndex >= 0 && this.messages[userMsgIndex].role !== 'user') {
+                        userMsgIndex--;
+                    }
+
+                    if (userMsgIndex < 0) {
+                        showToast('Impossible de régénérer : message utilisateur introuvable');
+                        return;
+                    }
+
+                    const userMsg = this.messages[userMsgIndex];
+                    // Extract the actual message content (remove file/image prefixes)
+                    let userContent = userMsg.content;
+                    userContent = userContent.replace(/^\[\d+ image\(s\) attached\]\s*/i, '');
+                    userContent = userContent.replace(/^\[File: [^\]]+\]\s*/gm, '');
+                    userContent = userContent.trim();
+
+                    // Remove the current assistant message
+                    this.messages.splice(msgIndex, 1);
+
+                    // Regenerate
+                    this.loading = true;
+                    this.scrollToBottom();
+
+                    try {
+                        this.abortController = new AbortController();
+                        const response = await fetch('/api/chat/generate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: this.currentModel,
+                                message: userContent,
+                                session_id: this.currentSessionId,
+                                regenerate: true // Flag to indicate regeneration
+                            }),
+                            signal: this.abortController.signal
+                        });
+
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                        const assistantMsg = { role: 'assistant', content: '' };
+                        this.messages.push(assistantMsg);
+                        const newMsgIndex = this.messages.length - 1;
+
+                        if (!response.body) throw new Error("ReadableStream not supported.");
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+
+                        try {
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                buffer += decoder.decode(value, { stream: true });
+                                const lines = buffer.split('\n');
+                                buffer = lines.pop() || '';
+                                for (const line of lines) {
+                                    if (line.startsWith('data: ')) {
+                                        try {
+                                            const json = JSON.parse(line.substring(6));
+                                            if (json.error) {
+                                                this.messages[newMsgIndex].content += "\n\n*[System Error: " + json.error + "]*";
+                                            }
+                                            if (json.content) {
+                                                this.messages[newMsgIndex].content += json.content;
+                                                this.scrollToBottom();
+                                            }
+                                            if (json.thinking) {
+                                                if (!this.messages[newMsgIndex].thinking) this.messages[newMsgIndex].thinking = "";
+                                                this.messages[newMsgIndex].thinking += json.thinking;
+                                                this.scrollToBottom();
+                                            }
+                                        } catch (e) { }
+                                    }
+                                }
+                            }
+
+                            // Auto-read response if enabled
+                            if (this.voiceSettings.autoRead && this.messages[newMsgIndex].content && !this.loading) {
+                                // Wait a bit for final content update
+                                setTimeout(() => {
+                                    this.toggleSpeech(this.messages[newMsgIndex].content, 'msg-' + newMsgIndex);
+                                }, 500);
+                            }
+                        } catch (readError) {
+                            this.messages[newMsgIndex].content += "\n*[Stream Error: " + readError + "]*";
+                        } finally {
+                            this.loading = false;
+                            this.abortController = null;
+                            this.loadSessions();
+                        }
+                    } catch (e) {
+                        this.messages.push({ role: 'system', content: 'Error: ' + e });
+                    } finally {
+                        this.loading = false;
+                        this.abortController = null;
+                    }
+                },
+
+                // ============== Multi-LLM Debate Mode ==============
+                async toggleDebateMode() {
+                    console.log('toggleDebateMode called!');
+                    this.debateMode = !this.debateMode;
+                    if (this.debateMode) {
+                        if (this.availableProviders.length === 0) {
+                            await this.loadDebateProviders();
+                        }
+                        if (this.participants.length === 0) {
+                            await this.loadDebateDefaults();
+                        }
+                        this.showParticipantSelector = true;
+                    } else {
+                        this.showParticipantSelector = false;
+                        // Don't clear participants immediately to allow toggling back
+                    }
+                },
+                async loadDebateDefaults() {
+                    try {
+                        const r = await fetch('/api/chat/debate/defaults');
+                        if (r.ok) {
+                            const data = await r.json();
+                            if (Array.isArray(data) && data.length > 0) {
+                                this.participants = data.map(p => ({
+                                    ...p,
+                                    // Ensure ID is unique if not present
+                                    id: p.id || crypto.randomUUID()
+                                }));
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error loading debate defaults:', e);
+                    }
+                },
+                async saveDebateDefaults() {
+                    if (this.participants.length === 0) {
+                        showToast('Aucun participant à sauvegarder');
+                        return;
+                    }
+                    try {
+                        const r = await fetch('/api/chat/debate/defaults', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.participants)
+                        });
+                        if (r.ok) {
+                            showToast('Configuration par défaut sauvegardée');
+                        } else {
+                            showToast('Erreur lors de la sauvegarde');
+                        }
+                    } catch (e) {
+                        showToast('Erreur réseau');
+                    }
+                },
+                async loadDebateProviders() {
+                    try {
+                        const r = await fetch('/api/chat/debate/providers');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.availableProviders = data.providers || [];
+                        }
+                    } catch (e) {
+                        console.error('Error loading debate providers:', e);
+                        this.availableProviders = [];
+                    }
+                },
+                async loadProviderModels(providerId) {
+                    try {
+                        const r = await fetch(`/api/settings/providers/${providerId}/models`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            return data.models || [];
+                        }
+                    } catch (e) {
+                        console.error('Error loading provider models:', e);
+                    }
+                    return [];
+                },
+                addParticipant(provider, model) {
+                    if (this.participants.length >= 4) {
+                        showToast('Maximum 4 participants');
+                        return;
+                    }
+                    const exists = this.participants.some(p => p.provider_id === provider.id && p.model === model);
+                    if (exists) {
+                        showToast('Participant déjà ajouté');
+                        return;
+                    }
+                    this.participants.push({
+                        id: crypto.randomUUID(),
+                        provider_id: provider.id,
+                        model: model,
+                        name: `${provider.name} (${model.split(':')[0]})`,
+                        color: provider.color || 'purple'
+                    });
+                },
+                removeParticipant(participantId) {
+                    this.participants = this.participants.filter(p => p.id !== participantId);
+                },
+                async sendDebateMessage() {
+                    if (this.debateLoading || !this.input.trim() || this.participants.length < 2) {
+                        if (this.participants.length < 2) {
+                            showToast('Sélectionnez au moins 2 participants');
+                        }
+                        return;
+                    }
+                    const userMsg = this.input.trim();
+                    this.input = '';
+                    this.messages.push({ role: 'user', content: userMsg });
+                    this.debateLoading = true;
+                    this.loading = true;
+                    this.scrollToBottom();
+                    try {
+                        this.abortController = new AbortController();
+                        const response = await fetch('/api/chat/debate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                session_id: this.currentSessionId,
+                                message: userMsg,
+                                participants: this.participants.map(p => ({ provider_id: p.provider_id, model: p.model, name: p.name })),
+                                mode: this.debateModeOption,
+                                system_prompt: this.debateSystemPrompt
+                            }),
+                            signal: this.abortController.signal
+                        });
+                        if (!response.ok) throw new Error('Debate request failed');
+                        const participantMsgs = {};
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop() || '';
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const json = JSON.parse(line.substring(6));
+                                        if (json.session_id && !this.currentSessionId) {
+                                            this.currentSessionId = json.session_id;
+                                            this.loadSessions();
+                                        }
+                                        if (json.participant_id && json.content) {
+                                            if (!participantMsgs[json.participant_id]) {
+                                                const msg = { role: 'assistant', content: '', participant_id: json.participant_id, participant_name: json.name, color: json.color };
+                                                this.messages.push(msg);
+                                                participantMsgs[json.participant_id] = this.messages.length - 1;
+                                            }
+                                            const idx = participantMsgs[json.participant_id];
+                                            this.messages[idx].content += json.content;
+                                            this.scrollToBottom();
+                                        }
+                                        if (json.start && json.participant_id) {
+                                            const msg = { role: 'assistant', content: '', participant_id: json.participant_id, participant_name: json.name, color: json.color };
+                                            this.messages.push(msg);
+                                            participantMsgs[json.participant_id] = this.messages.length - 1;
+                                            this.scrollToBottom();
+                                        }
+                                        if (json.error) showToast('Erreur: ' + json.error);
+                                        if (json.complete) this.loadSessions();
+                                    } catch (e) { }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        if (e.name !== 'AbortError') {
+                            console.error('Debate error:', e);
+                            showToast('Erreur lors du débat');
+                        }
+                    } finally {
+                        this.debateLoading = false;
+                        this.loading = false;
+                        this.abortController = null;
+                    }
+                }
+            }));
+
+            // settingsPage component for /settings page
+            Alpine.data('settingsPage', () => ({
+                activeTab: 'providers',
+                mobileMenuOpen: false,
+                theme: localStorage.getItem('theme') || 'system',
+                analytics: true,
+                servers: [],
+                activeServerId: null,
+                formServer: { name: '', url: '' },
+                editingId: null,
+                ragConfig: {
+                    embedding_model: '',
+                    available_models: [],
+                    chunk_size: 500,
+                    chunk_overlap: 50,
+                    top_k: 5,
+                    // OCR Configuration
+                    ocr_provider: '',  // Format: "provider_type:provider_id"
+                    ocr_model: '',
+                    ocr_threshold: 50,
+                    ocr_models_available: [],
+                    ocr_configured_providers: [],
+                    // Qdrant Configuration
+                    use_qdrant: true,
+                    qdrant_available: false,
+                    qdrant_stats: null
+                },
+                ragLoading: false,
+                ragSaving: false,
+                ocrModelsLoading: false,
+                // Web Search Config
+                webSearchConfig: { searxng_url: '', max_results: 5, timeout: 10, is_available: false },
+                webSearchLoading: false,
+                webSearchSaving: false,
+                webSearchTesting: false,
+                webSearchTestMessage: '',
+                webSearchTestSuccess: false,
+                // LLM Config
+                llmConfig: {
+                    default_system_prompt: '',
+                    temperature: 0.7,
+                    top_p: 0.9,
+                    top_k: 40,
+                    repeat_penalty: 1.1,
+                    num_ctx: 4096,
+                    auto_generate_title: true
+                },
+                llmLoading: false,
+                llmSaving: false,
+                // Text Prompts Config
+                textPrompts: {},
+                textPromptsLoading: false,
+                textPromptsSaving: false,
+
+                async init() {
+                    await this.loadProviders();
+                    // Lire le tab depuis le hash ou le pathname
+                    const validTabs = ['general', 'providers', 'shortcuts', 'rag', 'about', 'llm', 'websearch', 'prompts'];
+                    const hash = window.location.hash.replace('#', '');
+                    const pathParts = window.location.pathname.split('/');
+                    const pathTab = pathParts[pathParts.length - 1];
+
+                    if (hash && validTabs.includes(hash)) {
+                        this.activeTab = hash;
+                    } else if (validTabs.includes(pathTab)) {
+                        this.activeTab = pathTab;
+                        window.location.hash = pathTab;
+                    }
+
+                    // Listener for provider changes to refresh list
+                    window.addEventListener('provider-changed', () => {
+                        this.loadProviders();
+                    });
+
+                    // Listener for hash changes (when navigating via links)
+                    window.addEventListener('hashchange', () => {
+                        const newHash = window.location.hash.replace('#', '');
+                        if (newHash && validTabs.includes(newHash)) {
+                            this.activeTab = newHash;
+                        }
+                    });
+
+                    // Listener for custom tab change event (from sidebar links)
+                    window.addEventListener('settings-tab-change', (e) => {
+                        const tab = e.detail;
+                        if (tab && validTabs.includes(tab)) {
+                            this.activeTab = tab;
+                            window.location.hash = tab;
+                        }
+                    });
+                },
+                setTab(tab) { this.activeTab = tab; window.location.hash = tab; },
+                async loadServers() { try { const r = await fetch('/api/settings/servers'); if (r.ok) { const data = await r.json(); this.servers = data.servers; this.activeServerId = data.active_server_id; } } catch (e) { console.error("Failed to load servers", e); } },
+                updateTheme(val) { this.theme = val; window.dispatchEvent(new CustomEvent('theme-change', { detail: val })); },
+                editServer(server) { this.editingId = server.id; this.formServer = { name: server.name, url: server.url }; },
+                cancelEdit() { this.editingId = null; this.formServer = { name: '', url: '' }; },
+                async saveServer() {
+                    const name = this.formServer.name.trim(); const url = this.formServer.url.trim(); if (!name || !url) return;
+                    try {
+                        let r; if (this.editingId) { r = await fetch(`/api/settings/servers/${this.editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url }) }); } else { r = await fetch('/api/settings/servers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, url }) }); }
+                        if (r.ok) { await r.json(); this.cancelEdit(); await this.loadServers(); showToast(this.editingId ? 'Server updated!' : 'Server added!'); window.dispatchEvent(new CustomEvent('servers-changed')); } else { showToast((await r.json()).error || 'Failed to save server'); }
+                    } catch (e) { showToast('Error saving server'); }
+                },
+                async deleteServer(id) { if (!confirm('Delete this server?')) return; try { const r = await fetch(`/api/settings/servers/${id}`, { method: 'DELETE' }); if (r.ok) { await this.loadServers(); window.dispatchEvent(new CustomEvent('servers-changed')); } } catch (e) { showToast('Error deleting server'); } },
+                async setActiveServer(id) { try { const r = await fetch('/api/settings/servers/active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ server_id: id }) }); if (r.ok) { this.activeServerId = id; window.dispatchEvent(new CustomEvent('servers-changed')); showToast('Active server switched!'); } } catch (e) { showToast('Error switching server'); } },
+                async loadRagConfig() {
+                    this.ragLoading = true;
+                    try {
+                        const r = await fetch('/api/rag/config');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.ragConfig = {
+                                embedding_model: data.embedding_model || '',
+                                available_models: data.available_models || [],
+                                chunk_size: data.chunk_size || 500,
+                                chunk_overlap: data.chunk_overlap || 50,
+                                top_k: data.top_k || 5,
+                                // OCR
+                                ocr_provider: data.ocr_provider || '',
+                                ocr_model: data.ocr_model || '',
+                                ocr_threshold: data.ocr_threshold || 50,
+                                ocr_models_available: [],
+                                ocr_configured_providers: [],
+                                // Qdrant
+                                use_qdrant: data.use_qdrant ?? true,
+                                qdrant_available: data.qdrant_available || false,
+                                qdrant_stats: data.qdrant_stats || null
+                            };
+                            // Charger les fournisseurs OCR disponibles
+                            await this.loadOcrProviders();
+                            // Si un provider est déjà sélectionné, charger ses modèles
+                            if (this.ragConfig.ocr_provider) {
+                                this.loadOcrModels(this.ragConfig.ocr_provider);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to load RAG config', e);
+                    } finally {
+                        this.ragLoading = false;
+                    }
+                },
+                async saveRagConfig() {
+                    this.ragSaving = true;
+                    try {
+                        const r = await fetch('/api/rag/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                embedding_model: this.ragConfig.embedding_model,
+                                chunk_size: this.ragConfig.chunk_size,
+                                chunk_overlap: this.ragConfig.chunk_overlap,
+                                top_k: this.ragConfig.top_k,
+                                ocr_provider: this.ragConfig.ocr_provider,
+                                ocr_model: this.ragConfig.ocr_model,
+                                ocr_threshold: this.ragConfig.ocr_threshold,
+                                use_qdrant: this.ragConfig.use_qdrant
+                            })
+                        });
+                        if (r.ok) {
+                            showToast('Configuration RAG enregistrée !');
+                        } else {
+                            showToast((await r.json()).error || 'Erreur lors de l\'enregistrement');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save RAG config', e);
+                        showToast('Erreur lors de l\'enregistrement');
+                    } finally {
+                        this.ragSaving = false;
+                    }
+                },
+                async loadOcrProviders() {
+                    // Charge la liste des fournisseurs configurés
+                    try {
+                        const r = await fetch('/api/rag/ocr-providers');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.ragConfig.ocr_configured_providers = data.providers || [];
+                        }
+                    } catch (e) {
+                        console.error('Failed to load OCR providers', e);
+                    }
+                },
+                async loadOcrModels(providerKey) {
+                    // providerKey format: "provider_type:provider_id"
+                    if (!providerKey) {
+                        this.ragConfig.ocr_models_available = [];
+                        return;
+                    }
+                    this.ocrModelsLoading = true;
+                    try {
+                        const r = await fetch(`/api/rag/ocr-models?provider=${encodeURIComponent(providerKey)}`);
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.ragConfig.ocr_models_available = data.models || [];
+                        }
+                    } catch (e) {
+                        console.error('Failed to load OCR models', e);
+                    } finally {
+                        this.ocrModelsLoading = false;
+                    }
+                },
+                // Web Search Methods
+                async loadWebSearchConfig() {
+                    this.webSearchLoading = true;
+                    this.webSearchTestMessage = '';
+                    try {
+                        const r = await fetch('/api/settings/web_search/config');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.webSearchConfig = {
+                                searxng_url: data.searxng_url || '',
+                                max_results: data.max_results || 5,
+                                timeout: data.timeout || 10,
+                                is_available: data.is_available || false
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Failed to load web search config', e);
+                    } finally {
+                        this.webSearchLoading = false;
+                    }
+                },
+                async saveWebSearchConfig() {
+                    this.webSearchSaving = true;
+                    try {
+                        const r = await fetch('/api/settings/web_search/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                searxng_url: this.webSearchConfig.searxng_url,
+                                max_results: this.webSearchConfig.max_results,
+                                timeout: this.webSearchConfig.timeout
+                            })
+                        });
+                        if (r.ok) {
+                            showToast('Configuration recherche web enregistrée !');
+                            // Reload to update is_available
+                            await this.loadWebSearchConfig();
+                        } else {
+                            const data = await r.json();
+                            showToast(data.error || 'Erreur lors de l\'enregistrement');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save web search config', e);
+                        showToast('Erreur lors de l\'enregistrement');
+                    } finally {
+                        this.webSearchSaving = false;
+                    }
+                },
+                async testWebSearch() {
+                    this.webSearchTesting = true;
+                    this.webSearchTestMessage = '';
+                    try {
+                        // First save the URL
+                        const saveR = await fetch('/api/settings/web_search/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ searxng_url: this.webSearchConfig.searxng_url })
+                        });
+                        if (!saveR.ok) {
+                            const data = await saveR.json();
+                            this.webSearchTestMessage = data.error || 'URL invalide';
+                            this.webSearchTestSuccess = false;
+                            return;
+                        }
+                        // Then test
+                        const r = await fetch('/api/settings/web_search/test', { method: 'POST' });
+                        const data = await r.json();
+                        if (r.ok && data.ok) {
+                            this.webSearchTestMessage = data.message;
+                            this.webSearchTestSuccess = true;
+                            this.webSearchConfig.is_available = true;
+                        } else {
+                            this.webSearchTestMessage = data.error || 'Échec du test';
+                            this.webSearchTestSuccess = false;
+                            this.webSearchConfig.is_available = false;
+                        }
+                    } catch (e) {
+                        console.error('Failed to test web search', e);
+                        this.webSearchTestMessage = 'Erreur de connexion';
+                        this.webSearchTestSuccess = false;
+                    } finally {
+                        this.webSearchTesting = false;
+                    }
+                },
+                // LLM Config Methods
+                async loadLlmConfig() {
+                    this.llmLoading = true;
+                    try {
+                        const r = await fetch('/api/settings/llm/config');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.llmConfig = {
+                                default_system_prompt: data.default_system_prompt || '',
+                                temperature: data.temperature ?? 0.7,
+                                top_p: data.top_p ?? 0.9,
+                                top_k: data.top_k ?? 40,
+                                repeat_penalty: data.repeat_penalty ?? 1.1,
+                                num_ctx: data.num_ctx ?? 4096,
+                                auto_generate_title: data.auto_generate_title ?? true
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Failed to load LLM config', e);
+                    } finally {
+                        this.llmLoading = false;
+                    }
+                },
+                async saveLlmConfig() {
+                    this.llmSaving = true;
+                    try {
+                        const r = await fetch('/api/settings/llm/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.llmConfig)
+                        });
+                        if (r.ok) {
+                            showToast('Configuration LLM enregistrée !');
+                        } else {
+                            const data = await r.json();
+                            showToast(data.error || 'Erreur lors de l\'enregistrement');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save LLM config', e);
+                        showToast('Erreur lors de l\'enregistrement');
+                    } finally {
+                        this.llmSaving = false;
+                    }
+                },
+                // Text Prompts Methods
+                async loadTextPromptsConfig() {
+                    this.textPromptsLoading = true;
+                    try {
+                        const r = await fetch('/api/texts/prompts');
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.textPrompts = data.prompts || {};
+                        }
+                    } catch (e) {
+                        console.error('Failed to load textual prompts', e);
+                        showToast('Erreur lors du chargement des prompts');
+                    } finally {
+                        this.textPromptsLoading = false;
+                    }
+                },
+                async saveTextPromptsConfig() {
+                    this.textPromptsSaving = true;
+                    try {
+                        const r = await fetch('/api/texts/prompts', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompts: this.textPrompts })
+                        });
+                        if (r.ok) {
+                            showToast('Prompts enregistrés !');
+                        } else {
+                            showToast((await r.json()).error || 'Erreur lors de l\'enregistrement');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save textual prompts', e);
+                        showToast('Erreur lors de l\'enregistrement');
+                    } finally {
+                        this.textPromptsSaving = false;
+                    }
+                },
+                async resetTextPrompts() {
+                    if (!confirm('Voulez-vous vraiment réinitialiser tous les prompts aux valeurs par défaut ?')) return;
+                    this.textPromptsSaving = true;
+                    try {
+                        const r = await fetch('/api/texts/prompts/reset', { method: 'POST' });
+                        if (r.ok) {
+                            showToast('Prompts réinitialisés !');
+                            await this.loadTextPromptsConfig();
+                        } else {
+                            showToast((await r.json()).error || 'Erreur');
+                        }
+                    } catch (e) {
+                        showToast('Erreur lors de la réinitialisation');
+                    } finally {
+                        this.textPromptsSaving = false;
+                    }
+                },
+
+                // ============== LLM Providers Management ==============
+                providers: [],
+                activeProviderId: null,
+                providerTypes: {},
+                formProvider: { name: '', type: 'ollama', url: '', api_key: '', extra_headers: {} },
+                editingProviderId: null,
+                testingProviderId: null,
+                testResult: null,
+                providerModels: {},
+                providersLoading: false,
+                providersSaving: false,
+                showApiKey: false,
+
+                // Provider type info with colors and icons
+                getProviderTypeInfo(type) {
+                    const info = this.providerTypes[type] || {};
+                    const colors = {
+                        ollama: 'blue', lmstudio: 'teal', openai: 'emerald', anthropic: 'amber',
+                        gemini: 'purple', mistral: 'orange', groq: 'cyan', openrouter: 'pink',
+                        deepseek: 'indigo', qwen: 'rose', openai_compatible: 'slate'
+                    };
+                    return { ...info, color: colors[type] || 'gray' };
+                },
+
+                async loadProviders() {
+                    this.providersLoading = true;
+                    try {
+                        const [providersRes, typesRes] = await Promise.all([
+                            fetch('/api/settings/providers'),
+                            fetch('/api/settings/provider-types')
+                        ]);
+                        if (providersRes.ok) {
+                            const data = await providersRes.json();
+                            this.providers = data.providers || [];
+                            this.activeProviderId = data.active_provider_id;
+                        }
+                        if (typesRes.ok) {
+                            const data = await typesRes.json();
+                            this.providerTypes = data.types || {};
+                        }
+                    } catch (e) {
+                        console.error('Failed to load providers', e);
+                    } finally {
+                        this.providersLoading = false;
+                    }
+                },
+
+                editProvider(provider) {
+                    this.editingProviderId = provider.id;
+                    this.formProvider = {
+                        name: provider.name,
+                        type: provider.type,
+                        url: provider.url || '',
+                        api_key: '', // Never prefill API key for security
+                        extra_headers: provider.extra_headers || {}
+                    };
+                    this.showApiKey = false;
+                },
+
+                cancelProviderEdit() {
+                    this.editingProviderId = null;
+                    this.formProvider = { name: '', type: 'ollama', url: '', api_key: '', extra_headers: {} };
+                    this.showApiKey = false;
+                },
+
+                async saveProvider() {
+                    const { name, type, url, api_key, extra_headers } = this.formProvider;
+                    if (!name.trim()) {
+                        showToast('Le nom est requis');
+                        return;
+                    }
+
+                    this.providersSaving = true;
+                    try {
+                        let r;
+                        const payload = { name: name.trim(), type, url: url.trim(), extra_headers };
+                        if (api_key.trim()) {
+                            payload.api_key = api_key.trim();
+                        }
+
+                        if (this.editingProviderId) {
+                            r = await fetch(`/api/settings/providers/${this.editingProviderId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                        } else {
+                            r = await fetch('/api/settings/providers', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                        }
+
+                        if (r.ok) {
+                            this.cancelProviderEdit();
+                            await this.loadProviders();
+                            showToast(this.editingProviderId ? 'Fournisseur modifié !' : 'Fournisseur ajouté !');
+                            window.dispatchEvent(new CustomEvent('providers-changed'));
+                        } else {
+                            const data = await r.json();
+                            showToast(data.error || 'Erreur lors de la sauvegarde');
+                        }
+                    } catch (e) {
+                        console.error('Failed to save provider', e);
+                        showToast('Erreur lors de la sauvegarde');
+                    } finally {
+                        this.providersSaving = false;
+                    }
+                },
+
+                async deleteProvider(id) {
+                    if (!confirm('Supprimer ce fournisseur ?')) return;
+                    try {
+                        const r = await fetch(`/api/settings/providers/${id}`, { method: 'DELETE' });
+                        if (r.ok) {
+                            await this.loadProviders();
+                            window.dispatchEvent(new CustomEvent('providers-changed'));
+                            showToast('Fournisseur supprimé');
+                        } else {
+                            showToast('Erreur lors de la suppression');
+                        }
+                    } catch (e) {
+                        showToast('Erreur lors de la suppression');
+                    }
+                },
+
+                async setActiveProvider(id) {
+                    try {
+                        const r = await fetch('/api/settings/providers/active', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider_id: id })
+                        });
+                        if (r.ok) {
+                            this.activeProviderId = id;
+                            window.dispatchEvent(new CustomEvent('providers-changed'));
+                            showToast('Fournisseur activé !');
+                        } else {
+                            showToast('Erreur lors du changement');
+                        }
+                    } catch (e) {
+                        showToast('Erreur lors du changement');
+                    }
+                },
+
+                async testProvider(id) {
+                    this.testingProviderId = id;
+                    this.testResult = null;
+                    try {
+                        const r = await fetch(`/api/settings/providers/${id}/test`, { method: 'POST' });
+                        const data = await r.json();
+                        this.testResult = { id, ok: data.ok, message: data.message };
+                        if (data.ok) {
+                            showToast('Connexion réussie !');
+                            // Load models for the default model selector
+                            await this.loadProviderModels(id);
+                        } else {
+                            showToast(data.message || 'Échec du test');
+                        }
+                    } catch (e) {
+                        this.testResult = { id, ok: false, message: 'Erreur de connexion' };
+                        showToast('Erreur lors du test');
+                    } finally {
+                        this.testingProviderId = null;
+                    }
+                },
+
+                async loadProviderModels(id) {
+                    try {
+                        const r = await fetch(`/api/settings/providers/${id}/models`);
+                        const data = await r.json();
+                        this.providerModels[id] = data.models || [];
+                    } catch (e) {
+                        this.providerModels[id] = [];
+                    }
+                },
+
+                async migrateFromServers() {
+                    try {
+                        const r = await fetch('/api/settings/providers/migrate', { method: 'POST' });
+                        const data = await r.json();
+                        if (r.ok) {
+                            showToast(data.message);
+                            await this.loadProviders();
+                        } else {
+                            showToast(data.error || 'Erreur de migration');
+                        }
+                    } catch (e) {
+                        showToast('Erreur de migration');
+                    }
+                },
+
+                async setProviderDefaultModel(providerId, modelName) {
+                    try {
+                        const r = await fetch(`/api/settings/providers/${providerId}/default-model`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ model: modelName })
+                        });
+                        if (r.ok) {
+                            // Update local state
+                            const provider = this.providers.find(p => p.id === providerId);
+                            if (provider) {
+                                provider.default_model = modelName;
+                            }
+                            showToast(modelName ? 'Modèle par défaut défini !' : 'Modèle par défaut supprimé');
+                        } else {
+                            const data = await r.json();
+                            showToast(data.error || 'Erreur');
+                        }
+                    } catch (e) {
+                        showToast('Erreur lors de la mise à jour');
+                    }
+                }
+            }));
+
+        });
+    </script>
+    <script src="https://unpkg.com/htmx.org@1.9.11"
+        integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0"
+        crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/preload.js" crossorigin="anonymous"></script>
+    <script>
+        // Simple HTMX integration for path update
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof htmx !== 'undefined') {
+                htmx.on('htmx:afterSettle', function (evt) {
+                    // Update path state if needed for non-boosted HTMX requests (partials)
+                    if (!evt.detail.boosted) {
+                        // Optional: handle partial updates
+                    }
+                });
+            }
+        });
+    </script>
+    {% block styles %}
+    <link rel="stylesheet" href="{{ url_for('core.static', filename='css/base-mobile.css') }}">
+    <link rel="stylesheet" href="{{ url_for('core.static', filename='css/markdown.css') }}">
+    {% endblock %}
+</head>
+
+<body hx-ext="preload"
+    class="h-screen overflow-hidden overscroll-none bg-zinc-50 text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100 selection:bg-brand-100 dark:selection:bg-brand-900">
+    <div x-data="uiState()" class="flex h-full">
+
+        <!-- Sidebar -->
+        <aside
+            class="flex-shrink-0 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col transition-all duration-200 transform fixed md:static h-full z-50 safe-pb-sidebar safe-pt"
+            :class="[
+        openNav ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        sidebarCollapsed ? 'w-20' : 'w-64'
+      ]">
+
+            <!-- Logo / Provider Switcher -->
+            <!-- Mode étendu : provider switcher complet -->
+            <div x-show="!sidebarCollapsed"
+                class="h-16 flex items-center px-6 border-b border-zinc-200 dark:border-zinc-800 relative"
+                x-data="{ open: false }">
+                <button @click="open = !open"
+                    class="flex items-center gap-2.5 font-bold text-lg tracking-tight w-full hover:opacity-80 transition-opacity">
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                        :class="online ? 'bg-green-500' : 'bg-red-500'"></span>
+                    <span class="truncate flex-1 text-left"
+                        x-text="activeProvider ? activeProvider.name : 'No Provider'"></span>
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                <!-- Dropdown -->
+                <div x-show="open" @click.outside="open = false" x-transition
+                    class="absolute top-14 left-4 right-4 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-50">
+
+                    <template x-for="p in providers" :key="p.id">
+                        <button @click="switchProvider(p.id); open = false"
+                            class="w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center justify-between"
+                            :class="activeProvider && activeProvider.id === p.id ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'">
+                            <span class="flex items-center gap-2">
+                                <span
+                                    class="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+                                    x-text="getProviderTypeName(p.type)"></span>
+                                <span x-text="p.name"></span>
+                            </span>
+                            <svg x-show="activeProvider && activeProvider.id === p.id" class="w-4 h-4" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                        </button>
+                    </template>
+
+                    <div x-show="providers.length === 0" class="px-4 py-3 text-sm text-zinc-500 text-center">
+                        Aucun fournisseur configuré
+                    </div>
+
+                    <div class="border-t border-zinc-100 dark:border-zinc-700/50 p-1">
+                        <a href="/settings#providers"
+                            @click="if (window.location.pathname === '/settings') { window.dispatchEvent(new CustomEvent('settings-tab-change', { detail: 'providers' })); $event.preventDefault(); }"
+                            class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span x-text="t('nav.manageProviders', 'Gérer les fournisseurs')"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mode réduit : dropdown provider switcher -->
+            <div x-show="sidebarCollapsed"
+                class="h-16 flex items-center justify-center border-b border-zinc-200 dark:border-zinc-800 relative"
+                x-data="{ open: false }">
+                <button @click="open = !open"
+                    class="h-10 w-10 flex items-center justify-center rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                    <span class="inline-flex h-3 w-3 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                        :class="online ? 'bg-green-500' : 'bg-red-500'"></span>
+                </button>
+
+                <!-- Dropdown pour mode réduit -->
+                <div x-show="open" @click.outside="open = false" x-transition
+                    class="absolute top-2 left-full ml-3 w-64 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-50">
+
+                    <div
+                        class="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/50 bg-zinc-50/50 dark:bg-zinc-800/50">
+                        <div class="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1">Fournisseur Actif
+                        </div>
+                        <div class="font-medium truncate" x-text="activeProvider ? activeProvider.name : 'Unknown'">
+                        </div>
+                    </div>
+
+                    <div class="max-h-64 overflow-y-auto">
+                        <template x-for="p in providers" :key="p.id">
+                            <button @click="switchProvider(p.id); open = false"
+                                class="w-full text-left px-4 py-3 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center justify-between"
+                                :class="activeProvider && activeProvider.id === p.id ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'">
+                                <span class="flex items-center gap-2">
+                                    <span
+                                        class="text-xs px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
+                                        x-text="getProviderTypeName(p.type)"></span>
+                                    <span x-text="p.name" class="truncate"></span>
+                                </span>
+                                <svg x-show="activeProvider && activeProvider.id === p.id" class="w-4 h-4 flex-shrink-0"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                        </template>
+                    </div>
+
+                    <div x-show="providers.length === 0" class="px-4 py-3 text-sm text-zinc-500 text-center">
+                        Aucun fournisseur configuré
+                    </div>
+
+                    <div class="border-t border-zinc-100 dark:border-zinc-700/50 p-1">
+                        <a href="/settings#providers"
+                            @click="open = false; if (window.location.pathname === '/settings') { window.dispatchEvent(new CustomEvent('settings-tab-change', { detail: 'providers' })); $event.preventDefault(); }"
+                            class="flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span x-text="t('nav.manageProviders', 'Gérer les fournisseurs')"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 overflow-y-auto overflow-x-hidden py-6 space-y-8"
+                :class="sidebarCollapsed ? 'px-2' : 'px-3'">
+
+                <!-- Section: Overview -->
+                <div>
+                    <div x-show="!sidebarCollapsed"
+                        class="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider"
+                        x-text="t('nav.overview', 'Overview')"></div>
+                    <div class="space-y-1">
+                        <a href="/" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                (path === '/' || path === '/dashboard') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.dashboard', 'Dashboard')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.dashboard', 'Dashboard')"></span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Section: Library -->
+                <div>
+                    <div x-show="!sidebarCollapsed"
+                        class="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider"
+                        x-text="t('nav.library', 'Library')"></div>
+                    <div class="space-y-1">
+                        <a href="/models" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/models') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.models', 'Installed')"></span>
+                            <span x-show="!sidebarCollapsed" id="nav-count-installed"
+                                class="ml-auto bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 py-0.5 px-2 rounded-full text-xs font-medium"
+                                hx-get="/api/stats/count" hx-trigger="load, every 30s">6</span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.models', 'Installed')"></span>
+                        </a>
+                        <a href="/discover" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/discover') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.discover', 'Discover')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.discover', 'Discover')"></span>
+                        </a>
+                        <a href="/downloads" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/downloads') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.downloads', 'Downloads')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.downloads', 'Downloads')"></span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Section: Tools -->
+                <div>
+                    <div x-show="!sidebarCollapsed"
+                        class="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider"
+                        x-text="t('nav.tools', 'Tools')"></div>
+                    <div class="space-y-1">
+                        <a href="/chat" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/chat') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.chat', 'Chat')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.chat', 'Chat')"></span>
+                        </a>
+                        <a href="/texts" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/texts') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.assistant', 'Assistant')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.assistant', 'Assistant')"></span>
+                        </a>
+                        <a href="/specialists" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/specialists') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.specialists', 'Spécialiste')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.specialists', 'Spécialiste')"></span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Section: Admin -->
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                <div>
+                    <div x-show="!sidebarCollapsed"
+                        class="px-3 mb-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider"
+                        x-text="t('nav.admin', 'Admin')"></div>
+                    <div class="space-y-1">
+                        <a href="{{ url_for('admin.users_list') }}" @click="openNav = false"
+                            class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                            :class="[
+                path.startsWith('/admin') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                sidebarCollapsed ? 'justify-center px-2' : ''
+              ]">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            <span x-show="!sidebarCollapsed" x-text="t('nav.users', 'Users')"></span>
+                            <!-- Tooltip en mode réduit -->
+                            <span x-show="sidebarCollapsed" x-cloak
+                                class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                                x-text="t('nav.users', 'Users')"></span>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="border-t border-zinc-200 dark:border-zinc-800 space-y-1"
+                :class="sidebarCollapsed ? 'p-2' : 'p-4'">
+
+                <!-- Bouton Toggle Sidebar (Desktop only) -->
+                <button @click="toggleSidebar()"
+                    class="hidden md:flex w-full items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 relative group"
+                    :class="sidebarCollapsed ? 'justify-center px-2' : ''">
+                    <svg class="w-5 h-5 flex-shrink-0 transition-transform duration-200"
+                        :class="sidebarCollapsed ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                    <span x-show="!sidebarCollapsed" x-text="t('common.collapse', 'Réduire')"></span>
+                    <!-- Tooltip en mode réduit -->
+                    <span x-show="sidebarCollapsed" x-cloak
+                        class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                        x-text="t('nav.expand', 'Étendre')"></span>
+                </button>
+
+                <a href="/settings" @click="openNav = false"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
+                    :class="[
+            path.startsWith('/settings') ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50',
+            sidebarCollapsed ? 'justify-center px-2' : ''
+          ]">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span x-show="!sidebarCollapsed" x-text="t('nav.settings', 'Settings')"></span>
+                    <!-- Tooltip en mode réduit -->
+                    <span x-show="sidebarCollapsed" x-cloak
+                        class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                        x-text="t('nav.settings', 'Settings')"></span>
+                </a>
+                <a href="{{ url_for('auth.logout') }}"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-zinc-600 dark:text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 relative group"
+                    :class="sidebarCollapsed ? 'justify-center px-2' : ''">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span x-show="!sidebarCollapsed" x-text="t('nav.logout', 'Logout')"></span>
+                    <!-- Tooltip en mode réduit -->
+                    <span x-show="sidebarCollapsed" x-cloak
+                        class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
+                        x-text="t('nav.logout', 'Logout')"></span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col h-full min-h-0 relative md:safe-pt">
+
+            <!-- Mobile Header -->
+            <header
+                class="md:hidden flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 safe-pt-header">
+                <div class="font-semibold text-lg">Ollama Manager</div>
+                <button @click="openNav = !openNav" class="p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    aria-label="Ouvrir le menu">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </header>
+
+            <!-- Mobile Overlay -->
+            <div x-show="openNav" @click="openNav=false" x-transition.opacity
+                class="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"></div>
+
+            <!-- Content Scroll Area -->
+            <main class="flex-1 overflow-y-auto overflow-x-hidden min-h-0 w-full scroll-smooth scroll-touch"
+                style="overflow-x: hidden !important; max-width: 100%; box-sizing: border-box;">
+                <div id="spa-content" class="h-full flex flex-col min-h-0">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+
+        <!-- Toast -->
+        <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none">
+            <div x-show="toast" x-transition x-cloak
+                class="pointer-events-auto rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 px-4 py-3 shadow-xl font-medium text-sm flex items-center gap-3 transform translate-y-0 opacity-100 self-end">
+                <span x-text="toast"></span>
+                <button @click="toast = ''"
+                    class="text-zinc-500 hover:text-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-600">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Global Confirmation Modal -->
+        <div x-data="confirmModal()" @confirm-dialog.window="open($event.detail)" x-show="isOpen" x-cloak
+            class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+            <div @click.outside="cancel()"
+                class="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl overflow-hidden"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+                x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                x-transition:leave-end="opacity-0 scale-95 translate-y-4">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center"
+                        :class="type === 'danger' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-zinc-900 dark:text-zinc-100" x-text="title"></h3>
+                    </div>
+                </div>
+                <!-- Body -->
+                <div class="px-6 py-4">
+                    <p class="text-sm text-zinc-600 dark:text-zinc-400" x-html="message"></p>
+                </div>
+                <!-- Footer -->
+                <div class="px-6 py-4 bg-zinc-50 dark:bg-zinc-800/50 flex justify-end gap-3">
+                    <button @click="cancel()"
+                        class="px-4 py-2 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors text-sm font-medium">
+                        Annuler
+                    </button>
+                    <button @click="confirm()"
+                        class="px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors"
+                        :class="type === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-amber-600 hover:bg-amber-500'"
+                        x-text="confirmText">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Global Confirmation Modal Component
+        function confirmModal() {
+            return {
+                isOpen: false,
+                title: 'Confirmer',
+                message: '',
+                type: 'danger',
+                confirmText: 'Confirmer',
+                onConfirm: null,
+                onCancel: null,
+
+                open(detail) {
+                    this.title = detail.title || 'Confirmer';
+                    this.message = detail.message || 'Êtes-vous sûr ?';
+                    this.type = detail.type || 'danger';
+                    this.confirmText = detail.confirmText || 'Confirmer';
+                    this.onConfirm = detail.onConfirm || null;
+                    this.onCancel = detail.onCancel || null;
+                    this.isOpen = true;
+                },
+
+                confirm() {
+                    this.isOpen = false;
+                    if (this.onConfirm) this.onConfirm();
+                },
+
+                cancel() {
+                    this.isOpen = false;
+                    if (this.onCancel) this.onCancel();
+                }
+            }
+        }
+
+        // Helper function to show confirmation dialog
+        window.showConfirmDialog = function (options) {
+            window.dispatchEvent(new CustomEvent('confirm-dialog', { detail: options }));
+        };
+
+        // Helper function to show toast notifications (replaces alert())
+        window.showToast = function (message, duration = 4000) {
+            const container = document.getElementById('toast-container');
+            if (!container) { console.warn('Toast container not found'); return; }
+            const toast = document.createElement('div');
+            toast.className = 'pointer-events-auto rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 px-4 py-3 shadow-xl font-medium text-sm flex items-center gap-3 self-end';
+            toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()" class="text-zinc-500 hover:text-zinc-300 dark:text-zinc-400 dark:hover:text-zinc-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), duration);
+        };
+
+        // Copy code block to clipboard
+        window.copyCodeBlock = function (button) {
+            const wrapper = button.closest('.code-block-wrapper');
+            const codeBlock = wrapper.querySelector('pre code') || wrapper.querySelector('pre');
+            const text = codeBlock ? codeBlock.textContent : '';
+
+            navigator.clipboard.writeText(text).then(() => {
+                // Visual feedback: change icon to checkmark
+                const originalSvg = button.innerHTML;
+                button.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                button.classList.add('copied');
+
+                setTimeout(() => {
+                    button.innerHTML = originalSvg;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                showToast('Erreur lors de la copie');
+            });
+        };
+
+        function uiState() {
+            return {
+                path: window.location.pathname,
+                online: navigator.onLine,
+                toast: '',
+                openNav: false,
+                sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+                theme: localStorage.getItem('theme') || 'system',
+                providers: [],
+                activeProvider: null,
+                providerTypes: {},
+
+                toggleSidebar() {
+                    this.sidebarCollapsed = !this.sidebarCollapsed;
+                    localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed.toString());
+                },
+
+                applyTheme() {
+                    const isDark = this.theme === 'dark' || (this.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    document.documentElement.classList.toggle('dark', isDark);
+                    localStorage.setItem('theme', this.theme);
+                },
+
+                setTheme(val) {
+                    this.theme = val;
+                    this.applyTheme();
+                },
+
+                async loadProviders() {
+                    // Utiliser le cache localStorage pour éviter les appels répétés
+                    const cacheKey = 'providers_cache';
+                    const cacheExpiry = 'providers_cache_expiry';
+                    const now = Date.now();
+
+                    try {
+                        const cached = localStorage.getItem(cacheKey);
+                        const expiry = localStorage.getItem(cacheExpiry);
+                        // Cache valide pendant 30 secondes
+                        if (cached && expiry && now < parseInt(expiry)) {
+                            const data = JSON.parse(cached);
+                            this.providers = data.providers || [];
+                            const activeId = data.active_provider_id;
+                            this.activeProvider = this.providers.find(p => p.id === activeId) ||
+                                (this.providers.length > 0 ? this.providers[0] : null);
+                            return;
+                        }
+                    } catch (e) { /* localStorage unavailable or quota exceeded */ }
+
+                    try {
+                        const [providersRes, typesRes] = await Promise.all([
+                            fetch('/api/settings/providers?exclude_audio=true'),
+                            fetch('/api/settings/provider-types')
+                        ]);
+                        if (providersRes.ok) {
+                            const data = await providersRes.json();
+                            // Mettre en cache
+                            localStorage.setItem(cacheKey, JSON.stringify(data));
+                            localStorage.setItem(cacheExpiry, (now + 30000).toString());
+
+                            this.providers = data.providers || [];
+                            const activeId = data.active_provider_id;
+                            this.activeProvider = this.providers.find(p => p.id === activeId) ||
+                                (this.providers.length > 0 ? this.providers[0] : null);
+                        }
+                        if (typesRes.ok) {
+                            const data = await typesRes.json();
+                            this.providerTypes = data.types || {};
+                        }
+                    } catch (e) { }
+                },
+
+                async switchProvider(id) {
+                    try {
+                        const r = await fetch('/api/settings/providers/active', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider_id: id })
+                        });
+                        if (r.ok) {
+                            localStorage.removeItem('providers_cache');
+                            localStorage.removeItem('providers_cache_expiry');
+
+                            // Liste des pages qui gèrent le changement dynamique
+                            const spaPages = ['/chat', '/texts', '/settings', '/models', '/discover', '/downloads', '/admin/users', '/'];
+                            const isSpaPage = spaPages.some(path => window.location.pathname === path || (path !== '/' && window.location.pathname.startsWith(path)));
+
+                            if (isSpaPage) {
+                                window.dispatchEvent(new CustomEvent('provider-changed'));
+                                showToast('Fournisseur changé !');
+
+                                // Mise à jour de UI State
+                                await this.loadProviders();
+
+                                // Refresh spécifique pour les pages HTMX
+                                if (window.htmx) {
+                                    // Dashboard
+                                    if (window.location.pathname === '/') {
+                                        const running = document.getElementById('running');
+                                        if (running) htmx.trigger(running, 'load');
+                                    }
+                                    // Models
+                                    if (window.location.pathname.startsWith('/models')) {
+                                        const grid = document.getElementById('models-grid');
+                                        if (grid) htmx.trigger(grid, 'load');
+                                    }
+                                    // Downloads
+                                    if (window.location.pathname.startsWith('/downloads')) {
+                                        const active = document.getElementById('active-downloads');
+                                        if (active) htmx.trigger(active, 'load');
+                                    }
+                                }
+                            } else {
+                                window.location.reload();
+                            }
+                        }
+                    } catch (e) { }
+                },
+
+                getProviderTypeName(type) {
+                    return this.providerTypes[type]?.name || type;
+                },
+
+                init() {
+                    this.path = window.location.pathname;
+                    this.applyTheme();
+
+                    // Listen for theme changes from other components (like settings page)
+                    window.addEventListener('theme-change', (e) => {
+                        this.setTheme(e.detail);
+                    });
+
+                    // Listen for provider changes - invalider le cache
+                    window.addEventListener('providers-changed', () => {
+                        localStorage.removeItem('providers_cache');
+                        localStorage.removeItem('providers_cache_expiry');
+                        this.loadProviders();
+                    });
+
+                    // System preference
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                        if (this.theme === 'system') this.applyTheme();
+                    });
+
+                    this.loadProviders();
+
+                    // Mettre à jour le path après navigation HTMX
+                    document.body.addEventListener('htmx:afterSettle', (e) => {
+                        this.path = window.location.pathname;
+                    });
+
+                    // Mettre à jour le path après navigation SPA
+                    window.addEventListener('spa:navigate', (e) => {
+                        this.path = e.detail.to;
+                    });
+                }
+            }
+        }
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+    <!-- SPA Router -->
+    <script src="{{ url_for('core.static', filename='js/pages/texts-app.js') }}"></script>
+    <script
+        src="{{ url_for('core.static', filename='js/core/spa-router.js') }}?v={{ range(1, 10000) | random }}"></script>
+</body>
+
+</html>

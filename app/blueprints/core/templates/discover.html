@@ -1,0 +1,478 @@
+{% extends layout_template|default('base.html') %}
+{% block title %}Découvrir • Ollama Manager{% endblock %}
+
+{% block content %}
+<div class="min-h-full flex flex-col" x-data="{ 
+    source: (() => {
+        const hash = window.location.hash.slice(1);
+        const validSources = ['ollama', 'huggingface'];
+        return validSources.includes(hash) ? hash : 'ollama';
+    })(), 
+    filtersOpen: window.innerWidth >= 768,
+    minParams: 0,
+    maxParams: 100,
+    searchQuery: '',
+    updateParams(min, max) {
+        this.minParams = min;
+        this.maxParams = max;
+    },
+    init() {
+        // Update URL hash to match current source
+        if (window.location.hash.slice(1) !== this.source) {
+            history.replaceState(null, '', '#' + this.source);
+        }
+        // Watch source changes and sync with URL
+        this.$watch('source', (val) => {
+            history.replaceState(null, '', '#' + val);
+        });
+        // Listen for hash changes (browser back/forward)
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.slice(1);
+            if (['ollama', 'huggingface'].includes(hash) && hash !== this.source) {
+                this.source = hash;
+            }
+        });
+    }
+}" @resize.window="if(window.innerWidth >= 768) filtersOpen = true">
+
+    <!-- Top Bar: Title & Source Toggle - Fixed -->
+    <div
+        class="flex-none px-4 sm:px-6 md:px-8 py-4 sm:py-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-20">
+        <div class="flex flex-col gap-4">
+            <div class="flex items-start gap-3">
+                <!-- Mobile Filter Toggle -->
+                <button @click="filtersOpen = !filtersOpen"
+                    class="md:hidden p-2 -ml-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:text-zinc-400 flex-shrink-0 mt-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    </svg>
+                </button>
+                <div class="min-w-0 flex-1">
+                    <h1
+                        class="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2 sm:gap-3">
+                        <svg class="w-6 h-6 sm:w-8 sm:h-8 text-brand-600 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <span x-text="t('discover.title', 'Découvrir')"></span>
+                    </h1>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400 mt-1"
+                        x-text="t('discover.subtitle', 'Explorez et installez de nouveaux modèles LLM.')"></p>
+                </div>
+            </div>
+
+            <!-- Source Toggle -->
+            <div
+                class="bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl flex w-full sm:w-auto sm:inline-flex overflow-x-auto">
+                <button @click="source = 'ollama'"
+                    :class="source === 'ollama' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
+                    class="flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2">
+                    <img src="https://ollama.com/public/ollama.png" class="w-5 h-5 opacity-80" alt="Ollama">
+                    <span class="whitespace-nowrap">Ollama Library</span>
+                </button>
+                <button @click="source = 'huggingface'"
+                    :class="source === 'huggingface' ? 'bg-white dark:bg-zinc-700 shadow text-zinc-900 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'"
+                    class="flex-1 sm:flex-none px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2">
+                    <span class="text-lg">🤗</span>
+                    <span class="whitespace-nowrap">HuggingFace</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area - Takes remaining height -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Mobile Backdrop -->
+        <div x-show="filtersOpen" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" @click="filtersOpen = false"
+            class="absolute inset-0 bg-black/20 backdrop-blur-sm z-20 md:hidden"></div>
+
+        <!-- SIDEBAR (HuggingFace & Ollama filters) - Fixed on desktop -->
+        <div x-show="filtersOpen" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="-translate-x-full opacity-0" x-transition:enter-end="translate-x-0 opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-x-0 opacity-100"
+            x-transition:leave-end="-translate-x-full opacity-0"
+            class="absolute md:relative z-30 h-full w-80 flex-none bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 overflow-y-auto p-6 space-y-8 shadow-xl md:shadow-none"
+            style="display: none;">
+
+            <!-- Mobile Close Button -->
+            <button @click="filtersOpen = false"
+                class="md:hidden absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-zinc-900 dark:text-zinc-100">Filtres Avancés</h3>
+                <button class="text-xs text-brand-600 hover:underline"
+                    @click="source === 'huggingface' ? document.getElementById('hf-search-form').reset() : document.getElementById('ollama-search-form').reset()">Réinitialiser</button>
+            </div>
+
+            <!-- OLLAMA FORM -->
+            <form id="ollama-search-form" x-show="source === 'ollama'" hx-get="/api/ollama/search"
+                hx-target="#ollama-results" hx-swap="outerHTML" hx-indicator="#loading-indicator"
+                hx-trigger="change, submit, load, input from:#search-input delay:500ms, search-ollama from:body">
+
+                <!-- Synced Search Input -->
+                <input type="hidden" name="q" x-model="searchQuery">
+
+                <!-- Model Type Filter -->
+                <div class="space-y-3">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Type de
+                        modèle</label>
+                    <select name="model_type"
+                        class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                        <option value="">Tous les types</option>
+                        <option value="text">Texte</option>
+                        <option value="vision">Vision</option>
+                        <option value="tools">Tools</option>
+                        <option value="thinking">Thinking</option>
+                        <option value="embedding">Embedding</option>
+                    </select>
+                </div>
+
+                <!-- Parameters (Slider) - Custom for Ollama -->
+
+                <div class="space-y-6 mt-6">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Taille
+                        (Paramètres)</label>
+
+                    <!-- Min Params -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Min: <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="minParams + 'B'"></span></span>
+                        </div>
+                        <input type="range" name="min_params_" min="0" max="70" step="1" x-model.number="minParams"
+                            @input="if(minParams > maxParams) maxParams = minParams"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                    </div>
+
+                    <!-- Max Params -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Max: <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="maxParams >= 100 ? '100B+' : maxParams + 'B'"></span></span>
+                        </div>
+                        <input type="range" name="max_params_" min="0" max="100" step="1" x-model.number="maxParams"
+                            @input="if(maxParams < minParams) minParams = maxParams"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                    </div>
+
+                    <!-- Backend expected inputs -->
+                    <input type="hidden" name="min_params" :value="minParams">
+                    <input type="hidden" name="max_params" :value="maxParams">
+
+                    <div class="flex justify-between text-[10px] text-zinc-400 font-mono">
+                        <span>0B</span>
+                        <span>100B+</span>
+                    </div>
+                </div>
+            </form>
+
+            <!-- HUGGINGFACE FORM -->
+            <form id="hf-search-form" x-show="source === 'huggingface'" hx-get="/api/huggingface/search"
+                hx-target="#hf-results" hx-swap="outerHTML" hx-indicator="#loading-indicator"
+                hx-trigger="change, submit, load, search-huggingface from:body">
+
+                <!-- Hidden Search Sync (synced via x-model) -->
+                <input type="hidden" name="q" x-model="searchQuery">
+                <input type="hidden" name="limit" value="20">
+
+                <!-- Sort -->
+                <div class="space-y-3">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Trier par</label>
+                    <select name="sort"
+                        class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                        <option value="downloads">Téléchargements</option>
+                        <option value="likes">Populaire (Likes)</option>
+                        <option value="updated">Récemment mis à jour</option>
+                        <option value="created">Date de création</option>
+                    </select>
+                </div>
+
+                <!-- Parameters (Slider) -->
+                <div class="space-y-6 mt-6">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Taille
+                        (Paramètres)</label>
+
+                    <!-- Min Params -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Min: <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="minParams + 'B'"></span></span>
+                        </div>
+                        <input type="range" name="min_params_" min="0" max="70" step="1" x-model.number="minParams"
+                            @input="if(minParams > maxParams) maxParams = minParams"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                    </div>
+
+                    <!-- Max Params -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-zinc-500">Max: <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="maxParams >= 100 ? '100B+' : maxParams + 'B'"></span></span>
+                        </div>
+                        <input type="range" name="max_params_" min="0" max="100" step="1" x-model.number="maxParams"
+                            @input="if(maxParams < minParams) minParams = maxParams"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600">
+                    </div>
+
+                    <!-- Backend expected inputs -->
+                    <input type="hidden" name="min_params" :value="minParams + 'B'">
+                    <input type="hidden" name="max_params" :value="maxParams >= 100 ? '' : maxParams + 'B'">
+
+                    <div class="flex justify-between text-[10px] text-zinc-400 font-mono">
+                        <span>0B</span>
+                        <span>100B+</span>
+                    </div>
+                </div>
+
+                <!-- Quantization -->
+                <div class="space-y-3 mt-8">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Quantification</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="quantization" value="" checked
+                                class="text-brand-600 focus:ring-brand-500 bg-zinc-100 border-zinc-300">
+                            <span class="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900">Tout
+                                voir</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="quantization" value="Q4_K_M"
+                                class="text-brand-600 focus:ring-brand-500 bg-zinc-100 border-zinc-300">
+                            <span class="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900">Q4_K_M
+                                (Équilibré)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="quantization" value="Q5_K_M"
+                                class="text-brand-600 focus:ring-brand-500 bg-zinc-100 border-zinc-300">
+                            <span class="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900">Q5_K_M
+                                (Qualité +)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer group">
+                            <input type="radio" name="quantization" value="Q8_0"
+                                class="text-brand-600 focus:ring-brand-500 bg-zinc-100 border-zinc-300">
+                            <span class="text-sm text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900">Q8_0
+                                (Max
+                                précision)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Min Downloads -->
+                <div class="space-y-3 mt-8">
+                    <label class="text-xs font-semibold uppercase text-zinc-500 tracking-wider">Popularité
+                        Min.</label>
+                    <select name="min_downloads"
+                        class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm">
+                        <option value="0">Peu importe</option>
+                        <option value="100">100+ Téléchargements</option>
+                        <option value="1000">1k+ Téléchargements</option>
+                        <option value="10000">10k+ Téléchargements</option>
+                    </select>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- SEARCH CONTENT -->
+        <div class="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-950">
+
+            <!-- Search Input Area -->
+            <div class="p-6 border-b border-zinc-100 dark:border-zinc-800">
+                <div class="relative max-w-2xl mx-auto">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <svg class="h-6 w-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+
+                    <!-- Shared Input Model -->
+                    <input type="text" x-model="searchQuery" id="search-input"
+                        @keyup.debounce.500ms="htmx.trigger(document.body, 'search-' + source, {})"
+                        class="block w-full pl-12 pr-4 py-4 text-lg border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl bg-zinc-50 dark:bg-zinc-900/50 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow shadow-sm"
+                        :placeholder="source === 'ollama' ? 'Recherchez une librairie officielle (ex: llama3, mistral)...' : 'Recherchez sur HuggingFace (ex: TheBloke/Llama-2)...'"
+                        autofocus>
+
+                    <!-- Search Trigger for Ollama -->
+                    <!-- Valid only if source is ollama -->
+                    <!-- REMOVED: Managed by sidebar form now -->
+
+
+                    <!-- Loader -->
+                    <div id="loading-indicator"
+                        class="htmx-indicator absolute inset-y-0 right-0 pr-4 flex items-center">
+                        <svg class="animate-spin h-6 w-6 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                            </circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z">
+                            </path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RESULTS AREA -->
+            <div class="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+
+                <!-- OLLAMA RESULTS -->
+                <div x-show="source === 'ollama'" class="max-w-7xl mx-auto space-y-8">
+
+                    <!-- Initial State / Featured (Only shown if empty query? No, just keep as header or remove if searching) -->
+
+
+                    <!-- Live Results -->
+                    <div id="ollama-results"
+                        class="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 animate-fade-in">
+                        <!-- Loading Message -->
+                        <div class="skeleton-loader col-span-full text-center py-8 mb-4">
+                            <div class="inline-flex flex-col items-center gap-4">
+                                <!-- Animated Ollama Logo -->
+                                <div class="relative">
+                                    <div
+                                        class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/30 animate-bounce-slow">
+                                        <img src="https://ollama.com/public/ollama.png"
+                                            class="w-10 h-10 filter brightness-0 invert" alt="Ollama">
+                                    </div>
+                                    <div class="absolute -inset-1 bg-brand-500/20 rounded-2xl blur-lg animate-pulse">
+                                    </div>
+                                </div>
+                                <!-- Loading Text with animated dots -->
+                                <div class="flex flex-col items-center gap-2">
+                                    <span class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                                        <span
+                                            x-text="t('discover.loading.models', 'Chargement des modèles')"></span><span
+                                            class="loading-dots"></span>
+                                    </span>
+                                    <span class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('discover.loading.ollamaLib', 'Connexion à la bibliothèque Ollama')"></span>
+                                </div>
+                                <!-- Progress bar animation -->
+                                <div class="w-64 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        class="h-full bg-gradient-to-r from-brand-500 via-brand-400 to-brand-500 rounded-full animate-loading-bar">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Skeleton Loading State with shimmer effect -->
+                        <div class="skeleton-loader contents">
+                            {% for i in range(6) %}
+                            <div class="skeleton-card bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 overflow-hidden relative"
+                                style="animation-delay: {{ i * 100 }}ms;">
+                                <!-- Shimmer overlay -->
+                                <div class="shimmer-overlay"></div>
+                                <!-- Card content skeleton -->
+                                <div class="flex items-start gap-4 mb-4">
+                                    <div class="skeleton-item w-14 h-14 rounded-xl flex-shrink-0"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="skeleton-item h-5 rounded-lg w-3/4 mb-2"></div>
+                                        <div class="skeleton-item h-3 rounded w-1/2"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2.5 mb-4">
+                                    <div class="skeleton-item h-3 rounded w-full"></div>
+                                    <div class="skeleton-item h-3 rounded w-5/6"></div>
+                                    <div class="skeleton-item h-3 rounded w-2/3"></div>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                    <div class="flex gap-2">
+                                        <div class="skeleton-item h-7 w-16 rounded-full"></div>
+                                        <div class="skeleton-item h-7 w-20 rounded-full"></div>
+                                    </div>
+                                    <div class="skeleton-item h-9 w-24 rounded-lg"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HUGGINGFACE RESULTS -->
+                <div x-show="source === 'huggingface'" class="max-w-7xl mx-auto">
+                    <div id="hf-results"
+                        class="grid gap-6 sm:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 animate-fade-in">
+                        <!-- Loading Message -->
+                        <div class="skeleton-loader col-span-full text-center py-8 mb-4">
+                            <div class="inline-flex flex-col items-center gap-4">
+                                <!-- Animated HuggingFace Logo -->
+                                <div class="relative">
+                                    <div
+                                        class="w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30 animate-bounce-slow">
+                                        <span class="text-3xl">🤗</span>
+                                    </div>
+                                    <div class="absolute -inset-1 bg-yellow-500/20 rounded-2xl blur-lg animate-pulse">
+                                    </div>
+                                </div>
+                                <!-- Loading Text with animated dots -->
+                                <div class="flex flex-col items-center gap-2">
+                                    <span class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                                        <span
+                                            x-text="t('discover.loading.hfSearch', 'Recherche sur HuggingFace')"></span><span
+                                            class="loading-dots"></span>
+                                    </span>
+                                    <span class="text-sm text-zinc-500 dark:text-zinc-400"
+                                        x-text="t('discover.loading.hfExploration', 'Exploration des modèles GGUF disponibles')"></span>
+                                </div>
+                                <!-- Progress bar animation -->
+                                <div class="w-64 h-1.5 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                    <div
+                                        class="h-full bg-gradient-to-r from-yellow-500 via-orange-400 to-yellow-500 rounded-full animate-loading-bar">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Skeleton Loading State with shimmer effect -->
+                        <div class="skeleton-loader contents">
+                            {% for i in range(6) %}
+                            <div class="skeleton-card bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-5 overflow-hidden relative"
+                                style="animation-delay: {{ i * 100 }}ms;">
+                                <!-- Shimmer overlay -->
+                                <div class="shimmer-overlay"></div>
+                                <!-- Card content skeleton -->
+                                <div class="flex items-start gap-4 mb-4">
+                                    <div class="skeleton-item w-14 h-14 rounded-xl flex-shrink-0"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="skeleton-item h-5 rounded-lg w-3/4 mb-2"></div>
+                                        <div class="skeleton-item h-3 rounded w-1/2"></div>
+                                    </div>
+                                </div>
+                                <div class="space-y-2.5 mb-4">
+                                    <div class="skeleton-item h-3 rounded w-full"></div>
+                                    <div class="skeleton-item h-3 rounded w-5/6"></div>
+                                    <div class="skeleton-item h-3 rounded w-2/3"></div>
+                                </div>
+                                <div
+                                    class="flex items-center justify-between pt-3 border-t border-zinc-100 dark:border-zinc-800">
+                                    <div class="flex gap-2">
+                                        <div class="skeleton-item h-7 w-16 rounded-full"></div>
+                                        <div class="skeleton-item h-7 w-20 rounded-full"></div>
+                                    </div>
+                                    <div class="skeleton-item h-9 w-24 rounded-lg"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom CSS for Discover -->
+<link rel="stylesheet" href="{{ url_for('core.static', filename='css/discover.css') }}">
+{% endblock %}

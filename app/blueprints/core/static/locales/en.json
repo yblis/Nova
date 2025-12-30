@@ -1,0 +1,597 @@
+{
+    "common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "confirm": "Confirm",
+        "loading": "Loading...",
+        "error": "Error",
+        "success": "Success",
+        "close": "Close",
+        "edit": "Edit",
+        "add": "Add",
+        "search": "Search",
+        "noResults": "No results",
+        "yes": "Yes",
+        "no": "No",
+        "reset": "Reset",
+        "copy": "Copy",
+        "collapse": "Collapse",
+        "random": "Random"
+    },
+    "nav": {
+        "dashboard": "Dashboard",
+        "models": "Installed Models",
+        "discover": "Discover",
+        "chat": "Chat",
+        "assistant": "Assistant",
+        "specialists": "Specialist",
+        "settings": "Settings",
+        "downloads": "Downloads",
+        "logout": "Log Out",
+        "users": "Users",
+        "admin": "Admin",
+        "tools": "Tools",
+        "overview": "Overview",
+        "library": "Library",
+        "expand": "Expand",
+        "manageProviders": "Manage Providers"
+    },
+    "admin": {
+        "users": {
+            "title": "User Management",
+            "subtitle": "Manage access and permissions for administrators and users.",
+            "existing": "Existing Users",
+            "total": "{count} total",
+            "adminRole": "Administrator",
+            "userRole": "Standard User",
+            "changePassword": "Change Password",
+            "newPasswordPlaceholder": "New Password",
+            "save": "Save",
+            "deleteConfirm": "Are you sure you want to delete this user?",
+            "delete": "Delete",
+            "createTitle": "New User",
+            "username": "Username",
+            "password": "Password",
+            "isAdmin": "Administrator Rights",
+            "createButton": "Create User",
+            "tip": "Admin passwords are reset via the environment file upon restart."
+        }
+    },
+    "assistant": {
+        "title": "Text Tools",
+        "toolsTitle": "Tools",
+        "tools": {
+            "reformulation": "Reformulation",
+            "translation": "Translation",
+            "correction": "Correction",
+            "email": "Email",
+            "prompt": "Prompt Generator"
+        },
+        "common": {
+            "showTools": "Show/Hide Tools",
+            "selectModel": "Select Model",
+            "noModel": "No Model Available",
+            "history": "History",
+            "clearHistory": "Clear All",
+            "noHistory": "No History",
+            "chars": "Characters",
+            "words": "Words",
+            "paragraphs": "Paragraphs",
+            "copy": "Copy",
+            "paste": "Paste",
+            "clear": "Clear",
+            "options": "Options"
+        },
+        "reformulation": {
+            "inputLabel": "Text to rephrase",
+            "contextLabel": "Context",
+            "contextPlaceholder": "Paste context or received email here...",
+            "inputPlaceholder": "Enter your text here...",
+            "button": "Rephrase",
+            "processing": "Rephrasing...",
+            "addEmojis": "Add Emojis",
+            "tone": "Tone",
+            "format": "Format",
+            "length": "Length",
+            "newTone": "New Tone...",
+            "newFormat": "New Format...",
+            "newLength": "New Length..."
+        },
+        "translation": {
+            "sourceLabel": "Source Text",
+            "targetLabel": "Target Language",
+            "inputPlaceholder": "Enter your text here...",
+            "button": "Translate",
+            "processing": "Translating..."
+        },
+        "correction": {
+            "inputLabel": "Text to correct",
+            "inputPlaceholder": "Paste your text here for correction...",
+            "spelling": "Spelling",
+            "grammar": "Grammar",
+            "syntax": "Syntax",
+            "style": "Style",
+            "button": "Correct",
+            "processing": "Correcting...",
+            "suggestions": "Suggestions"
+        },
+        "email": {
+            "typeLabel": "Email Type",
+            "typePlaceholder": "Ex: Complaint email, Leave request...",
+            "types": {
+                "professionnel": "Professional",
+                "commercial": "Commercial",
+                "candidature": "Application",
+                "relance": "Follow-up",
+                "remerciement": "Thank you",
+                "excuse": "Apology",
+                "invitation": "Invitation",
+                "information": "Information"
+            },
+            "contextLabel": "Content and Context",
+            "contextPlaceholder": "Describe the content and context of the email...",
+            "senderLabel": "First Name LAST NAME",
+            "senderPlaceholder": "Ex: John DOE",
+            "toneLabel": "Email Tone",
+            "button": "Generate Email",
+            "processing": "Generating..."
+        },
+        "prompt": {
+            "inputLabel": "Describe your need",
+            "inputPlaceholder": "Example: I want to create a prompt to analyze literary texts...",
+            "tipsTitle": "Tips",
+            "tipsSubtitle": "Tips for an effective request:",
+            "tipContext": "Context",
+            "tipContextDesc": "Specify the domain (technical, creative, business...)",
+            "tipObjective": "Objective",
+            "tipObjectiveDesc": "Clearly explain what you want to achieve",
+            "tipFormat": "Format",
+            "tipFormatDesc": "Indicate the desired output type",
+            "tipConstraints": "Constraints",
+            "tipConstraintsDesc": "Mention important limitations",
+            "examplesTitle": "Examples of good requests:",
+            "exAnalysis": "Analysis",
+            "exAnalysisText": "Analyze e-commerce customer reviews to identify sentiment and improvement points",
+            "exBusiness": "Business",
+            "exBusinessText": "Create a digital marketing plan for a B2B tech startup",
+            "exCoding": "Code",
+            "exCodingText": "Optimize a Python image processing function to reduce memory consumption",
+            "exCreative": "Creative",
+            "exCreativeText": "Write a dystopian sci-fi story where AI manages global weather",
+            "button": "Generate Prompt",
+            "processing": "Generating..."
+        }
+    },
+    "settings": {
+        "title": "Settings",
+        "general": "General",
+        "appearance": "Appearance",
+        "appearanceDesc": "Choose how OllaMan looks on your device",
+        "language": "Language",
+        "languageDesc": "Choose the interface language",
+        "providers": "LLM Providers",
+        "providersDesc": "Manage your connections to various AI providers",
+        "shortcuts": "Shortcuts",
+        "shortcutsDesc": "Boost your productivity",
+        "rag": "RAG / Documents",
+        "ragDesc": "Configure the RAG system to use your PDF documents as context",
+        "llm": "LLM",
+        "about": "About",
+        "websearch": "Web Search",
+        "textprompts": "Text Prompts",
+        "theme": {
+            "light": "Light",
+            "lightDesc": "Always use light theme",
+            "dark": "Dark",
+            "darkDesc": "Always use dark theme",
+            "system": "System",
+            "systemDesc": "Follow system preferences"
+        },
+        "privacy": {
+            "title": "Privacy & Analytics",
+            "desc": "Control what data is shared to improve OllaMan",
+            "analytics": "Send Anonymous Usage Data",
+            "analyticsDesc": "Help improve OllaMan by sending anonymous usage statistics. This includes app usage patterns and feature interactions. No personal data is collected."
+        }
+    },
+    "textPrompts": {
+        "title": "Text Prompts Configuration",
+        "desc": "Customize system prompts used by text tools."
+    },
+    "aboutContent": {
+        "appName": "Ollama Manager",
+        "version": "Version 1.0.0 • Made with ♥",
+        "github": "GitHub",
+        "website": "Ollama Website"
+    },
+    "llm": {
+        "title": "LLM Configuration",
+        "desc": "Define default default pre-prompt and generation attributes for new conversations.",
+        "systemPrompt": "Default System Prompt",
+        "systemPromptDesc": "This prompt will be used by default for all new conversations. It can be overridden per conversation.",
+        "generationParams": "Generation Parameters",
+        "generationParamsDesc": "These values will be used by default for new conversations.",
+        "temperature": "Temperature",
+        "temperatureDesc": "Controls creativity (0 = deterministic, 2 = very creative)",
+        "topP": "Top P",
+        "topPDesc": "Nucleus sampling (0.1 = conservative, 1.0 = all tokens)",
+        "topK": "Top K",
+        "topKDesc": "Limits candidate tokens (1-100)",
+        "repeatPenalty": "Repeat Penalty",
+        "repeatPenaltyDesc": "Penalizes repetitions (1 = no penalty, 2 = strong penalty)",
+        "contextLength": "Context Length (num_ctx)",
+        "contextLengthDesc": "Context size in tokens (2048 - 128000)",
+        "autoTitle": "Auto-Generate Title",
+        "autoTitleDesc": "Automatically generate a smart title for new conversations using AI."
+    },
+    "providers": {
+        "title": "LLM Providers",
+        "desc": "Manage your connections to various AI providers (Ollama, OpenAI, Anthropic, etc.)",
+        "noProviders": "No providers configured. Add one below.",
+        "addProvider": "Add a provider",
+        "editProvider": "Edit provider",
+        "type": "Provider type",
+        "name": "Display name",
+        "url": "Server URL",
+        "apiKey": "API Key",
+        "active": "Active",
+        "test": "Test",
+        "testConnection": "Test connection",
+        "defaultModel": "Default model",
+        "noDefaultModel": "-- None --",
+        "migrate": "Migrate existing Ollama servers"
+    },
+    "chat": {
+        "title": "Chat",
+        "you": "You",
+        "newChat": "New Chat",
+        "history": "History",
+        "selected": " selected",
+        "selectedPlural": " selected",
+        "selectAll": "Select All",
+        "deleteSelected": "Delete Selected",
+        "cancelSelection": "Cancel Selection",
+        "pin": "Pin Conversation",
+        "unpin": "Unpin Conversation",
+        "delete": "Delete Conversation",
+        "toggleHistory": "Toggle History",
+        "selectModel": "Select Model",
+        "noModels": "No models available",
+        "stop": "Stop",
+        "regenerate": "Regenerate",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "settings": {
+            "title": "Chat Settings",
+            "systemPrompt": "System Prompt",
+            "systemPromptPlaceholder": "You are a helpful assistant...",
+            "systemPromptHelp": "Define the AI's behavior and personality",
+            "modelParams": "Model Parameters",
+            "temperature": "Temperature",
+            "temperatureHelp": "Higher = more creative, Lower = more focused",
+            "topP": "Top P",
+            "topK": "Top K",
+            "contextLength": "Context Length",
+            "save": "Save Settings"
+        },
+        "noHistory": "No history",
+        "reflection": "Reflection Process",
+        "regenerateResponse": "Regenerate Response",
+        "copyResponse": "Copy Response",
+        "webSources": "Web Sources",
+        "welcome": {
+            "title": "Hello. Ready to start?",
+            "titleWithName": "Hello {name}. Ready to start?",
+            "subtitle": "Select a model to start chat",
+            "selectModelRequired": "Please select a model to start chat"
+        },
+        "input": {
+            "placeholder": "Ask a question...",
+            "addFiles": "Add Files",
+            "image": "Image",
+            "vision": "Vision",
+            "textFile": "Text File",
+            "pdf": "PDF",
+            "rag": "RAG",
+            "webSearchEnabled": "Web Search Enabled",
+            "enableWebSearch": "Enable Web Search"
+        },
+        "rag": {
+            "title": "RAG Documents",
+            "indexing": "Indexing in progress...",
+            "unknownError": "Unknown Error",
+            "chunks": "chunks",
+            "viewChunks": "View Chunks",
+            "delete": "Delete Document"
+        },
+        "debate": {
+            "mode": "Debate Mode",
+            "participants": "participants",
+            "parallel": "Parallel",
+            "sequential": "Sequential",
+            "add": "+ Add",
+            "selectMin": "Select at least 2 participants",
+            "rules": "Debate Rules (System Prompt)",
+            "instructionsPlaceholder": "Instructions for debate participants...",
+            "addParticipant": "Add Participant",
+            "noProviders": "No providers configured"
+        },
+        "chunksModal": {
+            "title": "Chunks:",
+            "total": "Total Chunks",
+            "avgSize": "Avg Size",
+            "chars": "chars",
+            "searchPlaceholder": "Search in this document...",
+            "search": "Search",
+            "chunkPrefix": "Chunk #",
+            "score": "Score:",
+            "characters": "characters",
+            "deleteChunk": "Delete this chunk",
+            "noChunks": "No chunks found."
+        },
+        "debug": {
+            "title": "DEBUG CONSOLE",
+            "close": "Close"
+        }
+    },
+    "downloads": {
+        "title": "Downloads",
+        "clearHistory": "Clear History",
+        "newDownload": "New Download",
+        "activeDownloads": "Active Downloads",
+        "loadingDownloads": "Loading downloads...",
+        "recentHistory": "Recent History",
+        "loadingHistory": "Loading history...",
+        "noActiveDownloads": "No active downloads",
+        "noHistory": "No history"
+    },
+    "dashboard": {
+        "title": "Dashboard",
+        "greeting": "Good Afternoon",
+        "runningModels": "Running Models",
+        "recentlyInstalled": "Recently Installed",
+        "trendingNow": "Trending Now"
+    },
+    "models": {
+        "title": "Installed Models",
+        "noModels": "No models installed",
+        "size": "Size",
+        "modified": "Modified",
+        "pull": "Download",
+        "delete": "Delete",
+        "deleteConfirm": "Are you sure you want to delete this model?",
+        "update": "Update",
+        "chat": "Chat",
+        "details": "Details",
+        "filterPlaceholder": "Filter installed...",
+        "pullModel": "Pull Model",
+        "pullModal": {
+            "title": "Pull new model",
+            "placeholder": "Model tag (e.g. llama3:8b)",
+            "startDownload": "Start Download"
+        },
+        "table": {
+            "name": "Name",
+            "params": "Params",
+            "family": "Family",
+            "size": "Size",
+            "quantization": "Quantization",
+            "actions": "Actions"
+        },
+        "list": {
+            "noModels": "No models installed.",
+            "serviceUnavailable": "Service unavailable: ",
+            "loaded": "● Loaded",
+            "actions": {
+                "chat": "Chat",
+                "view": "Details",
+                "edit": "Edit",
+                "update": "Update",
+                "delete": "Delete"
+            },
+            "deleteConfirm": {
+                "title": "Delete Model",
+                "message": "Are you sure you want to delete <strong class='text-zinc-900 dark:text-zinc-100'>{name}</strong>? This action is irreversible.",
+                "confirm": "Delete"
+            }
+        },
+        "detail": {
+            "subtitle": "Locally installed model",
+            "error": {
+                "title": "Load Error"
+            },
+            "stats": {
+                "params": "Parameters",
+                "size": "Size",
+                "quantization": "Quantization",
+                "family": "Family"
+            },
+            "techInfo": {
+                "title": "Technical Information",
+                "format": "Format",
+                "digest": "Digest",
+                "architecture": "Architecture",
+                "parent": "Parent Model"
+            },
+            "systemPrompt": "System Prompt",
+            "modelParams": "Model Parameters",
+            "template": {
+                "title": "Prompt Template",
+                "none": "No template defined"
+            },
+            "license": {
+                "title": "License",
+                "none": "No license available"
+            },
+            "actions": {
+                "chat": "Start Chat",
+                "chatShort": "Chat",
+                "variant": "Create Variant",
+                "variantShort": "Variant",
+                "delete": "Delete",
+                "update": {
+                    "title": "Update",
+                    "description": "Re-download the latest version",
+                    "button": "Start Update"
+                },
+                "copy": {
+                    "title": "Copy / Rename",
+                    "description": "Create a copy with a new name",
+                    "button": "Copy"
+                }
+            },
+            "tabs": {
+                "info": "Information",
+                "template": "Template",
+                "license": "License",
+                "actions": "Actions"
+            },
+            "deleteModal": {
+                "title": "Delete Model",
+                "subtitle": "This action is irreversible",
+                "message": "Are you sure you want to delete <strong class='text-zinc-900 dark:text-zinc-100'>{name}</strong>? All associated files will be removed.",
+                "cancel": "Cancel",
+                "confirm": "Delete Permanently"
+            }
+        },
+        "edit": {
+            "pageTitle": "Edit {name}",
+            "title": "Create Custom Model",
+            "basedOn": "Based on",
+            "identity": "Identity",
+            "sourceModel": "Source Model",
+            "newName": "New Name",
+            "systemPromptDesc": "Defines the model's behavior and personality.",
+            "systemPromptPlaceholder": "You are a helpful assistant...",
+            "createButton": "Create Model",
+            "creating": "Creating...",
+            "parameters": "Parameters",
+            "seed": "Seed",
+            "seedDesc": "Leave empty for random",
+            "statusPreparing": "Preparing...",
+            "success": "Model created successfully!",
+            "failure": "Creation failed"
+        }
+    },
+    "discover": {
+        "title": "Discover",
+        "subtitle": "Explore and install new LLM models.",
+        "filters": "Filters",
+        "search": {
+            "placeholderOllama": "Search official library (e.g. llama3)...",
+            "placeholderHF": "Search on HuggingFace (e.g. TheBloke/Llama-2)..."
+        },
+        "ollama": {
+            "modelType": "Model Type",
+            "size": "Size (Parameters)"
+        },
+        "tags": {
+            "all": "All",
+            "chat": "Chat",
+            "code": "Code",
+            "vision": "Vision",
+            "thinking": "Thinking",
+            "embedding": "Embedding"
+        },
+        "sort": {
+            "label": "Sort by",
+            "downloads": "Downloads",
+            "likes": "Popular (Likes)",
+            "updated": "Recently updated",
+            "created": "Creation date"
+        },
+        "hf": {
+            "quantization": "Quantization",
+            "all": "See all",
+            "balanced": "Q4_K_M (Balanced)",
+            "quality": "Q5_K_M (Quality+)",
+            "maxPrecision": "Q8_0 (Max precision)",
+            "minPopularity": "Min Popularity",
+            "any": "Any",
+            "100plus": "100+ Downloads",
+            "1kplus": "1k+ Downloads",
+            "10kplus": "10k+ Downloads"
+        },
+        "loading": {
+            "models": "Loading models",
+            "ollamaLib": "Connecting to Ollama library",
+            "hfSearch": "Searching on HuggingFace",
+            "hfExploration": "Exploring available GGUF models"
+        },
+        "ollamaSource": "Ollama",
+        "huggingfaceSource": "Hugging Face",
+        "download": "Download",
+        "downloading": "Downloading..."
+    },
+    "shortcuts": {
+        "focusSearch": "Focus Search",
+        "toggleSidebar": "Toggle Sidebar"
+    },
+    "rag": {
+        "embeddingModel": "Embedding Model",
+        "embeddingModelDesc": "Select the model used to generate document embeddings. Must be an 'embedding' type model.",
+        "noEmbeddingModel": "No embedding model detected. Please download one of type 'embedding' (ex: nomic-embed-text).",
+        "chunkSize": "Chunk Size",
+        "overlap": "Overlap",
+        "topK": "Top K Results",
+        "advanced": "Advanced Settings",
+        "advancedDesc": "These settings affect how documents are chunked and retrieved.",
+        "ocrTitle": "OCR for Scanned PDFs",
+        "tesseractDesc": "Open source OCR engine (French + English)",
+        "ocrThreshold": "Scanned PDF Detection Threshold",
+        "ocrThresholdDesc": "If a PDF contains fewer than this number of characters per page, it will be treated as scanned.",
+        "qdrantTitle": "Qdrant Vector Database",
+        "connected": "✓ Connected",
+        "unavailable": "○ Unavailable",
+        "qdrantDesc": "Qdrant offers hybrid vector search performing better than PostgreSQL.",
+        "checkQdrant": "Check that Qdrant service is started.",
+        "vectors": "Vectors",
+        "status": "Status"
+    },
+    "specialists": {
+        "title": "Specialists",
+        "subtitle": "Create AI assistants expert in their fields",
+        "create": "New specialist",
+        "empty": "No specialists created",
+        "emptyDesc": "Create your first specialized assistant",
+        "form": {
+            "name": "Name",
+            "namePlaceholder": "Expert in...",
+            "description": "Description",
+            "descriptionPlaceholder": "Describe the role of this assistant",
+            "systemPrompt": "Instructions",
+            "systemPromptPlaceholder": "You are an expert in...",
+            "model": "LLM Model"
+        },
+        "knowledge": {
+            "title": "Knowledge",
+            "addFile": "Add files",
+            "addUrl": "Add URL",
+            "addText": "Add text",
+            "types": {
+                "file": "File",
+                "image": "Image",
+                "web_url": "Web link",
+                "text": "Text"
+            }
+        },
+        "tools": {
+            "title": "Tools",
+            "addTool": "Add tool",
+            "bookstack": "Bookstack",
+            "custom": "Custom API"
+        },
+        "chat": {
+            "placeholder": "Ask this expert a question...",
+            "sources": "Sources used"
+        }
+    },
+    "system_prompts": {
+        "reformulation": "MECHANICAL TRANSFORMATION PROGRAM V3.0\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nFUNCTION = Replace words without changing meaning\nMODE = Pure transformation without interaction\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nFUNDAMENTAL RULE:\nINPUT = I am tired\nOUTPUT = Fatigue is overcoming me\n✓ Same information, different words\n❌ NEVER answer or dialogue\n\nTRANSFORMATION PROCESS:\n1. COPY every piece of information from original message\n2. REPLACE all words with synonyms\n3. RESTRUCTURE sentence according to chosen style\n4. VERIFY that meaning is 100% identical\n\nTRANSFORMATION STYLES:\n• FORMAL = Sophisticated vocabulary, complex structure\n• PROFESSIONAL = Business terms, clear sentences\n• CASUAL = Common language, simple structure\n\nEXAMPLES OF CORRECT TRANSFORMATION:\n\nORIGINAL TEXT: \"I am tired\"\n[FORMAL] → \"Fatigue overwhelms me\"\n[PROFESSIONAL] → \"My current state of fatigue\"\n[CASUAL] → \"I'm beat\"\n[NEVER] → \"Oh, rest well!\"\n\nVERIFICATION SEQUENCE:\n1. EXTRACT all information from original text\n2. VERIFY presence of each piece of info\n3. CONFIRM absence of answers/dialogue\n4. VALIDATE pure transformation\n\nERRORS TO AVOID:\n❌ Do not answer the message\n❌ Do not ask questions\n❌ Do not add comments\n❌ Do not give opinions\n❌ Do not create dialogue\n\nCRITICAL REMINDER:\n→ TRANSFORM ≠ ANSWER\n→ REPHRASE ≠ INTERACT\n→ MODIFY ≠ COMMENT",
+        "translation": "You are an automatic translator. Automatically detect the source language of the text and translate it into {target_language}. Return ONLY the translation, without any other commentary.",
+        "correction": "You are a professional text corrector. Correct the following text respecting selected options:\n- Grammatical correction\n- Spelling correction\n- Syntactical correction\n- Style improvement\n- Punctuation correction\n- Synonym suggestions\n\nDefault syntax correction rules:\n- Verify word order in sentence\n- Respect Subject-Verb-Object structure\n- Verb tense consistency\n- Verify gender and number agreement\n- Correct use of relative pronouns\n\nIf \"Synonym suggestions\" option is enabled, propose synonyms for main words.\nResponse format with synonyms:\n===CORRECTED TEXT===\n[The corrected text]\n===SYNONYMS===\nword1: synonym1, synonym2, synonym3\nword2: synonym1, synonym2, synonym3\n\nIf option is not enabled, return ONLY the corrected text.",
+        "email": "You are an expert in writing professional emails. Generate an email according to the provided type and context.\n\nMANDATORY structure for all emails:\n1. A line 'Subject: [subject]' (MANDATORY)\n2. An appropriate salutation (Hello/Dear/Mr/Ms)\n3. Structured and coherent message body\n4. A closing formula (Best regards)\n5. Signature if sender provided\n\nSpecific instructions by email type:\n- Professional: Formal style, clear structure\n- Commercial: Persuasive approach, benefits highlighted\n- Administrative: Very formal style, precise references\n- Relational: Cordial but professional tone\n- Complaint: Firm but courteous tone, precise facts\n- Application: Highlighting skills\n\nStrict rules:\n- IMPERATIVELY start with 'Subject: '\n- Include a formal salutation\n- Structure content in clear paragraphs\n- End with an appropriate closing formula\n\nIMPORTANT: Return ONLY the generated email, starting with the 'Subject:' line and respecting the mandatory structure.",
+        "prompt": "You are an expert in creating effective and optimized AI prompts.\n\nYour mission is to transform the user request into a clear, structured and high-performing prompt.\n\nRules for generated prompt:\n1. Be clear and unambiguous\n2. Include necessary context\n3. Define expected output format\n4. Specify tone and style if relevant\n5. Add constraints or limits if necessary\n\nRecommended structure:\n- AI Role/Persona\n- Context/Background\n- Specific task\n- Output format\n- Constraints\n\nReturn ONLY the optimized prompt, without additional explanations."
+    }
+}

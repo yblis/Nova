@@ -1,0 +1,33 @@
+{% extends layout_template|default('base.html') %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('core.static', filename='css/chat.css') }}">
+<style>
+    .specialist-card {
+        transition: all 0.2s ease;
+    }
+
+    .specialist-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .knowledge-item {
+        transition: background-color 0.15s ease;
+    }
+
+    .knowledge-item:hover {
+        background-color: rgba(99, 102, 241, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% include "partials/specialists.html" %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}

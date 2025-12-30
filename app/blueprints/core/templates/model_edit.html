@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% block title %}Modifier {{ name }} • Ollama Manager{% endblock %}
+{% block content %}
+<div class="p-8 max-w-4xl mx-auto" x-data="modelEditor()">
+
+    <!-- Header -->
+    <div class="flex items-center gap-4 mb-8">
+        <a href="/models" class="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <svg class="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100"
+                x-text="t('models.edit.title', 'Créer un modèle personnalisé')">Créer un modèle personnalisé</h1>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400"><span x-text="t('models.edit.basedOn', 'Basé sur')">Basé
+                    sur</span> <code class="bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{{ name }}</code></p>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form @submit.prevent="createModel" class="space-y-6">
+
+        <!-- Model Name -->
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                </svg>
+                <span x-text="t('models.edit.identity', 'Identité')">Identité</span>
+            </h2>
+
+            <div class="grid gap-4 md:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+                        x-text="t('models.edit.sourceModel', 'Modèle source')">Modèle source</label>
+                    <input type="text" value="{{ name }}" readonly
+                        class="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400 cursor-not-allowed" />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"><span
+                            x-text="t('models.edit.newName', 'Nouveau nom')">Nouveau nom</span> <span
+                            class="text-red-500">*</span></label>
+                    <input type="text" x-model="newName" required placeholder="mon-modele-custom"
+                        class="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" />
+                </div>
+            </div>
+        </div>
+
+        <!-- System Prompt -->
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                System Prompt
+            </h2>
+            </h2>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4"
+                x-text="t('models.edit.systemPromptDesc', 'Définit le comportement et la personnalité du modèle.')">
+                Définit le comportement et la personnalité du
+                modèle.</p>
+            <textarea x-model="systemPrompt" rows="4"
+                :placeholder="t('models.edit.systemPromptPlaceholder', 'Tu es un assistant serviable qui répond toujours en français...')"
+                class="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all resize-y"></textarea>
+        </div>
+
+        <!-- Parameters -->
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-6">
+            <h2 class="font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                </svg>
+                <span x-text="t('models.edit.parameters', 'Paramètres')">Paramètres</span>
+            </h2>
+
+            <div class="grid gap-6 md:grid-cols-2">
+                <!-- Temperature -->
+                <div>
+                    <label class="flex justify-between text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        <span x-text="t('settings.llm.temperature', 'Temperature')">Temperature</span>
+                        <span class="text-brand-600 font-mono" x-text="temperature.toFixed(2)"></span>
+                    </label>
+                    <input type="range" x-model="temperature" min="0" max="2" step="0.05"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600" />
+                    <p class="text-xs text-zinc-400 mt-1"
+                        x-text="t('settings.llm.temperatureDesc', '0 = déterministe, 2 = créatif')">0 = déterministe, 2
+                        = créatif</p>
+                </div>
+
+                <!-- Num Context -->
+                <div>
+                    <label class="flex justify-between text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        <span x-text="t('settings.llm.contextLength', 'Context Length (num_ctx)')">Context Length
+                            (num_ctx)</span>
+                    </label>
+                    <input type="number" x-model="numCtx" min="512" max="131072" step="512" placeholder="4096"
+                        class="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" />
+                    <p class="text-xs text-zinc-400 mt-1"
+                        x-text="t('settings.llm.contextLengthDesc', 'Taille du contexte en tokens')">Taille du contexte
+                        en tokens</p>
+                </div>
+
+                <!-- Top P -->
+                <div>
+                    <label class="flex justify-between text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        <span x-text="t('settings.llm.topP', 'Top P')">Top P</span>
+                        <span class="text-brand-600 font-mono" x-text="topP.toFixed(2)"></span>
+                    </label>
+                    <input type="range" x-model="topP" min="0" max="1" step="0.05"
+                        class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-brand-600" />
+                    <p class="text-xs text-zinc-400 mt-1"
+                        x-text="t('settings.llm.topPDesc', 'Nucleus sampling probability')">Nucleus sampling probability
+                    </p>
+                </div>
+
+                <!-- Seed -->
+                <div>
+                    <label class="flex justify-between text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                        <span x-text="t('models.edit.seed', 'Seed')">Seed</span>
+                    </label>
+                    <input type="number" x-model="seed" min="0" placeholder="Aléatoire"
+                        class="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all" />
+                    <p class="text-xs text-zinc-400 mt-1"
+                        x-text="t('models.edit.seedDesc', 'Laisser vide pour aléatoire')">Laisser vide pour aléatoire
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex items-center justify-between gap-4">
+            <a href="/models"
+                class="px-6 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-zinc-700 dark:text-zinc-300"
+                x-text="t('common.cancel', 'Annuler')">
+                Annuler
+            </a>
+            <button type="submit" :disabled="creating || !newName"
+                class="px-8 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:bg-zinc-300 dark:disabled:bg-zinc-700 text-white font-semibold transition-colors flex items-center gap-2">
+                <svg x-show="creating" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                    </path>
+                </svg>
+                <span
+                    x-text="creating ? t('models.edit.creating', 'Création en cours...') : t('models.edit.createButton', 'Créer le modèle')"></span>
+            </button>
+        </div>
+
+        <!-- Progress -->
+        <div x-show="creating || status" x-transition
+            class="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-200 dark:border-zinc-700 p-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-2 h-2 rounded-full animate-pulse" :class="error ? 'bg-red-500' : 'bg-green-500'"></div>
+                <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300" x-text="status"></span>
+            </div>
+            <div x-show="error" class="text-sm text-red-600 dark:text-red-400 mt-2" x-text="error"></div>
+        </div>
+
+    </form>
+</div>
+
+<script>
+    function modelEditor() {
+        return {
+            newName: '',
+            systemPrompt: '',
+            temperature: 0.7,
+            numCtx: 4096,
+            topP: 0.9,
+            seed: null,
+            creating: false,
+            status: '',
+            error: '',
+
+            async createModel() {
+                if (!this.newName) return;
+
+                this.creating = true;
+                this.status = t('models.edit.statusPreparing', 'Préparation...');
+                this.error = '';
+
+                const payload = {
+                    name: this.newName,
+                    from_model: '{{ name }}',
+                    system: this.systemPrompt || null,
+                    parameters: {}
+                };
+
+                // Only include non-default parameters
+                if (this.temperature !== 0.7) payload.parameters.temperature = parseFloat(this.temperature);
+                if (this.numCtx !== 4096) payload.parameters.num_ctx = parseInt(this.numCtx);
+                if (this.topP !== 0.9) payload.parameters.top_p = parseFloat(this.topP);
+                if (this.seed) payload.parameters.seed = parseInt(this.seed);
+
+                // Empty parameters object? Remove it
+                if (Object.keys(payload.parameters).length === 0) {
+                    delete payload.parameters;
+                }
+
+                try {
+                    const response = await fetch('/api/models/create', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'text/event-stream'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Erreur lors de la création');
+                    }
+
+                    // Read SSE stream
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const text = decoder.decode(value);
+                        const lines = text.split('\n').filter(l => l.startsWith('data: '));
+
+                        for (const line of lines) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.status) this.status = data.status;
+                                if (data.error) {
+                                    this.error = data.error;
+                                    this.creating = false;
+                                    return;
+                                }
+                                if (data.done) {
+                                    this.status = t('models.edit.success', 'Modèle créé avec succès !');
+                                    this.creating = false;
+                                    // Redirect after short delay
+                                    setTimeout(() => {
+                                        // Add :latest if no tag specified
+                                        const modelName = this.newName.includes(':') ? this.newName : this.newName + ':latest';
+                                        window.location.href = '/models';
+                                    }, 1500);
+                                    return;
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    }
+
+                    this.status = t('models.edit.success', 'Modèle créé avec succès !');
+                    setTimeout(() => {
+                        // Add :latest if no tag specified
+                        const modelName = this.newName.includes(':') ? this.newName : this.newName + ':latest';
+                        window.location.href = '/models';
+                    }, 1500);
+
+                } catch (err) {
+                    this.error = err.message;
+                    this.status = t('models.edit.failure', 'Échec de la création');
+                } finally {
+                    this.creating = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}

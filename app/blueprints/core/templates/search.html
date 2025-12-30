@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Recherche • Ollama Manager{% endblock %}
+{% block content %}
+<section class="space-y-6">
+  <div class="rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 shadow-card p-4">
+    <h1 class="text-xl font-semibold mb-2">Rechercher des modèles (ollama.com)</h1>
+    <form class="flex gap-2" hx-get="/api/remote/search" hx-target="#remote-results" hx-trigger="submit">
+      <input required id="q" name="q" placeholder="ex: llama, mistral, qwen…" class="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2" />
+      <button class="rounded-lg bg-brand-600 hover:bg-brand-500 text-white px-4 py-2">Rechercher</button>
+    </form>
+  </div>
+  <div id="remote-results" class="min-h-20 text-sm text-zinc-600 dark:text-zinc-300">Saisissez une requête puis validez.</div>
+</section>
+{% endblock %}

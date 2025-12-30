@@ -1,0 +1,1243 @@
+{% extends layout_template|default('base.html') %}
+{% block title %}Chat • Ollama Manager{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('core.static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-container flex flex-col sm:flex-row bg-white dark:bg-zinc-900 overflow-hidden relative"
+    x-data="chatApp" x-cloak @dragover.prevent="isDragging = true" @dragleave.prevent="isDragging = false"
+    @drop.prevent="handleDrop($event)" x-on:paste.window="handlePaste($event)">
+
+    <!-- Drag & Drop Overlay -->
+    <div x-show="isDragging" x-transition.opacity
+        class="absolute inset-0 z-[60] bg-brand-500/10 backdrop-blur-sm border-4 border-brand-500 border-dashed m-4 rounded-xl flex items-center justify-center pointer-events-none">
+        <div class="bg-white dark:bg-zinc-800 p-6 rounded-2xl shadow-xl flex flex-col items-center gap-4">
+            <div class="p-4 bg-brand-100 dark:bg-brand-900/30 rounded-full text-brand-600 dark:text-brand-400">
+                <svg class="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-zinc-900 dark:text-zinc-100">Déposez l'image ici</h3>
+            <p class="text-zinc-500 dark:text-zinc-400">Elle sera ajoutée à votre message</p>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar Backdrop -->
+    <div x-show="sidebarOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="sidebarOpen = false"
+        class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 sm:hidden" style="top: 64px;"></div>
+
+    <!-- Sidebar (History) -->
+    <div :class="sidebarOpen ? 'w-full sm:w-64' : 'w-0 overflow-hidden'"
+        class="chat-sidebar-mobile sm:relative flex-shrink-0 bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 transition-all duration-300 flex flex-col h-full sm:h-auto z-50 sm:z-auto">
+
+        <div x-show="!selectionMode"
+            class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+
+            <div class="flex-1 min-w-0">
+                <div class="relative group">
+                    <input type="text" x-model="sessionSearchQuery" :placeholder="t('common.search', 'Rechercher...')"
+                        class="w-full pl-8 pr-7 py-1.5 text-xs bg-zinc-100 dark:bg-zinc-800 border-none rounded-md focus:ring-1 focus:ring-brand-500 placeholder-zinc-400 transition-all">
+                    <svg class="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <button x-show="sessionSearchQuery" @click="sessionSearchQuery = ''"
+                        class="absolute right-2 top-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200">
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-shrink-0 flex items-center gap-1">
+                <!-- Select Mode -->
+                <button @click="toggleSelectionMode()"
+                    class="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    :title="t('common.select', 'Sélectionner')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                </button>
+                <!-- New Chat -->
+                <button @click="newChat()" class="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-lg"
+                    :title="t('chat.newChat', 'Nouvelle conversation')">
+                    <svg class="w-5 h-5 text-zinc-600 dark:text-zinc-400" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Selection Mode Header -->
+        <div x-show="selectionMode"
+            class="h-16 px-4 border-b border-zinc-200 dark:border-zinc-800 bg-brand-50 dark:bg-brand-900/20 flex items-center justify-between">
+            <span class="font-medium text-sm text-brand-700 dark:text-brand-300"
+                x-text="selectedSessions.length + (selectedSessions.length > 1 ? t('chat.selectedPlural', ' sélectionnées') : t('chat.selected', ' sélectionnée'))"></span>
+            <div class="flex items-center gap-1">
+                <!-- Select All Button -->
+                <button @click="selectAllSessions()"
+                    class="p-2 rounded-lg text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-800/30 transition-colors"
+                    :title="selectedSessions.length === sessions.length ? t('chat.cancelSelection', 'Tout désélectionner') : t('chat.selectAll', 'Tout sélectionner')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </button>
+                <!-- Delete Selected Button -->
+                <button @click="deleteSelectedSessions()" :disabled="selectedSessions.length === 0"
+                    class="p-2 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    :title="t('chat.deleteSelected', 'Supprimer la sélection')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Cancel Button -->
+                <button @click="toggleSelectionMode()"
+                    class="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                    :title="t('common.cancel', 'Annuler')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+
+        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+            <template x-for="session in filteredSessions" :key="session.id">
+                <div @click="selectionMode ? toggleSessionSelection(session.id) : (loadSession(session.id), window.innerWidth < 640 && (sidebarOpen = false))"
+                    class="w-full text-left px-3 py-3 rounded-lg text-sm transition-colors relative group cursor-pointer flex items-start gap-3"
+                    :class="[
+                        currentSessionId === session.id && !selectionMode ? 'bg-white dark:bg-zinc-800 shadow-sm border border-zinc-200 dark:border-zinc-700' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800',
+                        selectionMode && selectedSessions.includes(session.id) ? 'bg-brand-50 dark:bg-brand-900/30 border border-brand-300 dark:border-brand-700' : ''
+                    ]">
+                    <!-- Checkbox (visible in selection mode) -->
+                    <div x-show="selectionMode" class="flex-shrink-0 mt-0.5">
+                        <div class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+                            :class="selectedSessions.includes(session.id) ? 'bg-brand-600 border-brand-600' : 'border-zinc-300 dark:border-zinc-600'">
+                            <svg x-show="selectedSessions.includes(session.id)" class="w-3 h-3 text-white" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                        </div>
+                    </div>
+                    <!-- Content -->
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-zinc-900 dark:text-zinc-100 truncate flex items-center gap-1"
+                            :class="selectionMode ? '' : 'pr-12'">
+                            <!-- Debate indicator -->
+                            <svg x-show="session.title && session.title.startsWith('Debate:')"
+                                class="w-4 h-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span x-text="session.title || t('chat.newChat', 'Nouvelle conversation')"></span>
+                        </div>
+                        <div class="text-xs text-zinc-500" x-text="formatDate(session.updated_at)"></div>
+                    </div>
+                    <!-- Actions (Pin & Delete) -->
+                    <div x-show="!selectionMode" class="absolute right-2 top-3 flex items-center gap-1">
+                        <!-- Pin Button -->
+                        <div @click.stop="togglePin(session.id)"
+                            class="transition-opacity cursor-pointer p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                            :class="session.is_pinned ? 'opacity-100 text-yellow-500' : 'opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-yellow-500'"
+                            :title="session.is_pinned ? t('chat.unpin', 'Désépingler') : t('chat.pin', 'Épingler')">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                        </div>
+                        <!-- Delete Button -->
+                        <div @click.stop="deleteSession(session.id)"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-red-500"
+                            :title="t('chat.delete', 'Supprimer')">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <div x-show="sessions.length === 0" class="p-4 text-center text-zinc-400 text-sm"
+                x-text="t('chat.noHistory', 'No history')"></div>
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="flex-1 flex flex-col h-full relative w-full sm:w-auto">
+        <!-- Chat Header -->
+        <header
+            class="h-16 flex items-center justify-between px-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-10">
+            <div class="flex items-center gap-3">
+                <button @click="sidebarOpen = !sidebarOpen"
+                    class="p-2 -ml-2 text-zinc-500 hover:text-brand-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                    :title="t('chat.toggleHistory', 'Afficher/Masquer l\'historique')">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+
+                <!-- Model Selector -->
+                <div class="relative" x-data="{open:false}">
+                    <button @click="open=!open"
+                        class="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-brand-600 transition-colors bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <span x-text="currentModel || t('chat.selectModel', 'Select Model')"></span>
+                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.outside="open=false" x-transition:enter="transition ease-out duration-100"
+                        x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100"
+                        class="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl model-dropdown">
+                        <div class="max-h-64 overflow-y-auto p-1">
+                            <template x-for="m in models" :key="m">
+                                <button @click="currentModel=m; open=false"
+                                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
+                                    :class="currentModel===m ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20' : 'text-zinc-700 dark:text-zinc-300'"
+                                    x-text="m"></button>
+                            </template>
+                            <div x-show="models.length === 0" class="px-3 py-4 text-sm text-zinc-400 text-center"
+                                x-text="t('chat.noModels', 'No models available')"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Debate Mode Button -->
+                <button @click="toggleDebateMode()" class="p-2 transition-colors rounded-lg"
+                    :class="debateMode ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' : 'text-zinc-400 hover:text-purple-600'"
+                    :title="t('chat.debate.mode', 'Mode Débat Multi-LLM')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </button>
+                <!-- Settings Button -->
+                <button @click="showSettings = !showSettings"
+                    class="p-2 text-zinc-400 hover:text-brand-600 transition-colors"
+                    :class="showSettings ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-lg' : ''"
+                    title="Chat Settings">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                </button>
+                <button @click="newChat()" class="p-2 text-zinc-400 hover:text-brand-600 transition-colors"
+                    title="New Chat">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Debate Mode Participants Bar -->
+        <div x-show="debateMode" x-transition
+            class="px-4 py-3 border-b border-purple-200 dark:border-purple-800/50 bg-purple-50 dark:bg-purple-900/20">
+            <div class="max-w-3xl mx-auto">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span class="text-sm font-medium text-purple-700 dark:text-purple-300"
+                            x-text="t('chat.debate.mode', 'Mode Débat')">Mode Débat</span>
+                        <span class="text-xs text-purple-500"
+                            x-text="participants.length + ' ' + t('chat.debate.participants', '/4 participants')"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select x-model="debateModeOption"
+                            class="text-xs bg-white dark:bg-zinc-800 border border-purple-200 dark:border-purple-700 rounded px-2 py-1 text-purple-700 dark:text-purple-300">
+                            <option value="parallel" x-text="t('chat.debate.parallel', 'Parallèle')">Parallèle</option>
+                            <option value="sequential" x-text="t('chat.debate.sequential', 'Séquentiel')">Séquentiel
+                            </option>
+                        </select>
+                        <button @click="showDebateSettings = !showDebateSettings"
+                            class="text-xs px-2 py-1 border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                            :class="showDebateSettings ? 'bg-purple-100 dark:bg-purple-900/30' : ''">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        <button @click="showParticipantSelector = !showParticipantSelector"
+                            class="text-xs px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors"
+                            x-text="t('chat.debate.add', '+ Ajouter')">
+                            + Ajouter
+                        </button>
+                        <button @click="saveDebateDefaults()"
+                            class="text-xs px-2 py-1 border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                            :title="t('chat.debate.saveDefaults', 'Sauvegarder comme défaut')">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="p in participants" :key="p.id">
+                        <div
+                            class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span x-text="p.name"></span>
+                            <button @click="removeParticipant(p.id)" class="ml-1 hover:opacity-70">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                    <div x-show="participants.length === 0" class="text-xs text-purple-500 italic"
+                        x-text="t('chat.debate.selectMin', 'Sélectionnez au moins 2 participants')">
+                        Sélectionnez au moins 2 participants
+                    </div>
+                </div>
+                <!-- Debate Settings Panel -->
+                <div x-show="showDebateSettings" x-transition
+                    class="mt-3 pt-3 border-t border-purple-200 dark:border-purple-700">
+                    <label class="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1 block"
+                        x-text="t('chat.debate.rules', 'Règles du débat (System Prompt)')">Règles du débat
+                        (System Prompt)</label>
+                    <textarea x-model="debateSystemPrompt" rows="4"
+                        class="w-full text-xs bg-white dark:bg-zinc-800 border border-purple-200 dark:border-purple-700 rounded-lg p-2 text-zinc-700 dark:text-zinc-300 resize-none"
+                        :placeholder="t('chat.debate.instructionsPlaceholder', 'Instructions pour les participants du débat...')"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Participant Selector Dropdown -->
+        <div x-show="showParticipantSelector" @click.outside="showParticipantSelector = false" x-transition
+            class="absolute top-28 right-4 w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div class="p-3 border-b border-zinc-100 dark:border-zinc-800">
+                <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+                    x-text="t('chat.debate.addParticipant', 'Ajouter un participant')">Ajouter un participant</h4>
+            </div>
+            <div class="max-h-80 overflow-y-auto p-2">
+                <template x-for="provider in availableProviders" :key="provider.id">
+                    <div class="mb-2" x-data="{expanded: false, models: [], loadingModels: false}">
+                        <button
+                            @click="if (!expanded && models.length === 0) { loadingModels = true; loadProviderModels(provider.id).then(m => { models = m; loadingModels = false; }); } expanded = !expanded"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm transition-colors">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="provider.name"></span>
+                                <span class="text-xs text-zinc-400" x-text="provider.type"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-zinc-400 transition-transform"
+                                :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div x-show="expanded" x-transition class="pl-8 pr-2 py-1">
+                            <div x-show="loadingModels" class="text-xs text-zinc-400 py-2"
+                                x-text="t('common.loading', 'Chargement...')">Chargement...</div>
+                            <template x-for="model in (Array.isArray(models) ? models : [])"
+                                :key="typeof model === 'string' ? model : model.id || model.name">
+                                <button
+                                    @click="addParticipant(provider, typeof model === 'string' ? model : model.id || model.name); showParticipantSelector = false"
+                                    class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 truncate">
+                                    <span x-text="typeof model === 'string' ? model : model.id || model.name"></span>
+                                </button>
+                            </template>
+                            <div x-show="models.length === 0 && !loadingModels" class="text-xs text-zinc-400 py-1"
+                                x-text="t('chat.noModels', 'Aucun modèle')">Aucun
+                                modèle</div>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="availableProviders.length === 0" class="px-3 py-4 text-sm text-zinc-500 text-center"
+                    x-text="t('chat.debate.noProviders', 'Aucun fournisseur configuré')">
+                    Aucun fournisseur configuré
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Panel Backdrop (Mobile) -->
+        <div x-show="showSettings" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0" @click="showSettings = false"
+            class="absolute inset-0 bg-black/30 backdrop-blur-sm z-30 sm:hidden"></div>
+
+        <!-- Settings Panel (Slide-in) -->
+        <div x-show="showSettings" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-x-full" x-transition:enter-end="opacity-100 translate-x-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-x-0"
+            x-transition:leave-end="opacity-0 translate-x-full"
+            class="absolute top-0 sm:top-16 right-0 bottom-0 w-full sm:w-80 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-xl z-40 overflow-y-auto"
+            style="-webkit-overflow-scrolling: touch;">
+            <div class="p-4 safe-area-padding">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="t('chat.settings.title', 'Chat Settings')"></h3>
+                    <button @click="showSettings = false"
+                        class="p-2 text-zinc-400 hover:text-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- System Prompt -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+                        x-text="t('chat.settings.systemPrompt', 'System Prompt')"></label>
+                    <textarea x-model="systemPrompt" rows="4"
+                        class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        placeholder="You are a helpful assistant..."></textarea>
+                    <p class="mt-1 text-xs text-zinc-500"
+                        x-text="t('chat.settings.systemPromptHelp', 'Define the AI\'s behavior and personality')"></p>
+                </div>
+
+                <!-- Model Parameters -->
+                <div class="space-y-4">
+                    <h4 class="font-medium text-sm text-zinc-900 dark:text-zinc-100"
+                        x-text="t('chat.settings.modelParams', 'Model Parameters')"></h4>
+
+                    <!-- Temperature -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-sm text-zinc-600 dark:text-zinc-400"
+                                x-text="t('chat.settings.temperature', 'Temperature')"></label>
+                            <span class="text-sm font-mono text-zinc-500" x-text="modelConfig.temperature"></span>
+                        </div>
+                        <input type="range" x-model="modelConfig.temperature" min="0" max="2" step="0.1"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                        <p class="mt-1 text-xs text-zinc-500"
+                            x-text="t('chat.settings.temperatureHelp', 'Higher = more creative, Lower = more focused')">
+                        </p>
+                    </div>
+
+                    <!-- Top P -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-sm text-zinc-600 dark:text-zinc-400"
+                                x-text="t('chat.settings.topP', 'Top P')"></label>
+                            <span class="text-sm font-mono text-zinc-500" x-text="modelConfig.top_p"></span>
+                        </div>
+                        <input type="range" x-model="modelConfig.top_p" min="0" max="1" step="0.05"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Top K -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-sm text-zinc-600 dark:text-zinc-400"
+                                x-text="t('chat.settings.topK', 'Top K')"></label>
+                            <span class="text-sm font-mono text-zinc-500" x-text="modelConfig.top_k"></span>
+                        </div>
+                        <input type="range" x-model="modelConfig.top_k" min="1" max="100" step="1"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Context Length -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-sm text-zinc-600 dark:text-zinc-400"
+                                x-text="t('chat.settings.contextLength', 'Context Length')"></label>
+                            <span class="text-sm font-mono text-zinc-500" x-text="modelConfig.num_ctx"></span>
+                        </div>
+                        <input type="number" x-model.number="modelConfig.num_ctx" min="512" max="131072" step="512"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                    </div>
+                </div>
+
+                <!-- Voice Settings -->
+                <div class="mt-6 space-y-4 pt-6 border-t border-zinc-200 dark:border-zinc-700">
+                    <h4 class="font-medium text-sm text-zinc-900 dark:text-zinc-100"
+                        x-text="t('chat.settings.voice.title', 'Voice & Audio')"></h4>
+
+                    <!-- STT Language -->
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+                            x-text="t('chat.settings.voice.language', 'Dictation Language')"></label>
+                        <select x-model="voiceSettings.lang" @change="saveVoiceSettings()"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                            <option value="fr-FR">Français (France)</option>
+                            <option value="en-US">English (US)</option>
+                            <option value="en-GB">English (UK)</option>
+                            <option value="es-ES">Español</option>
+                            <option value="de-DE">Deutsch</option>
+                            <option value="it-IT">Italiano</option>
+                            <option value="pt-PT">Português</option>
+                            <option value="ja-JP">日本語</option>
+                            <option value="ko-KR">한국어</option>
+                            <option value="zh-CN">中文 (S)</option>
+                        </select>
+                    </div>
+
+                    <!-- TTS Voice -->
+                    <div>
+                        <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+                            x-text="t('chat.settings.voice.ttsVoice', 'Text-to-Speech Voice')"></label>
+                        <select x-model="voiceSettings.voiceURI" @change="saveVoiceSettings()"
+                            class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                            <option value="">Default</option>
+                            <template x-for="voice in availableVoices" :key="voice.voiceURI">
+                                <option :value="voice.voiceURI" x-text="voice.name + ' (' + voice.lang + ')'"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <!-- TTS Speed (Rate) -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-sm text-zinc-600 dark:text-zinc-400"
+                                x-text="t('chat.settings.voice.speed', 'Speed')"></label>
+                            <span class="text-sm font-mono text-zinc-500" x-text="voiceSettings.rate + 'x'"></span>
+                        </div>
+                        <input type="range" x-model="voiceSettings.rate" @change="saveVoiceSettings()" min="0.5" max="2"
+                            step="0.1"
+                            class="w-full h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <!-- Auto-Read Toggle -->
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                            x-text="t('chat.settings.voice.autoRead', 'Auto-read Responses')"></label>
+                        <button @click="voiceSettings.autoRead = !voiceSettings.autoRead; saveVoiceSettings()"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                            :class="voiceSettings.autoRead ? 'bg-brand-600' : 'bg-zinc-200 dark:bg-zinc-700'">
+                            <span
+                                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                :class="voiceSettings.autoRead ? 'translate-x-5' : 'translate-x-0'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button @click="saveSettings()"
+                    class="mt-6 w-full py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors">
+                    Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages Area (visible only when there are messages) -->
+        <div x-show="messages.length > 0" class="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
+            id="chat-container">
+            <template x-for="(msg, idx) in messages" :key="idx">
+                <div class="max-w-3xl mx-auto w-full" :class="msg.role === 'user' ? 'flex justify-end' : ''">
+                    <!-- Message Content -->
+                    <div class="chat-message-bubble px-4 py-3 rounded-2xl shadow-sm leading-relaxed break-words overflow-x-auto"
+                        style="min-width: 0;"
+                        :class="msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none max-w-[85%] ml-auto' : 'bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 rounded-bl-none text-base w-full'">
+
+                        <!-- Inline Header with Icon -->
+                        <div class="flex items-center gap-2 mb-2 pb-2 border-b" :class="[
+                                msg.role === 'user' ? 'border-white/20' : 'border-zinc-200 dark:border-zinc-700',
+                                msg.participant_id ? 'border-l-4 pl-2 -ml-2 border-l-purple-500' : ''
+                            ]">
+                            <div class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                                :class="msg.role === 'user' ? 'bg-white/20' : (msg.participant_id ? 'bg-purple-500 text-white' : 'bg-brand-600 text-white')">
+                                <svg x-show="msg.role === 'user'" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <svg x-show="msg.role !== 'user'" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <span class="text-xs font-medium"
+                                :class="msg.role === 'user' ? 'text-white/80' : (msg.participant_id ? 'text-purple-600 dark:text-purple-400' : 'text-zinc-500 dark:text-zinc-400')"
+                                x-text="msg.role === 'user' ? t('chat.you', 'Vous') : (msg.participant_name || t('nav.assistant', 'Assistant'))"></span>
+                        </div>
+
+                        <!-- Thinking Section (Reasoning Models) -->
+                        <div x-show="msg.thinking" class="mb-3">
+                            <details
+                                class="group bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border border-zinc-200 dark:border-zinc-700 text-xs overflow-hidden">
+                                <summary
+                                    class="flex items-center gap-2 p-2 cursor-pointer font-medium text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 select-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg"
+                                        class="w-4 h-4 transition-transform group-open:rotate-90" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                        stroke-linejoin="round">
+                                        <path d="m9 18 6-6-6-6" />
+                                    </svg>
+                                    <span x-text="t('chat.reflection', 'Processus de réflexion')">Reflexion
+                                        Process</span>
+                                </summary>
+                                <div class="p-3 pt-0 text-zinc-600 dark:text-zinc-400 font-mono whitespace-pre-wrap border-t border-zinc-200/50 dark:border-zinc-700/50 mt-1 bg-white/50 dark:bg-zinc-900/30"
+                                    x-text="msg.thinking"></div>
+                            </details>
+                        </div>
+
+                        <!-- Attached Images -->
+                        <div x-show="msg.images && msg.images.length > 0" class="mb-2">
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="(imgData, imgIdx) in (msg.images || [])" :key="imgIdx">
+                                    <a :href="'data:image/jpeg;base64,' + imgData" target="_blank" class="block">
+                                        <img :src="'data:image/jpeg;base64,' + imgData"
+                                            class="max-h-32 max-w-48 rounded-lg border border-white/20 object-cover hover:opacity-90 transition-opacity cursor-pointer"
+                                            :alt="'Attached image ' + (imgIdx + 1)">
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Main Content -->
+                        <div x-html="msg.role === 'assistant' ? formatContent(msg.content) : formatUserContent(msg.content, msg.images)"
+                            :class="msg.role === 'assistant' ? 'min-h-[1rem] markdown-content' : 'min-h-[1rem]'"></div>
+
+                        <!-- Assistant typing indicator -->
+                        <div x-show="loading && idx === messages.length - 1 && msg.role === 'assistant' && !msg.content && !msg.thinking"
+                            class="mt-2">
+                            <div class="flex gap-1.5 items-center py-1">
+                                <span class="w-2 h-2 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-bounce"></span>
+                                <span class="w-2 h-2 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-bounce"
+                                    style="animation-delay: 0.1s"></span>
+                                <span class="w-2 h-2 bg-zinc-400 dark:bg-zinc-500 rounded-full animate-bounce"
+                                    style="animation-delay: 0.2s"></span>
+                            </div>
+                        </div>
+
+                        <!-- Action buttons for assistant messages (inside message bubble) -->
+                        <div x-show="msg.role === 'assistant' && msg.content && !loading"
+                            class="flex items-center gap-1 mt-3 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50"
+                            x-data="{ copied: false }">
+                            <!-- Copy response button -->
+                            <button
+                                @click="copyResponse(msg.content); copied = true; setTimeout(() => copied = false, 2000)"
+                                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                :class="copied ? 'text-green-500 hover:text-green-500' : ''"
+                                :title="copied ? t('chat.copied', 'Copié !') : t('chat.copyResponse', 'Copier la réponse')">
+                                <svg x-show="!copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <svg x-show="copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7" />
+                                </svg>
+                            </button>
+                            <!-- Regenerate button -->
+                            <button @click="regenerateResponse(idx)"
+                                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                :title="t('chat.regenerateResponse', 'Régénérer la réponse')">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </button>
+                            <!-- Text-to-Speech Button -->
+                            <button @click="toggleSpeech(msg.content, 'msg-' + idx)"
+                                x-show="audioBackendConfig.tts_enabled !== false"
+                                class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                                :class="speakingId === 'msg-' + idx ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20 animate-pulse' : ''"
+                                :title="speakingId === 'msg-' + idx ? t('chat.stopSpeech', 'Arrêter la lecture') : t('chat.readResponse', 'Lire la réponse')">
+                                <svg x-show="speakingId !== 'msg-' + idx" class="w-4 h-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                                </svg>
+                                <svg x-show="speakingId === 'msg-' + idx" class="w-4 h-4" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Web Sources (displayed below assistant message) -->
+                        <div x-show="msg.web_sources && msg.web_sources.length > 0"
+                            class="mt-3 pt-2 border-t border-zinc-200/50 dark:border-zinc-700/50">
+                            <div class="flex items-center gap-2 mb-2">
+                                <svg class="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                </svg>
+                                <span class="text-xs font-medium text-zinc-500"
+                                    x-text="t('chat.webSources', 'Sources web')">Sources web</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <template x-for="(source, sIdx) in (msg.web_sources || [])" :key="sIdx">
+                                    <a :href="source.url" target="_blank" rel="noopener noreferrer"
+                                        class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors max-w-[200px]">
+                                        <svg class="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                        <span class="truncate" x-text="source.title"></span>
+                                    </a>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Loading Indicator (Bottom) -->
+            <div x-show="loading && (!messages.length || messages[messages.length - 1].role !== 'assistant')"
+                class="max-w-3xl mx-auto w-full">
+                <div
+                    class="chat-message-bubble px-4 py-3 rounded-2xl rounded-bl-none shadow-sm bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 w-full">
+                    <!-- Inline Header with Icon -->
+                    <div class="flex items-center gap-2 mb-2 pb-2 border-b border-zinc-200 dark:border-zinc-700">
+                        <div
+                            class="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 bg-brand-600 text-white">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400"
+                            x-text="t('nav.assistant', 'Assistant')">Assistant</span>
+                    </div>
+                    <!-- Loading Animation -->
+                    <div class="flex gap-1.5 items-center py-1">
+                        <span class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"></span>
+                        <span class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"
+                            style="animation-delay: 0.1s"></span>
+                        <span class="w-2 h-2 bg-zinc-400 rounded-full animate-bounce"
+                            style="animation-delay: 0.2s"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome Screen (Centered - visible when no messages) -->
+        <div x-show="messages.length === 0 && !loading"
+            class="chat-welcome-screen flex-1 flex flex-col items-center justify-center px-4 pb-4">
+
+            <!-- Welcome Message -->
+            <div class="text-center mb-8">
+                <h1 class="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+                    Bonjour{{ ' ' + current_user.username if current_user and current_user.username else '' }}. <span
+                        x-text="t('chat.welcome.start', 'On commence ?')">Oncommence ?</span>
+                </h1>
+                <p class="text-zinc-500 dark:text-zinc-400 text-sm" x-show="!currentModel"
+                    x-text="t('chat.welcome.subtitle', 'Select a model to start')"></p>
+            </div>
+
+            <!-- Centered Input Area -->
+            <div class="w-full max-w-2xl">
+                <form @submit.prevent="debateMode ? sendDebateMessage() : sendMessage()" hx-boost="false">
+                    <!-- Hidden file inputs for Welcome screen -->
+                    <input type="file" x-ref="imageInput" @change="handleImageUpload($event)" accept="image/*" multiple
+                        class="hidden" />
+                    <input type="file" x-ref="fileInput" @change="handleFileUpload($event)"
+                        accept=".txt,.md,.py,.js,.ts,.json,.csv,.html,.css,.yaml,.yml,.xml,.sql,.sh,.java,.c,.cpp,.h,.go,.rs,.rb,.php"
+                        class="hidden" />
+                    <input type="file" x-ref="pdfInput" @change="handlePdfUpload($event)" accept=".pdf"
+                        class="hidden" />
+
+                    <div class="relative">
+                        <!-- Input Pill (Welcome) -->
+                        <div
+                            class="bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-lg flex items-center gap-2 p-2 transition-shadow focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500">
+
+                            <!-- Left: Upload Menu -->
+                            <div class="relative flex-shrink-0" x-data="{ uploadMenuOpen: false }">
+                                <button type="button" @click="uploadMenuOpen = !uploadMenuOpen"
+                                    class="p-2 text-zinc-400 hover:text-brand-600 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 rounded-xl transition-colors"
+                                    :class="ragDocuments.length > 0 ? 'text-red-500' : ''"
+                                    :title="t('chat.input.addFiles', 'Ajouter des fichiers')">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    <!-- RAG Badge -->
+                                    <span x-show="ragDocuments.length > 0"
+                                        class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-zinc-800"></span>
+                                </button>
+
+                                <!-- Dropdown Menu -->
+                                <div x-show="uploadMenuOpen" @click.outside="uploadMenuOpen = false"
+                                    x-transition:enter="transition ease-out duration-100"
+                                    x-transition:enter-start="opacity-0 scale-95 transform"
+                                    x-transition:enter-end="opacity-100 scale-100 transform"
+                                    x-transition:leave="transition ease-in duration-75"
+                                    x-transition:leave-start="opacity-100 scale-100 transform"
+                                    x-transition:leave-end="opacity-0 scale-95 transform"
+                                    class="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-20">
+
+                                    <button type="button" @click="$refs.imageInput.click(); uploadMenuOpen = false"
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                        <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span x-text="t('chat.input.image', 'Image')">Image</span>
+                                        <span class="ml-auto text-xs text-zinc-400"
+                                            x-text="t('chat.input.vision', 'Vision')">Vision</span>
+                                    </button>
+
+                                    <button type="button" @click="$refs.fileInput.click(); uploadMenuOpen = false"
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-t border-zinc-100 dark:border-zinc-700/50">
+                                        <svg class="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <span x-text="t('chat.input.textFile', 'Fichier texte')">Fichier texte</span>
+                                    </button>
+
+                                    <button type="button" @click="$refs.pdfInput.click(); uploadMenuOpen = false"
+                                        class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-t border-zinc-100 dark:border-zinc-700/50">
+                                        <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                        </svg>
+                                        <span x-text="t('chat.input.pdf', 'PDF')">PDF</span>
+                                        <span class="ml-auto text-xs text-red-500 font-medium"
+                                            x-text="t('chat.input.rag', 'RAG')">RAG</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Text Input -->
+                            <textarea x-model="input" x-ref="chatInputWelcome" rows="1"
+                                @input="adjustTextareaHeight($el)" @keydown="handleKeydown($event)"
+                                :placeholder="t('chat.input.placeholder', 'Poser une question...')"
+                                class="flex-1 bg-transparent border-0 px-2 py-3 focus:outline-none focus:ring-0 resize-none max-h-48 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 scrollbar-hide text-base"
+                                :disabled="!currentModel"></textarea>
+
+                            <!-- Right Actions -->
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <!-- Web Search -->
+                                <button x-show="webSearchAvailable" type="button"
+                                    @click="webSearchEnabled = !webSearchEnabled"
+                                    class="p-2 rounded-xl transition-colors"
+                                    :class="webSearchEnabled ? 'text-green-500 bg-green-100 dark:bg-green-900/30' : 'text-zinc-400 hover:text-green-500 hover:bg-zinc-200 dark:hover:bg-zinc-700/50'"
+                                    :title="webSearchEnabled ? t('chat.input.webSearchEnabled', 'Recherche web activée') : t('chat.input.enableWebSearch', 'Activer la recherche web')">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                    </svg>
+                                </button>
+
+                                <!-- Microphone Button -->
+                                <button type="button" @click="toggleDictation()"
+                                    x-show="audioBackendConfig.stt_enabled !== false"
+                                    class="p-2 rounded-xl transition-all duration-200"
+                                    :class="isRecording ? 'text-red-600 bg-red-100 dark:bg-red-900/30 animate-pulse scale-110' : 'text-zinc-400 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-700/50'"
+                                    :title="isRecording ? t('chat.input.stopDictation', 'Arrêter la dictée') : t('chat.input.startDictation', 'Dicter (Micro)')">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                                    </svg>
+                                </button>
+
+
+                                <!-- Send Button -->
+                                <button x-show="!loading" type="submit"
+                                    class="p-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                    :disabled="(!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0) || !currentModel">
+                                    <svg class="w-5 h-5 transform rotate-0" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Pending Files/Images Preview -->
+        <div x-show="pendingImages.length > 0 || pendingFiles.length > 0"
+            class="px-4 py-2 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+            <div class="max-w-3xl mx-auto flex flex-wrap gap-2">
+                <!-- Image Previews -->
+                <template x-for="(img, idx) in pendingImages" :key="'img-'+idx">
+                    <div class="relative group">
+                        <img :src="'data:image/jpeg;base64,' + img.data"
+                            class="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <button @click="pendingImages.splice(idx, 1)"
+                            class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+                <!-- File Previews -->
+                <template x-for="(file, idx) in pendingFiles" :key="'file-'+idx">
+                    <div
+                        class="relative group flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <svg class="w-4 h-4 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span class="text-sm text-zinc-700 dark:text-zinc-300 max-w-[100px] truncate"
+                            x-text="file.filename"></span>
+                        <button @click="pendingFiles.splice(idx, 1)"
+                            class="ml-1 text-zinc-400 hover:text-red-500 transition-colors">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- RAG Documents Bar -->
+        <div x-show="ragDocuments.length > 0 || pdfUploading"
+            class="px-4 py-2 border-t border-red-200 dark:border-red-800/50 bg-red-50 dark:bg-red-900/20">
+            <div class="max-w-3xl mx-auto">
+                <div class="flex items-center gap-2 mb-2">
+                    <svg class="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-xs font-medium text-red-700 dark:text-red-300"
+                        x-text="t('chat.rag.title', 'Documents RAG')">Documents RAG</span>
+                    <span x-show="pdfUploading" class="ml-2 text-xs text-red-500 animate-pulse"
+                        x-text="t('chat.rag.indexing', 'Indexation en cours...')">Indexation en
+                        cours...</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="doc in ragDocuments" :key="doc.id">
+                        <div
+                            class="flex items-center gap-2 px-2 py-1 bg-white dark:bg-zinc-800 rounded border border-red-200 dark:border-red-800 text-xs">
+                            <span class="text-zinc-700 dark:text-zinc-300 max-w-[120px] truncate"
+                                x-text="doc.filename"></span>
+
+                            <!-- Processing Status -->
+                            <template x-if="doc.status === 'processing' || doc.status === 'pending'">
+                                <svg class="animate-spin h-3 w-3 text-amber-500" xmlns="http://www.w3.org/2000/svg"
+                                    fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                        stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                    </path>
+                                </svg>
+                            </template>
+
+                            <!-- Failed Status -->
+                            <template x-if="doc.status === 'failed'">
+                                <svg class="h-3 w-3 text-red-500 cursor-help"
+                                    :title="doc.error_message || 'Erreur inconnue'" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </template>
+
+                            <span x-show="!doc.status || doc.status === 'completed'" class="text-zinc-400"
+                                x-text="'(' + (doc.chunk_count || 0) + ' chunks)'"></span>
+
+                            <button @click="viewChunks(doc.id, doc.filename)"
+                                x-show="!doc.status || doc.status === 'completed'"
+                                class="text-zinc-400 hover:text-brand-500 transition-colors" title="Voir les chunks">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                            </button>
+                            <button @click="deleteRagDocument(doc.id, doc.filename)"
+                                class="text-zinc-400 hover:text-red-500 transition-colors">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area (visible only when there are messages - bottom position) -->
+        <div x-show="messages.length > 0 || loading"
+            class="chat-input-area p-4 pt-2 flex-shrink-0 bg-white dark:bg-zinc-900 z-10 transition-all duration-300">
+            <form @submit.prevent="debateMode ? sendDebateMessage() : sendMessage()" hx-boost="false"
+                class="max-w-3xl mx-auto">
+                <!-- Shared Hidden Inputs -->
+                <input type="file" x-ref="imageInput" @change="handleImageUpload($event)" accept="image/*" multiple
+                    class="hidden" />
+                <input type="file" x-ref="fileInput" @change="handleFileUpload($event)"
+                    accept=".txt,.md,.py,.js,.ts,.json,.csv,.html,.css,.yaml,.yml,.xml,.sql,.sh,.java,.c,.cpp,.h,.go,.rs,.rb,.php"
+                    class="hidden" />
+                <input type="file" x-ref="pdfInput" @change="handlePdfUpload($event)" accept=".pdf" class="hidden" />
+
+                <div class="relative">
+                    <!-- Input Pill (Bottom) -->
+                    <div
+                        class="bg-zinc-100 dark:bg-zinc-800 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-lg flex items-center gap-2 p-2 mb-2 transition-shadow focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500">
+
+                        <!-- Left: Upload Menu -->
+                        <div class="relative flex-shrink-0" x-data="{ uploadMenuOpen: false }">
+                            <button type="button" @click="uploadMenuOpen = !uploadMenuOpen"
+                                class="p-2 text-zinc-400 hover:text-brand-600 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 rounded-xl transition-colors"
+                                :class="ragDocuments.length > 0 ? 'text-red-500' : ''" title="Ajouter des fichiers">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                <!-- RAG Badge -->
+                                <span x-show="ragDocuments.length > 0"
+                                    class="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-zinc-800"></span>
+                            </button>
+
+                            <!-- Dropdown Menu -->
+                            <div x-show="uploadMenuOpen" @click.outside="uploadMenuOpen = false"
+                                x-transition:enter="transition ease-out duration-100"
+                                x-transition:enter-start="opacity-0 scale-95 transform"
+                                x-transition:enter-end="opacity-100 scale-100 transform"
+                                x-transition:leave="transition ease-in duration-75"
+                                x-transition:leave-start="opacity-100 scale-100 transform"
+                                x-transition:leave-end="opacity-0 scale-95 transform"
+                                class="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden z-20">
+
+                                <button type="button" @click="$refs.imageInput.click(); uploadMenuOpen = false"
+                                    class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                                    <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>Image</span>
+                                    <span class="ml-auto text-xs text-zinc-400">Vision</span>
+                                </button>
+
+                                <button type="button" @click="$refs.fileInput.click(); uploadMenuOpen = false"
+                                    class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-t border-zinc-100 dark:border-zinc-700/50">
+                                    <svg class="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span>Fichier texte</span>
+                                </button>
+
+                                <button type="button" @click="$refs.pdfInput.click(); uploadMenuOpen = false"
+                                    class="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-t border-zinc-100 dark:border-zinc-700/50">
+                                    <svg class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span>PDF</span>
+                                    <span class="ml-auto text-xs text-red-500 font-medium">RAG</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Text Input -->
+                        <textarea x-model="input" x-ref="chatInput" rows="1" @input="adjustTextareaHeight($el)"
+                            @keydown="handleKeydown($event)" placeholder="Poser une question..."
+                            class="flex-1 bg-transparent border-0 px-2 py-3 focus:outline-none focus:ring-0 resize-none max-h-48 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 scrollbar-hide text-base"
+                            :disabled="!currentModel" autofocus></textarea>
+
+                        <!-- Right Actions -->
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <!-- Web Search -->
+                            <button x-show="webSearchAvailable" type="button"
+                                @click="webSearchEnabled = !webSearchEnabled" class="p-2 rounded-xl transition-colors"
+                                :class="webSearchEnabled ? 'text-green-500 bg-green-100 dark:bg-green-900/30' : 'text-zinc-400 hover:text-green-500 hover:bg-zinc-200 dark:hover:bg-zinc-700/50'"
+                                :title="webSearchEnabled ? 'Recherche web activée' : 'Activer la recherche web'">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                                </svg>
+                            </button>
+
+                            <!-- Send Button -->
+                            <button x-show="!loading" type="submit"
+                                class="p-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                                :disabled="(!input.trim() && pendingImages.length === 0 && pendingFiles.length === 0) || !currentModel">
+                                <svg class="w-5 h-5 transform rotate-0" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                </svg>
+                            </button>
+
+                            <!-- Stop Button -->
+                            <button x-show="loading" type="button" @click="stopGeneration()"
+                                class="p-2 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors shadow-sm"
+                                title="Arrêter">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            <div class="text-center mt-2 h-4">
+                <p x-show="!currentModel" class="text-xs text-orange-500"
+                    x-text="t('chat.welcome.selectModelRequired', 'Please select a model to start chat')"></p>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Debug Console -->
+    <div x-show="debug"
+        class="fixed bottom-0 left-0 right-0 h-48 bg-black/90 text-green-400 font-mono text-xs p-4 overflow-y-auto z-50 border-t border-green-900 opacity-90">
+        <div class="flex justify-between items-center mb-2 border-b border-green-800 pb-1">
+            <span class="font-bold">DEBUG CONSOLE</span>
+            <button @click="debug=false" class="text-white hover:text-red-400">Close</button>
+        </div>
+        <template x-for="(log, i) in debugLogs" :key="i">
+            <div x-text="log"></div>
+        </template>
+    </div>
+
+    <!-- Chunks Visualization Modal -->
+    <div x-show="showChunksModal" style="display: none;" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title"
+        role="dialog" aria-modal="true">
+
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showChunksModal" @click="showChunksModal = false"
+                class="fixed inset-0 bg-black/50 transition-opacity" aria-hidden="true"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div x-show="showChunksModal" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-zinc-200 dark:border-zinc-800">
+
+                <!-- Header -->
+                <div
+                    class="bg-white dark:bg-zinc-900 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100" id="modal-title">
+                            Chunks: <span x-text="currentDocFilename"></span>
+                        </h3>
+                        <button @click="showChunksModal = false" class="text-zinc-400 hover:text-zinc-500">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Stats -->
+                    <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div class="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
+                            <div class="text-xs text-zinc-500 uppercase">Total Chunks</div>
+                            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100"
+                                x-text="currentDocStats.total_chunks || 0"></div>
+                        </div>
+                        <div class="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
+                            <div class="text-xs text-zinc-500 uppercase">Taille Moy.</div>
+                            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100"
+                                x-text="(currentDocStats.avg_chunk_size || 0) + ' cars'"></div>
+                        </div>
+                        <!-- Placeholder for future stats -->
+                    </div>
+
+                    <!-- Search -->
+                    <div class="mt-4 flex gap-4">
+                        <div class="relative flex-1">
+                            <input type="text" x-model="currentDocSearchQuery" @keydown.enter="searchChunks()"
+                                placeholder="Rechercher dans ce document..."
+                                class="w-full pl-10 pr-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                            <svg class="w-5 h-5 text-zinc-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <button @click="searchChunks()"
+                            class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition-colors">
+                            Rechercher
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Content List -->
+                <div class="bg-white dark:bg-zinc-900 px-4 py-3 sm:px-6 h-[60vh] overflow-y-auto">
+                    <ul class="space-y-3">
+                        <template x-for="chunk in currentDocChunks" :key="chunk.id || chunk.chunk_index">
+                            <li
+                                class="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-100 dark:border-zinc-800/50 hover:border-brand-200 dark:hover:border-brand-800 transition-colors group">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                                Chunk #<span x-text="chunk.chunk_index"></span>
+                                            </span>
+                                            <span x-show="chunk.score"
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                                                Score: <span x-text="(chunk.score * 100).toFixed(1) + '%'"></span>
+                                            </span>
+                                            <span class="text-xs text-zinc-400"
+                                                x-text="(chunk.size || chunk.content.length) + ' caractères'"></span>
+                                        </div>
+                                        <p class="text-sm text-zinc-700 dark:text-zinc-300 font-mono whitespace-pre-wrap break-words bg-white dark:bg-zinc-900 p-2 rounded border border-zinc-200 dark:border-zinc-800"
+                                            x-text="chunk.content"></p>
+                                    </div>
+                                    <button x-show="chunk.id" @click="deleteChunk(chunk.id)"
+                                        class="text-zinc-400 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                        title="Supprimer ce chunk">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </li>
+                        </template>
+                        <li x-show="currentDocChunks.length === 0" class="text-center py-8 text-zinc-500">
+                            Aucun chunk trouvé.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- marked.js for markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- chatApp component is registered in base.html -->
+{% endblock %}

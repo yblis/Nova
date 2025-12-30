@@ -1,0 +1,88 @@
+{% extends 'texts/base.html' %}
+
+{% block tool_input %}
+<div class="flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            x-text="t('assistant.prompt.inputLabel', 'Description du prompt')">Description du prompt</label>
+        <div class="flex items-center gap-1">
+            <button @click="pasteFromClipboard()"
+                class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                :title="t('assistant.common.paste', 'Coller')">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </button>
+            <button @click="inputText = ''"
+                class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                :title="t('assistant.common.clear', 'Effacer')">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <textarea x-model="inputText"
+        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+        :placeholder="t('assistant.prompt.inputPlaceholder', 'Décrivez ce que doit faire le prompt...')"></textarea>
+
+    <div class="flex justify-between text-xs text-zinc-400">
+        <span><span x-text="t('assistant.common.chars', 'Caractères')">Caractères</span>: <span
+                x-text="inputText.length"></span></span>
+        <span><span x-text="t('assistant.common.words', 'Mots')">Mots</span>: <span
+                x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+    </div>
+
+    <!-- Tips -->
+    <details class="bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700">
+        <summary
+            class="px-4 py-3 text-sm font-medium text-zinc-700 dark:text-zinc-300 cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors rounded-lg"
+            x-text="t('assistant.prompt.examplesTitle', '💡 Exemples de descriptions')">
+            💡 Exemples de descriptions
+        </summary>
+        <div class="px-4 pb-4 pt-2 space-y-3 text-sm">
+            <div>
+                <div class="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium mb-1">
+                    <span>📝</span> <span x-text="t('assistant.prompt.exCreative', 'Écriture')">Écriture :</span>
+                </div>
+                <p class="text-zinc-500 dark:text-zinc-400 italic" x-text="t('assistant.prompt.exCreativeText')">"Créer
+                    un assistant pour rédiger des articles de blog
+                    sur la technologie"</p>
+            </div>
+            <div>
+                <div class="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium mb-1">
+                    <span>💻</span> <span x-text="t('assistant.prompt.exCoding', 'Code')">Code :</span>
+                </div>
+                <p class="text-zinc-500 dark:text-zinc-400 italic" x-text="t('assistant.prompt.exCodingText')">"Générer
+                    du code Python pour API REST avec gestion
+                    d'erreurs"</p>
+            </div>
+            <div>
+                <div class="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium mb-1">
+                    <span>✍️</span> <span x-text="t('assistant.prompt.exBusiness', 'Rédaction')">Rédaction :</span>
+                </div>
+                <p class="text-zinc-500 dark:text-zinc-400 italic" x-text="t('assistant.prompt.exBusinessText')">
+                    "Rédiger des articles de blog SEO-optimisés sur la
+                    tech"</p>
+            </div>
+        </div>
+    </details>
+
+    <button @click="process" :disabled="processing || !inputText || !currentModel"
+        class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+        <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+        </path>
+        </svg>
+        <span
+            x-text="processing ? t('assistant.prompt.processing', 'Génération...') : t('assistant.prompt.button', 'Générer le prompt')"></span>
+    </button>
+</div>
+{% endblock %}

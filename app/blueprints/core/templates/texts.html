@@ -1,0 +1,9 @@
+{% extends layout_template|default('base.html') %}
+
+{% block title %}Assistant • Ollama Manager{% endblock %}
+
+{% block content %}
+{% include 'partials/texts.html' %}
+<!-- Include marked.js for Markdown rendering -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}

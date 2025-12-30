@@ -1,0 +1,255 @@
+/* ==============================
+   Safari iOS & Mobile Fixes
+   ============================== */
+
+/* Safari iOS height fix - using svh for small viewport height */
+.chat-container {
+    height: 100%;
+}
+
+/* Mobile sidebar fixes */
+.chat-sidebar-mobile {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    z-index: 50;
+}
+
+@media (min-width: 640px) {
+    .chat-sidebar-mobile {
+        position: relative;
+        top: auto;
+        right: auto;
+        bottom: auto;
+    }
+}
+
+/* Safe area for input on iPhone (notch + Safari bar) */
+.chat-input-area {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Fix for iOS bottom bar */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .chat-input-area {
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    }
+}
+
+/* Fix for full-screen chat layout */
+/* Override base.html main container to allow chat to manage its own scrolling */
+main {
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Model dropdown z-index fix */
+.model-dropdown {
+    z-index: 9999 !important;
+}
+
+/* Textarea smooth resize */
+textarea {
+    transition: height 0.1s ease-out;
+    min-height: 48px;
+    /* Approx height of single line input including padding */
+    line-height: 1.5;
+}
+
+/* Hide scrollbar for cleaner look until overflow */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Inline code styling for user messages */
+.inline-code {
+    background-color: rgba(0, 0, 0, 0.15);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    font-size: 0.875em;
+}
+
+/* Dark mode inline code */
+.dark .inline-code {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Inline code in user message bubble (lighter background needed) */
+.bg-blue-600 .inline-code {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* ==============================
+   Welcome Screen Styles
+   ============================== */
+
+/* Welcome screen container */
+.chat-welcome-screen {
+    min-height: 0;
+}
+
+
+
+/* Smooth transitions for welcome/chat mode switching */
+.chat-welcome-screen,
+#chat-container,
+.chat-input-area {
+    transition: opacity 0.2s ease;
+}
+
+/* ==============================
+   Message Bubble Table Fix
+   ============================== */
+
+/* Constrain message content width for table scrolling */
+.message-bubble-content {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+}
+
+/* Chat message bubble - constrain width for mobile */
+.chat-message-bubble {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Desktop - remove the max-width constraint */
+@media (min-width: 641px) {
+    .chat-message-bubble {
+        max-width: none !important;
+    }
+}
+
+/* Mobile: Ensure tables in chat bubbles scroll horizontally */
+@media (max-width: 640px) {
+    .chat-message-bubble {
+        max-width: calc(100vw - 100px) !important;
+    }
+
+    /* Specialists override: wider messages */
+    .specialists-container .chat-message-bubble {
+        max-width: 90% !important;
+    }
+
+    /* Tables inside message bubbles */
+    .markdown-content table {
+        font-size: 0.75rem;
+    }
+
+    .markdown-content table th,
+    .markdown-content table td {
+        padding: 0.375rem 0.5rem;
+        white-space: nowrap;
+    }
+
+    /* Scrollbar styling for message bubbles */
+    .chat-message-bubble::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .chat-message-bubble::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .chat-message-bubble::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 2px;
+    }
+
+    .dark .chat-message-bubble::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+}
+
+/* ==============================
+   Multi-LLM Debate Mode Styles
+   ============================== */
+
+/* Debate mode indicator animation */
+.debate-pulse {
+    animation: debate-pulse 2s ease-in-out infinite;
+}
+
+@keyframes debate-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Debate participant badges */
+.debate-participant-badge {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.debate-participant-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Provider color variants for dynamic classes */
+/* Note: Using inline styles for dynamic colors since Tailwind doesn't support runtime color classes */
+
+/* Loading indicator for debate mode */
+.debate-loading::after {
+    content: '';
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: debate-spin 0.75s linear infinite;
+    margin-left: 0.5em;
+    vertical-align: middle;
+}
+
+@keyframes debate-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Debate message separator */
+.debate-message-border-left {
+    position: relative;
+}
+
+.debate-message-border-left::before {
+    content: '';
+    position: absolute;
+    left: -0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 2px;
+}
+
+/* Sequential mode indicator */
+.debate-sequential-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0;
+    color: var(--zinc-400);
+}
+
+.debate-sequential-arrow::before {
+    content: '↓';
+    font-size: 1.25rem;
+}

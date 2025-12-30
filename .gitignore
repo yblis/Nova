@@ -1,0 +1,29 @@
+.env
+docker-compose.yml
+data/
+logs/
+*.log
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Cache pytest
+.pytest_cache/
+
+# IDE et éditeurs
+.vscode/
+.idea/
+.agent/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
