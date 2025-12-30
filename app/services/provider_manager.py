@@ -133,13 +133,32 @@ class ProviderManager:
         self._ensure_data_file()
     
     def _ensure_data_file(self):
-        """Crée le fichier de données s'il n'existe pas."""
+        """Crée le fichier de données s'il n'existe pas, avec un provider Ollama par défaut."""
         if not os.path.exists(self.data_path):
+            import time
+            
+            # Create a default Ollama provider
+            default_provider_id = str(uuid.uuid4())
+            timestamp = int(time.time())
+            
             default_data = {
-                "active_provider_id": None,
-                "providers": []
+                "active_provider_id": default_provider_id,
+                "providers": [
+                    {
+                        "id": default_provider_id,
+                        "name": "Ollama (localhost)",
+                        "type": "ollama",
+                        "url": "http://localhost:11434",
+                        "api_key_encrypted": "",
+                        "extra_headers": {},
+                        "default_model": "",
+                        "created_at": timestamp,
+                        "updated_at": timestamp
+                    }
+                ]
             }
             self._save_data(default_data)
+            print("Created default Ollama provider (http://localhost:11434)")
     
     def _load_data(self) -> Dict:
         """Charge les données depuis le fichier JSON."""
