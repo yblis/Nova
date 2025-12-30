@@ -69,6 +69,7 @@
 
 ### 🌐 Multi-Provider LLM Support
 - **Ollama** (local)
+- **LM Studio** (local)
 - **OpenAI** (GPT-4, GPT-3.5)
 - **Anthropic** (Claude)
 - **Google** (Gemini)
