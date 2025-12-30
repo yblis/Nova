@@ -14,6 +14,51 @@
 
 ---
 
+## 📸 Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Dashboard</b></td>
+    <td align="center"><b>Chat</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/Dashboard.png" alt="Dashboard" width="400"/></td>
+    <td><img src="images/chat.png" alt="Chat" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Multi-Agent Debate</b></td>
+    <td align="center"><b>Specialist Mode</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/chat-debaters.png" alt="Debate Mode" width="400"/></td>
+    <td><img src="images/specialist.png" alt="Specialist" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Model Management</b></td>
+    <td align="center"><b>Model Editor</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/Models.png" alt="Models" width="400"/></td>
+    <td><img src="images/Edit-LLM.png" alt="Edit LLM" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Discover Models</b></td>
+    <td align="center"><b>RAG Documents</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/Discover.png" alt="Discover" width="400"/></td>
+    <td><img src="images/RAG.png" alt="RAG" width="400"/></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><b>Text Tools</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="images/tools.png" alt="Tools" width="400"/></td>
+  </tr>
+</table>
+
+---
+
 ## ✨ Features
 
 ### 💬 Chat & Conversations
