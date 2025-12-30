@@ -1,4 +1,4 @@
-# 🤖 Nova
+# Nova
 
 > Modern and complete web interface to manage your LLM models via Ollama and other providers
 
