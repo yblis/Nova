@@ -527,7 +527,7 @@ def ensure_local_audio_providers():
     providers = mgr.get_providers(include_api_key_masked=False)
     
     # Check Whisper
-    whisper_url = "http://ollamanager-whisper:8000/v1"
+    whisper_url = "http://nova-whisper:8000/v1"
     has_whisper = any(p["url"] == whisper_url for p in providers if p["type"] == "openai_compatible")
     if not has_whisper:
         try:
@@ -542,7 +542,7 @@ def ensure_local_audio_providers():
             print(f"Failed to add Whisper provider: {e}")
 
     # Check AllTalk
-    alltalk_url = "http://ollamanager-alltalk:7851/v1"
+    alltalk_url = "http://nova-alltalk:7851/v1"
     has_alltalk = any(p["url"] == alltalk_url for p in providers if p["type"] == "openai_compatible")
     if not has_alltalk:
         try:

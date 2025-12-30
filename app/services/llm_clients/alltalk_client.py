@@ -19,7 +19,7 @@ class AllTalkClient:
         Initialise le client AllTalk.
         
         Args:
-            base_url: URL de base du serveur AllTalk (ex: http://ollamanager-alltalk:7851)
+            base_url: URL de base du serveur AllTalk (ex: http://nova-alltalk:7851)
         """
         # Nettoyer l'URL (enlever /v1 si présent car AllTalk n'utilise pas ça)
         self._base_url = base_url.rstrip('/')
