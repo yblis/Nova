@@ -522,28 +522,48 @@ def get_provider_manager() -> ProviderManager:
     return ProviderManager(data_path)
 
 def ensure_local_audio_providers():
-    """Vérifie et ajoute les providers audio locaux si manquants."""
+    """Vérifie et ajoute les providers audio locaux si manquants.
+    
+    Also cleans up old provider URLs that used 'ollamanager-' prefix.
+    """
     mgr = get_provider_manager()
     providers = mgr.get_providers(include_api_key_masked=False)
     
-    # Check Whisper
+    # Old URLs to check for/cleanup
+    old_whisper_url = "http://ollamanager-whisper:8000/v1"
+    old_alltalk_url = "http://ollamanager-alltalk:7851/v1"
+    
+    # New URLs
     whisper_url = "http://nova-whisper:8000/v1"
-    has_whisper = any(p["url"] == whisper_url for p in providers if p["type"] == "openai_compatible")
+    alltalk_url = "http://nova-alltalk:7851/v1"
+    
+    # Check if we have any Whisper provider (old or new)
+    has_whisper = any(
+        p["url"] in [whisper_url, old_whisper_url] 
+        for p in providers 
+        if p["type"] == "openai_compatible" and "(STT)" in p.get("name", "")
+    )
+    
+    # Check if we have any AllTalk provider (old or new)
+    has_alltalk = any(
+        p["url"] in [alltalk_url, old_alltalk_url] 
+        for p in providers 
+        if p["type"] == "openai_compatible" and "(TTS)" in p.get("name", "")
+    )
+    
+    # Only add if completely missing
     if not has_whisper:
         try:
             mgr.add_provider(
                 name="Local Whisper (STT)",
                 provider_type="openai_compatible",
                 url=whisper_url,
-                api_key="sk-dummy" # API key often required by clients even if ignored
+                api_key="sk-dummy"
             )
             print("Added Local Whisper provider")
         except Exception as e:
             print(f"Failed to add Whisper provider: {e}")
 
-    # Check AllTalk
-    alltalk_url = "http://nova-alltalk:7851/v1"
-    has_alltalk = any(p["url"] == alltalk_url for p in providers if p["type"] == "openai_compatible")
     if not has_alltalk:
         try:
             mgr.add_provider(

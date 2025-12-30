@@ -653,7 +653,7 @@
                             </button>
                             <!-- Text-to-Speech Button -->
                             <button @click="toggleSpeech(msg.content, 'msg-' + idx)"
-                                x-show="audioBackendConfig.tts_enabled !== false"
+                                x-show="audioBackendConfig.tts_enabled === true"
                                 class="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
                                 :class="speakingId === 'msg-' + idx ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20 animate-pulse' : ''"
                                 :title="speakingId === 'msg-' + idx ? t('chat.stopSpeech', 'Arrêter la lecture') : t('chat.readResponse', 'Lire la réponse')">
@@ -846,7 +846,7 @@
 
                                 <!-- Microphone Button -->
                                 <button type="button" @click="toggleDictation()"
-                                    x-show="audioBackendConfig.stt_enabled !== false"
+                                    x-show="audioBackendConfig.stt_enabled === true"
                                     class="p-2 rounded-xl transition-all duration-200"
                                     :class="isRecording ? 'text-red-600 bg-red-100 dark:bg-red-900/30 animate-pulse scale-110' : 'text-zinc-400 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-700/50'"
                                     :title="isRecording ? t('chat.input.stopDictation', 'Arrêter la dictée') : t('chat.input.startDictation', 'Dicter (Micro)')">
