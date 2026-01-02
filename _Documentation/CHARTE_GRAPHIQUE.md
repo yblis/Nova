@@ -1,9 +1,9 @@
 # 🎨 Design System - Charte Graphique Universelle
 
-> **Version :** 2.0  
-> **Date :** 29 Décembre 2024  
-> **Type :** Charte graphique réutilisable pour applications web modernes  
-> **Stack recommandée :** Tailwind CSS + Alpine.js (ou React/Vue)
+> **Version :** 2.2
+> **Date :** 01 Janvier 2026
+> **Type :** Charte graphique pour interface "Dual Sidebar"
+> **Stack :** Tailwind CSS + Alpine.js
 
 ---
 
@@ -70,6 +70,7 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
 --brand-700: #185ec4;  /* Hover boutons */
 --brand-800: #144e9f;  /* États pressés */
 --brand-900: #123f7f;  /* Texte accentué foncé */
+
 ```
 
 ### Palettes Alternatives Prêtes à l'Emploi
@@ -94,12 +95,13 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
 --brand-500: #ec4899;
 --brand-600: #db2777;
 --brand-700: #be185d;
+
 ```
 
 ### Couleurs Neutres (Zinc) - Base Universelle
 
 | Token | Hex | Mode Clair | Mode Sombre |
-|-------|-----|------------|-------------|
+| --- | --- | --- | --- |
 | `neutral-50` | `#fafafa` | Fond principal | - |
 | `neutral-100` | `#f4f4f5` | Fond secondaire, cartes | - |
 | `neutral-200` | `#e4e4e7` | Bordures | - |
@@ -114,7 +116,7 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
 ### Couleurs Sémantiques
 
 | État | Light | Dark | Usage |
-|------|-------|------|-------|
+| --- | --- | --- | --- |
 | **Success** | `#22c55e` | `#4ade80` | Confirmations, validation |
 | **Error** | `#dc2626` | `#f87171` | Erreurs, suppression |
 | **Warning** | `#f59e0b` | `#fbbf24` | Avertissements |
@@ -156,16 +158,27 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
   
-  /* Layout */
-  --sidebar-width: 280px;
-  --sidebar-collapsed: 64px;
+  /* Dimensions Verticales */
   --header-height: 64px;
   --content-max-width: 1280px;
+  
+  /* Sidebar Primaire (Navigation Globale) */
+  --sidebar-primary-width: 280px;
+  --sidebar-primary-collapsed: 64px;
+  
+  /* Sidebar Secondaire (Sous-menus contextuels) */
+  --sidebar-secondary-width: 240px;
+  --sidebar-secondary-collapsed: 64px;
+  
+  /* Rétrocompatibilité - alias */
+  --sidebar-width: var(--sidebar-primary-width);
+  --sidebar-collapsed: var(--sidebar-primary-collapsed);
   
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
   --transition-slow: 300ms ease;
+  --transition-layout: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   
   /* Rayons */
   --radius-sm: 0.25rem;
@@ -193,6 +206,7 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
 }
+
 ```
 
 ---
@@ -203,20 +217,22 @@ Pour adapter ce design system à votre marque, modifiez uniquement :
 
 ```css
 font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
 ```
 
 ### Import Google Fonts
 
 ```html
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+<link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+<link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)" rel="stylesheet">
+
 ```
 
 ### Échelle Typographique
 
 | Token | Taille | Line Height | Poids | Usage |
-|-------|--------|-------------|-------|-------|
+| --- | --- | --- | --- | --- |
 | `text-xs` | 0.75rem (12px) | 1rem | 400 | Badges, légendes |
 | `text-sm` | 0.875rem (14px) | 1.25rem | 400 | Labels, metadata |
 | `text-base` | 1rem (16px) | 1.5rem | 400 | Corps de texte |
@@ -229,6 +245,7 @@ font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
 ```css
 font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
+
 ```
 
 ---
@@ -238,7 +255,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 ### Spécifications
 
 | Propriété | Valeur |
-|-----------|--------|
+| --- | --- |
 | **Bibliothèque** | Heroicons, Lucide, ou Phosphor Icons |
 | **Format** | SVG inline |
 | **Stroke width** | 1.5 - 2 |
@@ -252,6 +269,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .icon-md { width: 20px; height: 20px; } /* Défaut */
 .icon-lg { width: 24px; height: 24px; }
 .icon-xl { width: 32px; height: 32px; }
+
 ```
 
 ### Favicon et Assets
@@ -260,6 +278,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="theme-color" content="#18181b">
+
 ```
 
 ---
@@ -269,7 +288,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 ### Système d'Espacement (4px base)
 
 | Token | Valeur | Usage |
-|-------|--------|-------|
+| --- | --- | --- |
 | `space-0.5` | 2px | Micro-ajustements |
 | `space-1` | 4px | Entre icône et texte |
 | `space-2` | 8px | Padding interne compact |
@@ -290,27 +309,59 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .container-lg { max-width: 1024px; }
 .container-xl { max-width: 1280px; }
 .container-2xl { max-width: 1536px; }
+
 ```
 
 ---
 
-## 🏗️ Layouts SPA
+## 🏗️ Layout "Dual Sidebar"
+
+L'architecture repose sur deux panneaux latéraux indépendants mais coordonnés.
 
 ### Structure de Base
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     HEADER (64px)                   │
-├──────────────┬──────────────────────────────────────┤
-│              │                                      │
-│   SIDEBAR    │              MAIN                    │
-│   (280px)    │            CONTENT                   │
-│              │                                      │
-│  [Collapsible│                                      │
-│   sur mobile]│                                      │
-│              │                                      │
-└──────────────┴──────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│                        HEADER (64px)                           │
+├──────────────┬──────────────┬──────────────────────────────────┤
+│              │              │                                  │
+│   SIDEBAR    │   SIDEBAR    │             MAIN                 │
+│   PRIMAIRE   │  SECONDAIRE  │           CONTENT                │
+│   (280px)    │   (240px)    │                                  │
+│              │              │                                  │
+│  [Collapsible│ [Contextuel] │                                  │
+│   64px]      │   [64px]     │                                  │
+│              │              │                                  │
+└──────────────┴──────────────┴──────────────────────────────────┘
+
 ```
+
+### 1. Sidebar Primaire (Niveau 1)
+
+Positionnée à l'extrême gauche (`left: 0`). Contient la navigation principale de l'application.
+
+* **État Ouvert :** Largeur `280px`.
+* **État Réduit :** Largeur `64px`. Affiche uniquement les icônes centrées.
+* **Comportement :** Toujours visible (sauf mobile).
+
+### 2. Sidebar Secondaire (Niveau 2)
+
+Positionnée immédiatement à droite de la sidebar primaire. Contient les sous-menus (ex: Liste des projets, Filtres utilisateurs).
+
+* **Positionnement :** `left: var(--sidebar-primary-width)` (s'ajuste dynamiquement).
+* **État Ouvert :** Largeur `240px`. Affiche liens + textes.
+* **État Réduit :** Largeur `64px`. Affiche uniquement les icônes.
+* **Visibilité :** Masquée par défaut (`transform: translateX(-100%)`). Apparaît au clic sur un item parent.
+* **Header interne :** Contient le titre du contexte actif et le bouton de réduction (`< >`).
+
+### 3. Zone de Contenu Principal (Main)
+
+S'adapte dynamiquement à la somme des largeurs des sidebars visibles.
+
+**Formule de calcul de la marge gauche :**
+`Marge = Largeur_Primaire + (Si_Secondaire_Visible ? Largeur_Secondaire : 0)`
+
+---
 
 ### Header Fixe
 
@@ -329,57 +380,220 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   padding: 0 1rem;
   backdrop-filter: blur(8px);
   background: rgba(255, 255, 255, 0.8);
-}
+}ze
 
 .dark .header {
   background: rgba(24, 24, 27, 0.9);
 }
+
 ```
 
-### Sidebar Collapsible
+---
+
+### Sidebar Primaire (CSS)
+
+**⚠️ RÈGLE CRITIQUE : Alignement en mode réduit**
+Lorsque la sidebar est réduite (`collapsed`), les conteneurs de navigation doivent IMPÉRATIVEMENT modifier leur alignement pour centrer les icônes. Ne jamais conserver le padding gauche d'origine.
 
 ```css
-.sidebar {
+.sidebar-primary {
   position: fixed;
   top: var(--header-height);
   left: 0;
   bottom: 0;
-  width: var(--sidebar-width);
+  width: var(--sidebar-primary-width);
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-default);
   overflow-y: auto;
   overflow-x: hidden;
-  transition: transform var(--transition-normal), width var(--transition-normal);
+  transition: width var(--transition-layout);
   z-index: 30;
 }
 
-/* État collapsed (desktop) */
-.sidebar.collapsed {
-  width: var(--sidebar-collapsed);
+/* État collapsed */
+.sidebar-primary.collapsed {
+  width: var(--sidebar-primary-collapsed);
 }
 
-.sidebar.collapsed .sidebar-label {
+/* Gestion du centrage des icônes */
+.sidebar-primary.collapsed .nav-item {
+  justify-content: center; /* OBLIGATOIRE */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.sidebar-primary.collapsed .sidebar-label {
   opacity: 0;
   width: 0;
+  display: none;
 }
 
-/* Mobile: off-canvas */
+```
+
+---
+
+### Sidebar Secondaire (CSS)
+
+```css
+.sidebar-secondary {
+  position: fixed;
+  top: var(--header-height);
+  left: var(--sidebar-primary-width);
+  bottom: 0;
+  width: var(--sidebar-secondary-width);
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border-default);
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: left var(--transition-layout), 
+              width var(--transition-layout), 
+              transform var(--transition-layout);
+  z-index: 25;
+  transform: translateX(-100%); /* Masquée par défaut */
+}
+
+/* Visible */
+.sidebar-secondary.visible {
+  transform: translateX(0);
+}
+
+/* Ajustement si primaire collapsed */
+.sidebar-primary.collapsed ~ .sidebar-secondary {
+  left: var(--sidebar-primary-collapsed);
+}
+
+/* État collapsed */
+.sidebar-secondary.collapsed {
+  width: var(--sidebar-secondary-collapsed);
+}
+
+.sidebar-secondary.collapsed .nav-item {
+  justify-content: center;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.sidebar-secondary.collapsed .sidebar-label {
+  opacity: 0;
+  width: 0;
+  display: none;
+}
+
+/* Header interne de la sidebar secondaire */
+.sidebar-secondary-header {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--border-default);
+  font-weight: 600;
+}
+
+.sidebar-secondary.collapsed .sidebar-secondary-header {
+  justify-content: center;
+  padding: 0 0.5rem;
+}
+
+```
+
+---
+
+### 🧭 Comportements de Navigation & Rétractation
+
+#### Logique de réduction (Collapse)
+
+Pour **les deux sidebars**, la logique de réduction est identique :
+
+1. **Header :** Le bouton de bascule (`toggle`) se trouve :
+   * Sidebar Primaire : Dans le Header global.
+   * Sidebar Secondaire : Dans le Header interne de la sidebar (top 64px).
+
+2. **Alignement :**
+   * *Mode étendu :* `justify-content: flex-start`, padding standard.
+   * *Mode réduit :* `justify-content: center`, padding horizontal réduit.
+
+3. **Masquage textuel :** Les labels (`span`) sont masqués via `display: none` ou `opacity: 0`.
+
+#### Interaction Inter-Sidebars
+
+1. **Ouverture contextuelle :** Cliquer sur un item de la sidebar primaire (ex: "Projets") ouvre la sidebar secondaire.
+2. **Persistance d'état :** Si la sidebar primaire est réduite, la sidebar secondaire se positionne à `64px` du bord gauche.
+3. **Fermeture automatique :** Si l'utilisateur réduit la sidebar primaire, la sidebar secondaire peut soit se fermer, soit se réaligner (au choix de l'implémentation, par défaut : réalignement).
+
+---
+
+### Main Content (Dual Sidebar)
+
+```css
+.main-content {
+  margin-left: var(--sidebar-primary-width);
+  margin-top: var(--header-height);
+  min-height: calc(100vh - var(--header-height));
+  padding: 1.5rem;
+  transition: margin-left var(--transition-layout);
+}
+
+/* Sidebar primaire collapsed */
+.sidebar-primary.collapsed ~ .main-content {
+  margin-left: var(--sidebar-primary-collapsed);
+}
+
+/* Sidebar secondaire visible */
+.sidebar-secondary.visible ~ .main-content {
+  margin-left: calc(var(--sidebar-primary-width) + var(--sidebar-secondary-width));
+}
+
+/* Primaire collapsed + Secondaire visible */
+.sidebar-primary.collapsed ~ .sidebar-secondary.visible ~ .main-content {
+  margin-left: calc(var(--sidebar-primary-collapsed) + var(--sidebar-secondary-width));
+}
+
+/* Secondaire collapsed */
+.sidebar-secondary.visible.collapsed ~ .main-content {
+  margin-left: calc(var(--sidebar-primary-width) + var(--sidebar-secondary-collapsed));
+}
+
+/* Primaire collapsed + Secondaire visible et collapsed */
+.sidebar-primary.collapsed ~ .sidebar-secondary.visible.collapsed ~ .main-content {
+  margin-left: calc(var(--sidebar-primary-collapsed) + var(--sidebar-secondary-collapsed));
+}
+
+```
+
+---
+
+### 📱 Adaptation Mobile
+
+Sur les écrans `< 768px` :
+
+1. **Sidebar Primaire :** Devient un menu "Off-canvas" (par-dessus le contenu), largeur 100% ou max 320px.
+2. **Sidebar Secondaire :** Remplace le contenu de la sidebar primaire ou s'affiche en plein écran par-dessus.
+3. **Overlay :** Un fond noir semi-transparent (`bg-black/50`) couvre le contenu principal lors de l'ouverture.
+
+```css
 @media (max-width: 768px) {
-  .sidebar {
+  .sidebar-primary {
     transform: translateX(-100%);
     width: 100%;
     max-width: 320px;
   }
   
-  .sidebar.open {
+  .sidebar-primary.open {
     transform: translateX(0);
+  }
+  
+  .sidebar-secondary {
+    left: 0;
+    width: 100%;
+    max-width: 320px;
   }
   
   .sidebar-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 25;
+    z-index: 20;
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--transition-normal);
@@ -389,30 +603,53 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
     opacity: 1;
     pointer-events: auto;
   }
-}
-```
-
-### Main Content
-
-```css
-.main-content {
-  margin-left: var(--sidebar-width);
-  margin-top: var(--header-height);
-  min-height: calc(100vh - var(--header-height));
-  padding: 1.5rem;
-  transition: margin-left var(--transition-normal);
-}
-
-.sidebar.collapsed ~ .main-content {
-  margin-left: var(--sidebar-collapsed);
-}
-
-@media (max-width: 768px) {
+  
   .main-content {
     margin-left: 0;
   }
 }
+
 ```
+
+---
+
+### 🧩 Structure HTML Type
+
+```html
+<body>
+  <!-- Header Fixe -->
+  <header class="header h-[64px] ...">
+    <!-- Logo, toggle sidebar primaire, etc. -->
+  </header>
+
+  <div class="flex pt-[64px]">
+    
+    <!-- Sidebar Primaire -->
+    <aside class="sidebar-primary fixed left-0 w-[280px] ...">
+       <!-- Nav Items -->
+    </aside>
+
+    <!-- Sidebar Secondaire -->
+    <aside class="sidebar-secondary fixed left-[280px] w-[240px] ...">
+       <!-- Header de réduction interne -->
+       <div class="sidebar-secondary-header h-[64px] flex justify-between ...">
+          <span x-show="!collapsed">Titre Menu</span>
+          <button>Collapse Icon</button>
+       </div>
+       <!-- Sub-Nav Items -->
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content ml-[280px] ...">
+       <!-- Contenu -->
+    </main>
+
+  </div>
+</body>
+
+```
+
+---
 
 ### Layout Chat/Messages
 
@@ -434,6 +671,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   padding: 1rem;
   background: var(--bg-elevated);
 }
+
 ```
 
 ### Layout Split/Panneaux
@@ -465,6 +703,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .split-resizer:hover {
   background: var(--color-brand);
 }
+
 ```
 
 ---
@@ -534,6 +773,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   height: 2.5rem;
   padding: 0;
 }
+
 ```
 
 ### Cartes
@@ -574,6 +814,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
+
 ```
 
 ### Modales
@@ -632,6 +873,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   justify-content: flex-end;
   gap: 0.75rem;
 }
+
 ```
 
 ### Badges et Tags
@@ -656,6 +898,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .dark .badge-success { background: #166534; color: #dcfce7; }
 .dark .badge-warning { background: #92400e; color: #fef3c7; }
 .dark .badge-error { background: #991b1b; color: #fee2e2; }
+
 ```
 
 ### Avatars
@@ -697,6 +940,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .avatar-group .avatar:first-child {
   margin-left: 0;
 }
+
 ```
 
 ### Dropdowns
@@ -750,6 +994,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   background: var(--border-default);
   margin: 0.5rem 0;
 }
+
 ```
 
 ---
@@ -757,6 +1002,9 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 ## 🧭 Navigation et Menus
 
 ### Navigation Sidebar
+
+**⚠️ NOTE IMPORTANTE : Centrage en mode réduit**
+Pour éviter un décalage visuel, assurez-vous que le conteneur du lien passe en `justify-content: center` lorsque la sidebar est réduite.
 
 ```css
 .nav-section {
@@ -784,6 +1032,13 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   transition: all var(--transition-fast);
 }
 
+/* Surcharge critique pour le mode réduit */
+.sidebar.collapsed .nav-item {
+  justify-content: center; /* Obligatoire */
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
 .nav-item:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
@@ -807,6 +1062,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   background: var(--bg-primary);
   border-radius: var(--radius-full);
 }
+
 ```
 
 ### Tabs
@@ -857,6 +1113,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   background: var(--bg-elevated);
   box-shadow: var(--shadow-sm);
 }
+
 ```
 
 ### Breadcrumbs
@@ -881,6 +1138,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .breadcrumb-separator {
   color: var(--text-tertiary);
 }
+
 ```
 
 ---
@@ -953,6 +1211,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   font-size: 0.75rem;
   color: #dc2626;
 }
+
 ```
 
 ### Textarea
@@ -970,6 +1229,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   overflow: hidden;
   transition: height 0.1s ease;
 }
+
 ```
 
 ### Select
@@ -983,6 +1243,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   background-size: 1rem;
   padding-right: 2.5rem;
 }
+
 ```
 
 ### Checkbox et Radio
@@ -1026,6 +1287,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   border-radius: var(--radius-full);
   margin: 0.125rem;
 }
+
 ```
 
 ### Toggle/Switch
@@ -1061,6 +1323,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .toggle.active::after {
   transform: translateX(1.25rem);
 }
+
 ```
 
 ---
@@ -1109,6 +1372,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .toast-error { border-left: 4px solid #dc2626; }
 .toast-warning { border-left: 4px solid #f59e0b; }
 .toast-info { border-left: 4px solid #3b82f6; }
+
 ```
 
 ### Loading States
@@ -1156,6 +1420,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   height: 2.5rem;
   border-radius: var(--radius-full);
 }
+
 ```
 
 ### Tooltips
@@ -1188,6 +1453,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   visibility: visible;
   transform: translateX(-50%) translateY(-8px);
 }
+
 ```
 
 ### Empty States
@@ -1221,6 +1487,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   max-width: 24rem;
   margin-bottom: 1.5rem;
 }
+
 ```
 
 ---
@@ -1244,6 +1511,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
     transform var(--transition-fast),
     box-shadow var(--transition-fast);
 }
+
 ```
 
 ### Animations Réutilisables
@@ -1300,6 +1568,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
   25% { transform: translateX(-5px); }
   75% { transform: translateX(5px); }
 }
+
 ```
 
 ### Classes Utilitaires
@@ -1311,6 +1580,7 @@ font-family: 'Fira Code', 'SF Mono', 'Monaco', 'Consolas', monospace;
 .animate-pulse { animation: pulse 2s infinite; }
 .animate-bounce { animation: bounce 1s infinite; }
 .animate-spin { animation: spin 1s linear infinite; }
+
 ```
 
 ---
@@ -1343,6 +1613,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
       document.documentElement.classList.toggle('dark', e.matches);
     }
   });
+
 ```
 
 ### Meta Tags
@@ -1351,6 +1622,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+
 ```
 
 ---
@@ -1375,6 +1647,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
 .dark *:focus-visible {
   outline-color: var(--brand-400);
 }
+
 ```
 
 ### Screen Readers
@@ -1403,6 +1676,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
   clip: auto;
   white-space: normal;
 }
+
 ```
 
 ### Réduction de Mouvement
@@ -1417,6 +1691,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
     transition-duration: 0.01ms !important;
   }
 }
+
 ```
 
 ---
@@ -1426,7 +1701,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
 ### Breakpoints
 
 | Token | Min-width | Usage |
-|-------|-----------|-------|
+| --- | --- | --- |
 | `sm` | 640px | Téléphones paysage |
 | `md` | 768px | Tablettes |
 | `lg` | 1024px | Desktop |
@@ -1446,6 +1721,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
 .header-safe {
   padding-top: calc(1rem + env(safe-area-inset-top));
 }
+
 ```
 
 ### Dynamic Viewport Height
@@ -1461,6 +1737,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
   min-height: 100vh;
   min-height: 100dvh;
 }
+
 ```
 
 ### Touch Optimizations
@@ -1482,6 +1759,7 @@ window.matchMedia('(prefers-color-scheme: dark)')
   min-width: 44px;
   min-height: 44px;
 }
+
 ```
 
 ---
@@ -1506,9 +1784,9 @@ window.matchMedia('(prefers-color-scheme: dark)')
   <link rel="manifest" href="/manifest.json">
   
   <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+  <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+  <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap)" rel="stylesheet">
   
   <!-- Dark mode early detection -->
   <script>
@@ -1538,10 +1816,11 @@ window.matchMedia('(prefers-color-scheme: dark)')
   </main>
 
   <!-- Scripts -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+  <script defer src="[https://unpkg.com/alpinejs@3/dist/cdn.min.js](https://unpkg.com/alpinejs@3/dist/cdn.min.js)"></script>
 </body>
 </html>
+
 ```
 
 ### Configuration Tailwind Complète
@@ -1580,6 +1859,7 @@ tailwind.config = {
     }
   }
 };
+
 ```
 
 ---
@@ -1588,7 +1868,7 @@ tailwind.config = {
 
 ```
 styles/
-├── base.css           # Reset, variables, utilitaires globaux
+├── base.css            # Reset, variables, utilitaires globaux
 ├── components/
 │   ├── buttons.css
 │   ├── cards.css
@@ -1605,6 +1885,7 @@ styles/
 └── themes/
     ├── light.css
     └── dark.css
+
 ```
 
 ---
@@ -1613,16 +1894,15 @@ styles/
 
 Pour chaque nouveau composant :
 
-- [ ] Variables CSS utilisées (pas de valeurs hardcodées)
-- [ ] Support mode sombre (`.dark` prefix)
-- [ ] États hover, focus, active, disabled
-- [ ] Transitions fluides
-- [ ] Responsive (mobile-first)
-- [ ] Safe areas iOS si applicable
-- [ ] Accessibilité clavier (focus-visible)
-- [ ] Contrastes WCAG AA
-- [ ] Tests sur Chrome, Firefox, Safari
+* [ ] Variables CSS utilisées (pas de valeurs hardcodées)
+* [ ] Support mode sombre (`.dark` prefix)
+* [ ] États hover, focus, active, disabled
+* [ ] Transitions fluides
+* [ ] Responsive (mobile-first)
+* [ ] **Navigation : Vérification du centrage des icônes en mode réduit**
+* [ ] Safe areas iOS si applicable
+* [ ] Accessibilité clavier (focus-visible)
+* [ ] Contrastes WCAG AA
+* [ ] Tests sur Chrome, Firefox, Safari
 
----
-
-*Design System v2.0 - Mis à jour le 29/12/2024*
+```

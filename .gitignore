@@ -1,5 +1,7 @@
 .env
-docker-compose.yml
+_nova.yml
+_ollama.yml
+_searxng.yml
 data/
 logs/
 *.log

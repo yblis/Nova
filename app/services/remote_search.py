@@ -11,7 +11,7 @@ BASE = "https://ollama.com"
 
 def _get(path: str, params: dict | None = None, timeout: float = 10.0) -> str:
     url = f"{BASE}{path}"
-    headers = {"User-Agent": "OllamaMgr/1.0 (+https://example.local)"}
+    headers = {"User-Agent": "Nova/1.0 (+https://example.local)"}
     with httpx.Client(timeout=timeout, headers=headers) as c:
         r = c.get(url, params=params)
         r.raise_for_status()
