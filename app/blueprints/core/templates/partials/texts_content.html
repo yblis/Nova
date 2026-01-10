@@ -927,8 +927,8 @@
                                 </div>
                                 <!-- Result -->
                                 <div x-show="resultText && !processing">
-                                    <div class="whitespace-pre-wrap text-sm text-zinc-800 dark:text-zinc-200"
-                                        x-text="resultText"></div>
+                                    <div class="markdown-content text-sm text-zinc-800 dark:text-zinc-200"
+                                        x-html="formatResult(resultText)"></div>
                                     <template
                                         x-if="currentTool === 'correction' && synonyms && Object.keys(synonyms).length > 0">
                                         <div class="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">

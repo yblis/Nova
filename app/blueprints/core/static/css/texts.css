@@ -61,17 +61,221 @@ main {
 }
 
 /* Prose overrides for output */
-.prose {
+.texts-output .prose {
     font-size: 0.95rem;
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
-.prose p {
+.texts-output .prose p {
     margin-bottom: 1em;
 }
 
-.prose p:last-child {
+.texts-output .prose p:last-child {
     margin-bottom: 0;
+}
+
+/* Headings */
+.texts-output .prose h1 {
+    font-size: 1.5em;
+    font-weight: 700;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: inherit;
+}
+
+.texts-output .prose h2 {
+    font-size: 1.3em;
+    font-weight: 600;
+    margin-top: 1.3em;
+    margin-bottom: 0.5em;
+    color: inherit;
+}
+
+.texts-output .prose h3 {
+    font-size: 1.15em;
+    font-weight: 600;
+    margin-top: 1.2em;
+    margin-bottom: 0.4em;
+    color: inherit;
+}
+
+.texts-output .prose h4,
+.texts-output .prose h5,
+.texts-output .prose h6 {
+    font-size: 1em;
+    font-weight: 600;
+    margin-top: 1em;
+    margin-bottom: 0.4em;
+    color: inherit;
+}
+
+.texts-output .prose h1:first-child,
+.texts-output .prose h2:first-child,
+.texts-output .prose h3:first-child,
+.texts-output .prose h4:first-child {
+    margin-top: 0;
+}
+
+/* Lists */
+.texts-output .prose ul {
+    list-style-type: disc;
+    padding-left: 1.5em;
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+}
+
+.texts-output .prose ol {
+    list-style-type: decimal;
+    padding-left: 1.5em;
+    margin-top: 0.75em;
+    margin-bottom: 0.75em;
+}
+
+.texts-output .prose li {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+    padding-left: 0.25em;
+}
+
+.texts-output .prose ul ul,
+.texts-output .prose ol ol,
+.texts-output .prose ul ol,
+.texts-output .prose ol ul {
+    margin-top: 0.25em;
+    margin-bottom: 0.25em;
+}
+
+.texts-output .prose li > p {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Blockquotes */
+.texts-output .prose blockquote {
+    border-left: 3px solid var(--color-brand-500, #6366f1);
+    padding-left: 1em;
+    margin: 1em 0;
+    font-style: italic;
+    color: #6b7280;
+}
+
+.dark .texts-output .prose blockquote {
+    color: #9ca3af;
+}
+
+/* Code */
+.texts-output .prose code {
+    background-color: rgba(0, 0, 0, 0.05);
+    padding: 0.15em 0.35em;
+    border-radius: 0.25em;
+    font-size: 0.9em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.dark .texts-output .prose code {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.texts-output .prose pre {
+    background-color: #1f2937;
+    color: #e5e7eb;
+    padding: 1em;
+    border-radius: 0.5em;
+    overflow-x: auto;
+    margin: 1em 0;
+}
+
+.texts-output .prose pre code {
+    background-color: transparent;
+    padding: 0;
+    font-size: 0.875em;
+    color: inherit;
+}
+
+/* Code block wrapper with copy button */
+.texts-output .code-block-wrapper {
+    position: relative;
+}
+
+.texts-output .code-block-wrapper .copy-code-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.25rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 0.25rem;
+    color: #9ca3af;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.texts-output .code-block-wrapper:hover .copy-code-btn {
+    opacity: 1;
+}
+
+.texts-output .code-block-wrapper .copy-code-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+/* Tables */
+.texts-output .prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.texts-output .prose th,
+.texts-output .prose td {
+    border: 1px solid #e5e7eb;
+    padding: 0.5em 0.75em;
+    text-align: left;
+}
+
+.dark .texts-output .prose th,
+.dark .texts-output .prose td {
+    border-color: #374151;
+}
+
+.texts-output .prose th {
+    background-color: #f9fafb;
+    font-weight: 600;
+}
+
+.dark .texts-output .prose th {
+    background-color: #1f2937;
+}
+
+/* Links */
+.texts-output .prose a {
+    color: var(--color-brand-600, #4f46e5);
+    text-decoration: underline;
+}
+
+.texts-output .prose a:hover {
+    color: var(--color-brand-500, #6366f1);
+}
+
+/* Horizontal rules */
+.texts-output .prose hr {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 1.5em 0;
+}
+
+.dark .texts-output .prose hr {
+    border-top-color: #374151;
+}
+
+/* Strong and emphasis */
+.texts-output .prose strong {
+    font-weight: 600;
+}
+
+.texts-output .prose em {
+    font-style: italic;
 }
 
 /* Cursor Wait */

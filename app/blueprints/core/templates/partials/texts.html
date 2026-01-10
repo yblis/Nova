@@ -1193,7 +1193,8 @@
                     </div>
 
                     <!-- Output Content -->
-                    <div class="flex-1 overflow-y-auto p-6 custom-scrollbar relative min-h-[400px] lg:min-h-0">
+                    <div
+                        class="texts-output flex-1 overflow-y-auto p-6 custom-scrollbar relative min-h-[400px] lg:min-h-0">
                         <!-- Empty State -->
                         <div x-show="!resultText && !processing && !resumeLoading && !resumeError && !(currentTool === 'resume' && resumeGeneratedHtml)"
                             class="absolute inset-0 flex flex-col items-center justify-center text-zinc-400 p-8 text-center opacity-60">
@@ -1261,7 +1262,7 @@
 
 
                         <!-- Result -->
-                        <div x-show="resultText" class="prose dark:prose-invert max-w-none">
+                        <div x-show="resultText" class="markdown-content">
                             <div class="text-base leading-relaxed text-zinc-800 dark:text-zinc-200 font-sans"
                                 x-html="formatResult(resultText)"></div>
 
@@ -1428,3 +1429,4 @@
                 x-html="resumeGeneratedHtml"></div>
         </div>
     </div>
+</div>

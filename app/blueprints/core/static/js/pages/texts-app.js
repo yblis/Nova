@@ -831,6 +831,22 @@
         }
     });
 
+    // Fonction pour charger marked.js en arrière-plan (non-bloquant)
+    function loadMarkedJs() {
+        if (typeof marked !== 'undefined') {
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/marked/marked.min.js';
+        script.onload = () => {
+            console.log('[textsApp] marked.js loaded');
+        };
+        script.onerror = () => {
+            console.error('[textsApp] Failed to load marked.js');
+        };
+        document.head.appendChild(script);
+    }
+
     // Fonction d'enregistrement
     function registerComponent() {
         if (typeof Alpine !== 'undefined' && Alpine.data) {
@@ -838,6 +854,9 @@
             console.log('[textsApp] Component registered');
         }
     }
+
+    // Charger marked.js en arrière-plan (non-bloquant)
+    loadMarkedJs();
 
     // Enregistrer immédiatement si Alpine est déjà chargé (cas SPA navigation)
     if (typeof Alpine !== 'undefined' && Alpine.data) {
