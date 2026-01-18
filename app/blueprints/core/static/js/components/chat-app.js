@@ -53,6 +53,7 @@ document.addEventListener('alpine:init', () => {
         },
 
         async init() {
+            const initStart = performance.now();
             this.log("App initializing...");
             // Lire le paramètre model de l'URL (important pour la navigation SPA)
             const urlModel = new URLSearchParams(window.location.search).get('model');
@@ -60,14 +61,23 @@ document.addEventListener('alpine:init', () => {
                 this.currentModel = urlModel;
                 this.log("Model from URL: " + urlModel);
             }
-            await this.loadModels();
-            await this.loadSessions();
+            
+            // Paralléliser les appels d'initialisation pour accélérer le chargement
+            const fetchStart = performance.now();
+            await Promise.all([
+                this.loadModels(),
+                this.loadSessions()
+            ]);
+            this.log(`Init: API calls completed in ${(performance.now() - fetchStart).toFixed(0)}ms`);
+            this.log(`Init: ${this.sessions.length} sessions loaded, ${this.models.length} models loaded`);
+            
+            // Vérification web search en arrière-plan (non bloquant)
             this.checkWebSearchAvailable();
 
             // Load session from URL hash if present
             const hashSessionId = window.location.hash.slice(1);
             if (hashSessionId && this.sessions.some(s => s.id === hashSessionId)) {
-                await this.loadSession(hashSessionId);
+                this.loadSession(hashSessionId); // Non bloquant
             }
 
             // Listen for hash changes (browser back/forward)
@@ -157,11 +167,15 @@ document.addEventListener('alpine:init', () => {
         },
 
         async loadSessions() {
+            const start = performance.now();
             try {
                 const r = await fetch('/api/chat/sessions');
+                const fetchTime = performance.now();
+                this.log(`Sessions fetch took: ${(fetchTime - start).toFixed(0)}ms`);
                 if (r.ok) {
                     const data = await r.json();
                     this.sessions = data.sessions || [];
+                    this.log(`Sessions parsed and assigned: ${this.sessions.length} sessions in ${(performance.now() - start).toFixed(0)}ms`);
                     return true;
                 }
             } catch (e) {
@@ -187,47 +201,55 @@ document.addEventListener('alpine:init', () => {
                 if (r.ok) {
                     const data = await r.json();
                     this.messages = data.messages || [];
-                    const sessionModel = data.model; // Sauvegarder le modèle de la session
+                    const sessionModel = data.model;
                     this.currentModel = sessionModel;
                     this.systemPrompt = data.system_prompt || '';
                     this.modelConfig = data.model_config || { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 };
 
-                    // Résoudre le provider pour ce modèle et le définir comme actif
-                    if (sessionModel) {
-                        try {
-                            const providerResp = await fetch('/api/settings/providers/resolve-model', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ model: sessionModel })
-                            });
-                            if (providerResp.ok) {
-                                const providerData = await providerResp.json();
-                                if (providerData.found && providerData.provider_id) {
-                                    // Changer le provider actif
-                                    await fetch('/api/settings/providers/active', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ provider_id: providerData.provider_id })
-                                    });
-                                    // Recharger les modèles du nouveau provider
-                                    await this.loadModels();
-                                    // Forcer le modèle de la session (peut avoir été écrasé par loadModels)
-                                    this.currentModel = sessionModel;
-                                    this.log(`Provider switched to ${providerData.provider_name} for model ${sessionModel}`);
-                                }
-                            }
-                        } catch (e) {
-                            this.log('Could not resolve provider for model: ' + sessionModel);
-                        }
-                    }
-
+                    // Afficher immédiatement la session (scroll + loading = false)
                     this.scrollToBottom();
+                    this.loading = false;
+
+                    // Charger les documents RAG en parallèle (non bloquant)
                     this.loadRagDocuments(id);
+
+                    // Résoudre le provider en arrière-plan (non bloquant pour l'affichage)
+                    if (sessionModel) {
+                        this._resolveProviderInBackground(sessionModel);
+                    }
                 }
             } catch (e) {
                 this.log("Error loading session: " + e);
-            } finally {
                 this.loading = false;
+            }
+        },
+
+        // Résolution du provider en arrière-plan sans bloquer l'UI
+        async _resolveProviderInBackground(sessionModel) {
+            try {
+                const providerResp = await fetch('/api/settings/providers/resolve-model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: sessionModel })
+                });
+                if (providerResp.ok) {
+                    const providerData = await providerResp.json();
+                    if (providerData.found && providerData.provider_id) {
+                        // Changer le provider actif (fire-and-forget)
+                        fetch('/api/settings/providers/active', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider_id: providerData.provider_id })
+                        });
+                        // Recharger les modèles en arrière-plan
+                        await this.loadModels();
+                        // Restaurer le modèle de la session
+                        this.currentModel = sessionModel;
+                        this.log(`Provider switched to ${providerData.provider_name} for model ${sessionModel}`);
+                    }
+                }
+            } catch (e) {
+                this.log('Could not resolve provider for model: ' + sessionModel);
             }
         },
 

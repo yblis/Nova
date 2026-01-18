@@ -297,7 +297,7 @@ class ChatHistoryService:
             return []
         finally:
             cur.close()
-            conn.close()
+            release_db_connection(conn)
     
     def get_session(self, session_id: str) -> Optional[Dict]:
         """Récupère une session complète avec ses messages."""
@@ -363,7 +363,7 @@ class ChatHistoryService:
             return None
         finally:
             cur.close()
-            conn.close()
+            release_db_connection(conn)
     
     def create_session(self, model: str, title: str = "New Chat") -> str:
         """Crée une nouvelle session et retourne son ID."""

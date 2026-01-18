@@ -123,6 +123,7 @@
 
                 log(msg) { this.debugLogs.push(`[${new Date().toISOString().split('T')[1].split('.')[0]}] ${msg}`); console.log(`[ChatDebug] ${msg}`); },
                 async init() {
+                    const initStart = performance.now();
                     this.log("App initializing...");
                     // Lire le paramètre model de l'URL (important pour la navigation SPA)
                     const urlModel = new URLSearchParams(window.location.search).get('model');
@@ -135,14 +136,20 @@
                         await this.resolveProviderForModel(urlModel);
                     }
 
-                    await this.loadModels();
-                    await this.loadSessions();
+                    // Paralléliser les appels d'initialisation pour accélérer le chargement
+                    await Promise.all([
+                        this.loadModels(),
+                        this.loadSessions()
+                    ]);
+                    this.log(`Init: API calls completed in ${(performance.now() - initStart).toFixed(0)}ms, ${this.sessions.length} sessions`);
+                    
+                    // Non-bloquant
                     this.checkWebSearchAvailable();
 
-                    // Load session from URL hash if present
+                    // Load session from URL hash if present (non-bloquant)
                     const hashSessionId = window.location.hash.slice(1);
                     if (hashSessionId && this.sessions.some(s => s.id === hashSessionId)) {
-                        await this.loadSession(hashSessionId);
+                        this.loadSession(hashSessionId); // Ne pas bloquer avec await
                     }
 
                     // Listen for hash changes (browser back/forward)

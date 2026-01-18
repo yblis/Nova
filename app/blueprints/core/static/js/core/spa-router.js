@@ -24,6 +24,9 @@ const SpaRouter = {
     contentContainer: null,
     isNavigating: false,
     componentInstances: new WeakMap(),
+    
+    // Cache des scripts externes déjà chargés (évite les rechargements)
+    loadedScripts: new Set(),
 
     /**
      * Initialise le routeur
@@ -340,29 +343,46 @@ const SpaRouter = {
         const scriptPromises = [];
 
         for (const oldScript of scripts) {
-            const newScript = document.createElement('script');
-
-            // Copier les attributs
-            Array.from(oldScript.attributes).forEach(attr => {
-                newScript.setAttribute(attr.name, attr.value);
-            });
-
             if (oldScript.src) {
-                // Script externe - charger de façon asynchrone
+                // Script externe - vérifier le cache
+                const scriptSrc = oldScript.src;
+                
+                if (this.loadedScripts.has(scriptSrc)) {
+                    // Script déjà chargé, on le supprime simplement du DOM
+                    console.log('[SpaRouter] Script already cached, skipping:', scriptSrc);
+                    oldScript.remove();
+                    continue;
+                }
+                
+                // Marquer comme chargé avant de commencer
+                this.loadedScripts.add(scriptSrc);
+                
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
+                
                 const promise = new Promise((resolve, reject) => {
                     newScript.onload = () => {
-                        console.log('[SpaRouter] External script loaded:', oldScript.src);
+                        console.log('[SpaRouter] External script loaded:', scriptSrc);
                         resolve();
                     };
-                    newScript.onerror = reject;
+                    newScript.onerror = () => {
+                        // Retirer du cache en cas d'erreur pour réessayer
+                        this.loadedScripts.delete(scriptSrc);
+                        reject(new Error(`Failed to load: ${scriptSrc}`));
+                    };
                 });
                 oldScript.parentNode.replaceChild(newScript, oldScript);
                 scriptPromises.push(promise);
             } else {
                 // Script inline - exécuter directement
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => {
+                    newScript.setAttribute(attr.name, attr.value);
+                });
                 newScript.textContent = oldScript.textContent;
                 oldScript.parentNode.replaceChild(newScript, oldScript);
-                console.log('[SpaRouter] Inline script executed');
             }
         }
 
