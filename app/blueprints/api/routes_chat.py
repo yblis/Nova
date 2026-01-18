@@ -726,12 +726,13 @@ def generate_chat():
     web_sources = []
     if web_search and message:
         try:
-            from ...services.web_search_service import search_web, format_search_context, get_searxng_url
+            from ...services.web_search_service import search_web, format_search_context, get_searxng_url, get_config
             if get_searxng_url():
-                results = search_web(message, max_results=5)
+                web_search_config = get_config()
+                results = search_web(message, max_results=web_search_config.get("max_results", 5))
                 if results:
                     web_context = format_search_context(results)
-                    web_sources = [{"title": r.title, "url": r.url} for r in results]
+                    web_sources = [{"title": r.title, "url": r.url, "snippet": r.snippet} for r in results]
         except Exception as e:
             current_app.logger.warning(f"Web search failed: {e}")
     
@@ -835,7 +836,12 @@ def generate_chat():
             assistant_content = "".join(full_response)
             assistant_thinking = "".join(full_thinking) if full_thinking else None
             
-            svc.add_message(session_id, "assistant", assistant_content, thinking=assistant_thinking)
+            # Include web sources in extra_data if available
+            extra_data = None
+            if web_sources:
+                extra_data = {"web_sources": web_sources}
+            
+            svc.add_message(session_id, "assistant", assistant_content, thinking=assistant_thinking, extra_data=extra_data)
             
             # Générer le titre si c'est le premier échange et que l'option est activée
             try:

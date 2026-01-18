@@ -328,14 +328,15 @@
                         if (r.ok) {
                             const data = await r.json();
                             const sessionModel = data.model; // Sauvegarder le modèle de la session
-                            // Map messages et extraire participant info de extra_data
+                            // Map messages et extraire participant info et web_sources de extra_data
                             this.messages = (data.messages || []).map(m => {
                                 const extra = m.extra_data || {};
                                 return {
                                     ...m,
                                     participant_id: extra.participant_id || m.participant_id,
                                     participant_name: extra.participant_name || m.participant_name,
-                                    color: extra.participant_color || m.color
+                                    color: extra.participant_color || m.color,
+                                    web_sources: extra.web_sources || m.web_sources
                                 };
                             });
                             this.currentModel = sessionModel;
@@ -2621,6 +2622,66 @@
                     });
             });
         }
+    </script>
+    <script>
+        // Global Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Check for meta key (Mac) or ctrl key (Windows/Linux)
+            const isMod = e.metaKey || e.ctrlKey;
+            if (!isMod) return;
+
+            // Don't trigger shortcuts when typing in inputs/textareas (except for specific ones)
+            const target = e.target;
+            const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+            
+            switch (e.key.toLowerCase()) {
+                case 'n':
+                    // New Chat (⌘/Ctrl+N)
+                    e.preventDefault();
+                    if (window.location.pathname === '/chat') {
+                        // If already on chat page, trigger newChat
+                        const chatEl = document.querySelector('[x-data="chatApp"]');
+                        if (chatEl && chatEl._x_dataStack && chatEl._x_dataStack[0]?.newChat) {
+                            chatEl._x_dataStack[0].newChat();
+                        }
+                    } else {
+                        // Navigate to chat page
+                        window.location.href = '/chat';
+                    }
+                    break;
+
+                case 'k':
+                    // Focus Search (⌘/Ctrl+K)
+                    e.preventDefault();
+                    // Find any search input on the page
+                    const searchInputs = document.querySelectorAll('input[type="text"][placeholder*="echerche"], input[type="search"], input[x-model*="Search"]');
+                    if (searchInputs.length > 0) {
+                        searchInputs[0].focus();
+                        searchInputs[0].select();
+                    }
+                    break;
+
+                case ',':
+                    // Settings (⌘/Ctrl+,)
+                    if (!isInput) {
+                        e.preventDefault();
+                        window.location.href = '/settings';
+                    }
+                    break;
+
+                case 'b':
+                    // Toggle Sidebar (⌘/Ctrl+B)
+                    if (!isInput) {
+                        e.preventDefault();
+                        // Dispatch event for sidebar toggle
+                        const uiEl = document.querySelector('[x-data="uiState()"]');
+                        if (uiEl && uiEl._x_dataStack && uiEl._x_dataStack[0]?.toggleSidebar) {
+                            uiEl._x_dataStack[0].toggleSidebar();
+                        }
+                    }
+                    break;
+            }
+        });
     </script>
     <!-- SPA Router -->
     <script src="{{ url_for('core.static', filename='js/pages/texts-app.js') }}"></script>
