@@ -521,8 +521,30 @@ def get_ocr_models():
 @api_chat_bp.route("/rag/config", methods=["GET"])
 def get_rag_config():
     """Get RAG configuration including OCR and Qdrant settings"""
-    from ...services.embedding_service import get_embedding_model, list_embedding_models
+    from ...services.embedding_service import get_embedding_model, get_embedding_provider_id, list_embedding_models
     from ...services.rag_config_service import get_rag_settings
+    from ...services.provider_manager import get_provider_manager
+    
+    # Get configured providers for embedding selection
+    configured_providers = []
+    try:
+        mgr = get_provider_manager()
+        providers = mgr.get_providers(include_api_key_masked=False)
+        for p in providers:
+            # Include providers that support embeddings
+            provider_type = p.get("type", "")
+            if provider_type in ("ollama", "openai", "openai_compatible", "cohere", "huggingface", "groq", "mistral", "deepseek", "cerebras"):
+                configured_providers.append({
+                    "id": p["id"],
+                    "name": p["name"],
+                    "type": provider_type
+                })
+    except Exception as e:
+        current_app.logger.warning(f"Could not list providers: {e}")
+    
+    # Get embedding provider and models
+    embedding_provider_id = get_embedding_provider_id()
+    available_models = list_embedding_models(embedding_provider_id)
     
     # Get OCR providers availability
     ocr_providers = []
@@ -548,7 +570,9 @@ def get_rag_config():
     
     return jsonify({
         "embedding_model": get_embedding_model(),
-        "available_models": list_embedding_models(),
+        "embedding_provider_id": embedding_provider_id,
+        "embedding_providers": configured_providers,
+        "available_models": available_models,
         "chunk_size": settings.get("chunk_size", current_app.config.get("RAG_CHUNK_SIZE", 500)),
         "chunk_overlap": settings.get("chunk_overlap", current_app.config.get("RAG_CHUNK_OVERLAP", 50)),
         "top_k": settings.get("top_k", current_app.config.get("RAG_TOP_K", 5)),
@@ -567,15 +591,22 @@ def get_rag_config():
 @api_chat_bp.route("/rag/config", methods=["POST"])
 def set_rag_config():
     """Set RAG configuration (embedding, OCR, Qdrant)"""
-    from ...services.embedding_service import set_embedding_model
+    from ...services.embedding_service import set_embedding_model, set_embedding_provider_id
     from ...services.rag_config_service import save_rag_settings
     
     data = request.json or {}
     
+    # Save embedding provider if provided
+    embedding_provider_id = data.get("embedding_provider_id")
+    if embedding_provider_id is not None:
+        if not set_embedding_provider_id(embedding_provider_id):
+            return jsonify({"error": "Failed to save embedding provider. Check Redis connection."}), 500
+    
     # Save embedding model if provided
     embedding_model = data.get("embedding_model")
     if embedding_model:
-        set_embedding_model(embedding_model)
+        if not set_embedding_model(embedding_model):
+            return jsonify({"error": "Failed to save embedding model. Check Redis connection."}), 500
     
     # Save other settings
     settings = {
@@ -588,9 +619,21 @@ def set_rag_config():
         "use_qdrant": data.get("use_qdrant", True)
     }
     
-    save_rag_settings(settings)
+    if not save_rag_settings(settings):
+        return jsonify({"error": "Failed to save RAG settings. Check Redis connection."}), 500
     
     return jsonify({"status": "updated"})
+
+
+@api_chat_bp.route("/rag/embedding-models", methods=["GET"])
+def get_embedding_models():
+    """Get embedding models for a specific provider"""
+    from ...services.embedding_service import list_embedding_models
+    
+    provider_id = request.args.get("provider_id")
+    models = list_embedding_models(provider_id)
+    
+    return jsonify({"models": models})
 
 
 @api_chat_bp.route("/chat/generate", methods=["POST"])

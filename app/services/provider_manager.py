@@ -107,6 +107,33 @@ PROVIDER_TYPES = {
         "icon": "cloud",
         "description": "API DashScope (Qwen-Max, Qwen-Plus, etc.)"
     },
+    "cerebras": {
+        "name": "Cerebras",
+        "requires_api_key": True,
+        "requires_url": False,
+        "default_url": "https://api.cerebras.ai/v1",
+        "color": "violet",
+        "icon": "cpu-chip",
+        "description": "API Cerebras ultra-rapide (Llama 3.3 70B, etc.)"
+    },
+    "huggingface": {
+        "name": "Hugging Face",
+        "requires_api_key": True,
+        "requires_url": False,
+        "default_url": "https://api-inference.huggingface.co/v1",
+        "color": "yellow",
+        "icon": "face-smile",
+        "description": "Hugging Face Inference API (Mistral, Llama, etc.)"
+    },
+    "cohere": {
+        "name": "Cohere",
+        "requires_api_key": True,
+        "requires_url": False,
+        "default_url": "https://api.cohere.ai",
+        "color": "lime",
+        "icon": "sparkles",
+        "description": "API Cohere (Command R+, Embed, etc.)"
+    },
     "openai_compatible": {
         "name": "OpenAI Compatible",
         "requires_api_key": False,

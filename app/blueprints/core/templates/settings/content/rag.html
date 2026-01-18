@@ -28,23 +28,48 @@
                         d'Embedding
                     </h3>
                     <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                        Sélectionnez le modèle utilisé pour générer les embeddings des documents.
-                        <span class="text-red-500">Doit être un modèle de type "embedding" (ex:
-                            nomic-embed-text).</span>
+                        Sélectionnez le fournisseur et le modèle utilisés pour générer les embeddings des documents.
                     </p>
 
+                    <!-- Provider Selection -->
                     <div class="mb-4">
-                        <select x-model="ragConfig.embedding_model"
+                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                            Fournisseur d'embedding
+                        </label>
+                        <select x-model="ragConfig.embedding_provider_id"
+                            @change="loadEmbeddingModels(ragConfig.embedding_provider_id)"
                             class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
-                            <option value="">-- Sélectionner un modèle --</option>
-                            <template x-for="model in ragConfig.available_models" :key="model.name">
-                                <option :value="model.name" x-text="model.name + ' (' + model.dimensions + ' dims)'">
+                            <option value="">Ollama (local par défaut)</option>
+                            <template x-for="provider in ragConfig.embedding_providers" :key="provider.id">
+                                <option :value="provider.id" x-text="provider.name + ' (' + provider.type + ')'">
                                 </option>
                             </template>
                         </select>
                     </div>
 
-                    <div x-show="ragConfig.available_models.length === 0"
+                    <!-- Model Selection -->
+                    <div class="mb-4">
+                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                            Modèle d'embedding
+                        </label>
+                        <template x-if="ragConfig.available_models.length > 0">
+                            <select x-model="ragConfig.embedding_model"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                                <option value="">-- Sélectionner un modèle --</option>
+                                <template x-for="model in ragConfig.available_models" :key="model.name">
+                                    <option :value="model.name" x-text="model.name + ' (' + model.dimensions + ' dims)'">
+                                    </option>
+                                </template>
+                            </select>
+                        </template>
+                        <template x-if="ragConfig.available_models.length === 0">
+                            <input type="text" x-model="ragConfig.embedding_model"
+                                placeholder="Entrez le nom du modèle (ex: text-embedding-3-small)"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500">
+                        </template>
+                    </div>
+
+                    <div x-show="!ragConfig.embedding_provider_id && ragConfig.available_models.length === 0"
                         class="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-700 dark:text-amber-300">
                         <strong>Aucun modèle d'embedding détecté.</strong><br>
                         Vous devez d'abord télécharger un modèle d'embedding via la page
@@ -57,6 +82,9 @@
 
                     <div x-show="ragConfig.embedding_model" class="mt-2 text-sm text-green-600 dark:text-green-400">
                         ✓ Modèle configuré : <span x-text="ragConfig.embedding_model" class="font-mono"></span>
+                        <span x-show="ragConfig.embedding_provider_id">
+                            via <span x-text="ragConfig.embedding_providers.find(p => p.id === ragConfig.embedding_provider_id)?.name || 'provider'" class="font-mono"></span>
+                        </span>
                     </div>
                 </div>
             </div>

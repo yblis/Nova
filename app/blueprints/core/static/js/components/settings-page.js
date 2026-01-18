@@ -23,6 +23,8 @@
             editingId: null,
             ragConfig: {
                 embedding_model: '',
+                embedding_provider_id: '',
+                embedding_providers: [],
                 available_models: [],
                 chunk_size: 500,
                 chunk_overlap: 50,
@@ -222,6 +224,8 @@
                         const data = await r.json();
                         this.ragConfig = {
                             embedding_model: data.embedding_model || '',
+                            embedding_provider_id: data.embedding_provider_id || '',
+                            embedding_providers: data.embedding_providers || [],
                             available_models: data.available_models || [],
                             chunk_size: data.chunk_size || 500,
                             chunk_overlap: data.chunk_overlap || 50,
@@ -259,6 +263,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             embedding_model: this.ragConfig.embedding_model,
+                            embedding_provider_id: this.ragConfig.embedding_provider_id,
                             chunk_size: this.ragConfig.chunk_size,
                             chunk_overlap: this.ragConfig.chunk_overlap,
                             top_k: this.ragConfig.top_k,
@@ -291,6 +296,31 @@
                     }
                 } catch (e) {
                     console.error('Failed to load OCR providers', e);
+                }
+            },
+
+            async loadEmbeddingModels(providerId) {
+                // Load embedding models for a specific provider
+                try {
+                    const url = providerId 
+                        ? `/api/rag/embedding-models?provider_id=${encodeURIComponent(providerId)}`
+                        : '/api/rag/embedding-models';
+                    const r = await fetch(url);
+                    if (r.ok) {
+                        const data = await r.json();
+                        this.ragConfig.available_models = data.models || [];
+                        // Reset model selection if the current model is not in the list
+                        if (this.ragConfig.available_models.length > 0) {
+                            const currentModelExists = this.ragConfig.available_models.some(
+                                m => m.name === this.ragConfig.embedding_model
+                            );
+                            if (!currentModelExists) {
+                                this.ragConfig.embedding_model = '';
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load embedding models', e);
                 }
             },
 

@@ -46,6 +46,18 @@ PROVIDER_CONFIGS = {
         "default_model": "deepseek-chat",
         "supports_vision": False
     },
+    "cerebras": {
+        "base_url": "https://api.cerebras.ai/v1",
+        "default_model": "llama-3.3-70b",
+        "supports_vision": False,
+        "unsupported_params": ["frequency_penalty", "presence_penalty", "top_p"]
+    },
+    "huggingface": {
+        "base_url": "https://api-inference.huggingface.co/v1",
+        "default_model": "mistralai/Mistral-7B-Instruct-v0.3",
+        "supports_vision": False,
+        "unsupported_params": ["frequency_penalty", "presence_penalty"]
+    },
     "openai_compatible": {
         "base_url": "",  # L'utilisateur doit fournir l'URL
         "default_model": None,  # Dépend du provider
@@ -442,23 +454,28 @@ class OpenAICompatibleClient(BaseLLMClient):
         
         openai_options = {}
         
+        # Liste des paramètres non supportés par ce provider
+        unsupported = self._config.get("unsupported_params", [])
+        
         # Mapping des options
         if "temperature" in options:
             openai_options["temperature"] = float(options["temperature"])
-        if "top_p" in options:
+        if "top_p" in options and "top_p" not in unsupported:
             openai_options["top_p"] = float(options["top_p"])
         if "max_tokens" in options:
             openai_options["max_tokens"] = int(options["max_tokens"])
         elif "num_ctx" in options:
             # Convertir num_ctx en max_tokens (approximatif)
             openai_options["max_tokens"] = min(int(options["num_ctx"]), 4096)
-        if "frequency_penalty" in options:
-            openai_options["frequency_penalty"] = float(options["frequency_penalty"])
-        elif "repeat_penalty" in options:
-            # Convertir repeat_penalty (1-2) en frequency_penalty (0-2)
-            rp = float(options["repeat_penalty"])
-            openai_options["frequency_penalty"] = max(0, min(2, rp - 1))
         
+        # frequency_penalty - seulement si supporté
+        if "frequency_penalty" not in unsupported:
+            if "frequency_penalty" in options:
+                openai_options["frequency_penalty"] = float(options["frequency_penalty"])
+            elif "repeat_penalty" in options:
+                # Convertir repeat_penalty (1-2) en frequency_penalty (0-2)
+                rp = float(options["repeat_penalty"])
+                openai_options["frequency_penalty"] = max(0, min(2, rp - 1))
         
         return openai_options
 
