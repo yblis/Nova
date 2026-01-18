@@ -444,6 +444,54 @@ class ChatHistoryService:
             cur.close()
             conn.close()
     
+    def update_message_extra_data(self, session_id: str, message_index: int, extra_data: dict) -> bool:
+        """
+        Met à jour le extra_data d'un message spécifique.
+        
+        Args:
+            session_id: ID de la session
+            message_index: Index du message (0-based)
+            extra_data: Nouveau extra_data
+            
+        Returns:
+            True si mis à jour avec succès
+        """
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        try:
+            # Récupérer l'ID du message par son index
+            cur.execute("""
+                SELECT id FROM chat_messages
+                WHERE session_id = %s
+                ORDER BY timestamp ASC
+                LIMIT 1 OFFSET %s
+            """, (session_id, message_index))
+            
+            result = cur.fetchone()
+            if not result:
+                return False
+            
+            message_id = result[0]
+            
+            # Mettre à jour extra_data
+            cur.execute("""
+                UPDATE chat_messages
+                SET extra_data = %s
+                WHERE id = %s
+            """, (Json(extra_data) if extra_data else None, message_id))
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            current_app.logger.error(f"Error updating message extra_data: {e}")
+            return False
+        finally:
+            cur.close()
+            conn.close()
+    
     def delete_session(self, session_id: str):
         """Supprime une session (les messages sont supprimés en cascade)."""
         conn = get_db_connection()

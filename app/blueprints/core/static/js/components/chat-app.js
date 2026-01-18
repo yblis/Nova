@@ -200,12 +200,13 @@ document.addEventListener('alpine:init', () => {
                 const r = await fetch(`/api/chat/sessions/${id}`);
                 if (r.ok) {
                     const data = await r.json();
-                    // Map messages et extraire web_sources de extra_data
+                    // Map messages et extraire web_sources et memory_concepts de extra_data
                     this.messages = (data.messages || []).map(m => {
                         const extra = m.extra_data || {};
                         return {
                             ...m,
-                            web_sources: extra.web_sources || m.web_sources
+                            web_sources: extra.web_sources || m.web_sources,
+                            memory_concepts: extra.memory_concepts || m.memory_concepts
                         };
                     });
                     const sessionModel = data.model;

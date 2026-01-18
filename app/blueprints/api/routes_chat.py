@@ -724,6 +724,9 @@ def generate_chat():
     # Get web search context if enabled
     web_context = ""
     web_sources = []
+    memory_context = ""
+    memory_concepts = []
+    
     if web_search and message:
         try:
             from ...services.web_search_service import search_web, format_search_context, get_searxng_url, get_config
@@ -733,6 +736,22 @@ def generate_chat():
                 if results:
                     web_context = format_search_context(results)
                     web_sources = [{"title": r.title, "url": r.url, "snippet": r.snippet} for r in results]
+                    
+                    # Memory Graph: process results and get memory context
+                    try:
+                        from ...services.memory_graph_service import process_search_results
+                        # Utiliser un user_id par défaut (1) pour le moment
+                        # TODO: intégrer avec le système d'authentification si nécessaire
+                        user_id = 1
+                        memory_context, memory_concepts = process_search_results(
+                            user_id=user_id,
+                            query=message,
+                            search_results=web_sources,
+                            session_id=session_id
+                        )
+                    except Exception as mem_err:
+                        current_app.logger.warning(f"Memory Graph processing failed: {mem_err}")
+                        
         except Exception as e:
             current_app.logger.warning(f"Web search failed: {e}")
     
@@ -756,6 +775,10 @@ def generate_chat():
             
             # Add system prompt if defined
             effective_system = system_prompt
+            
+            # Add memory context if available (from Memory Graph)
+            if memory_context:
+                effective_system = memory_context + "\n\n" + (effective_system or "")
             
             # Add web search context if available
             if web_context:
@@ -827,19 +850,25 @@ def generate_chat():
                     'done': done, 
                     'session_id': session_id
                 }
-                # Send web sources with the final message
+                # Send web sources and memory concepts with the final message
                 if done and web_sources:
                     response_data['web_sources'] = web_sources
+                if done and memory_concepts:
+                    response_data['memory_concepts'] = memory_concepts
                 yield f"data: {json.dumps(response_data)}\n\n"
 
             # Save full assistant message
             assistant_content = "".join(full_response)
             assistant_thinking = "".join(full_thinking) if full_thinking else None
             
-            # Include web sources in extra_data if available
+            # Include web sources and memory concepts in extra_data if available
             extra_data = None
-            if web_sources:
-                extra_data = {"web_sources": web_sources}
+            if web_sources or memory_concepts:
+                extra_data = {}
+                if web_sources:
+                    extra_data["web_sources"] = web_sources
+                if memory_concepts:
+                    extra_data["memory_concepts"] = memory_concepts
             
             svc.add_message(session_id, "assistant", assistant_content, thinking=assistant_thinking, extra_data=extra_data)
             
@@ -1125,3 +1154,65 @@ def save_debate_defaults():
     if svc.save_debate_defaults(data):
         return jsonify({"status": "saved"})
     return jsonify({"error": "Failed to save"}), 500
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MEMORY GRAPH ROUTES
+# ══════════════════════════════════════════════════════════════════════════════
+
+@api_chat_bp.route("/chat/memory/concept", methods=["DELETE"])
+def delete_memory_concept():
+    """
+    Supprime un concept du graphe mémoire et met à jour le message en base.
+    Body: {
+        "concept": "nom_du_concept",
+        "session_id": "uuid (optionnel)",
+        "message_index": int (optionnel),
+        "remaining_concepts": [...] (optionnel) - concepts restants après suppression
+    }
+    """
+    data = request.json or {}
+    concept = data.get("concept", "").strip()
+    session_id = data.get("session_id")
+    message_index = data.get("message_index")
+    remaining_concepts = data.get("remaining_concepts")
+    
+    current_app.logger.info(f"[Memory] DELETE request - concept: '{concept}', session: {session_id}, msg_idx: {message_index}")
+    
+    if not concept:
+        return jsonify({"error": "Concept name required"}), 400
+    
+    try:
+        from ...services.memory_graph_service import delete_node_by_concept
+        from ...services.chat_history_pg import ChatHistoryService
+        
+        # TODO: utiliser l'ID de l'utilisateur connecté quand l'auth est en place
+        user_id = 1
+        
+        # 1. Supprimer du graphe mémoire
+        result = delete_node_by_concept(user_id, concept)
+        current_app.logger.info(f"[Memory] delete_node_by_concept('{concept}') returned: {result}")
+        
+        # 2. Mettre à jour extra_data du message si les infos sont fournies
+        if session_id and message_index is not None and remaining_concepts is not None:
+            try:
+                history_service = ChatHistoryService()
+                # Récupérer le message actuel pour conserver les autres données extra
+                session = history_service.get_session(session_id)
+                if session and 'messages' in session and message_index < len(session['messages']):
+                    msg = session['messages'][message_index]
+                    extra = msg.get('extra_data') or {}
+                    extra['memory_concepts'] = remaining_concepts
+                    history_service.update_message_extra_data(session_id, message_index, extra)
+                    current_app.logger.info(f"[Memory] Updated extra_data for message {message_index} in session {session_id}")
+            except Exception as e:
+                current_app.logger.error(f"[Memory] Failed to update message extra_data: {e}")
+        
+        # Retourner succès même si le concept n'existait pas en base
+        # (car il peut avoir été généré par le fallback heuristique)
+        return jsonify({"status": "deleted" if result else "not_found_in_graph", "concept": concept})
+            
+    except Exception as e:
+        current_app.logger.error(f"Error deleting concept: {e}")
+        return jsonify({"error": str(e)}), 500
+

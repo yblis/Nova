@@ -328,7 +328,7 @@
                         if (r.ok) {
                             const data = await r.json();
                             const sessionModel = data.model; // Sauvegarder le modèle de la session
-                            // Map messages et extraire participant info et web_sources de extra_data
+                            // Map messages et extraire participant info, web_sources et memory_concepts de extra_data
                             this.messages = (data.messages || []).map(m => {
                                 const extra = m.extra_data || {};
                                 return {
@@ -336,7 +336,8 @@
                                     participant_id: extra.participant_id || m.participant_id,
                                     participant_name: extra.participant_name || m.participant_name,
                                     color: extra.participant_color || m.color,
-                                    web_sources: extra.web_sources || m.web_sources
+                                    web_sources: extra.web_sources || m.web_sources,
+                                    memory_concepts: extra.memory_concepts || m.memory_concepts
                                 };
                             });
                             this.currentModel = sessionModel;
@@ -964,7 +965,7 @@
                         const reader = response.body.getReader(); const decoder = new TextDecoder(); let buffer = '';
                         try {
                             while (true) {
-                                const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop() || ''; for (const line of lines) { if (line.startsWith('data: ')) { try { const json = JSON.parse(line.substring(6)); if (json.session_id && !this.currentSessionId) { this.currentSessionId = json.session_id; this.loadSessions(); } if (json.error) { this.messages[msgIndex].content += "\n\n*[System Error: " + json.error + "]*"; this.loadSessions(); } if (json.content) { this.messages[msgIndex].content += json.content; this.scrollToBottom(); } if (json.thinking) { if (!this.messages[msgIndex].thinking) this.messages[msgIndex].thinking = ""; this.messages[msgIndex].thinking += json.thinking; this.scrollToBottom(); } if (json.web_sources) { this.messages[msgIndex].web_sources = json.web_sources; } if (json.title_update) { const session = this.sessions.find(s => s.id === json.session_id); if (session) { session.title = json.title_update; } } } catch (e) { } } }
+                                const { done, value } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n'); buffer = lines.pop() || ''; for (const line of lines) { if (line.startsWith('data: ')) { try { const json = JSON.parse(line.substring(6)); if (json.session_id && !this.currentSessionId) { this.currentSessionId = json.session_id; this.loadSessions(); } if (json.error) { this.messages[msgIndex].content += "\n\n*[System Error: " + json.error + "]*"; this.loadSessions(); } if (json.content) { this.messages[msgIndex].content += json.content; this.scrollToBottom(); } if (json.thinking) { if (!this.messages[msgIndex].thinking) this.messages[msgIndex].thinking = ""; this.messages[msgIndex].thinking += json.thinking; this.scrollToBottom(); } if (json.web_sources) { this.messages[msgIndex].web_sources = json.web_sources; } if (json.memory_concepts) { this.messages[msgIndex].memory_concepts = json.memory_concepts; } if (json.title_update) { const session = this.sessions.find(s => s.id === json.session_id); if (session) { session.title = json.title_update; } } } catch (e) { } } }
 
                                 // Auto-read response if enabled
                                 if (this.voiceSettings.autoRead && this.messages[msgIndex].content) {
