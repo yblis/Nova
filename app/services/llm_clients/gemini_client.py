@@ -1,7 +1,7 @@
 """
 Client pour l'API Google Gemini.
 
-Utilise le SDK officiel google-generativeai.
+Utilise le nouveau SDK officiel google-genai (anciennement google-generativeai).
 """
 
 from typing import List, Dict, Any, Optional, Tuple, Iterable
@@ -10,18 +10,18 @@ from .base_client import BaseLLMClient
 from ..llm_error_handler import LLMError, LLMErrorType, classify_gemini_error
 
 
-# Modèles Gemini disponibles
+# Modèles Gemini disponibles (fallback)
 GEMINI_MODELS = [
+    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "description": "Dernière génération, rapide et puissant"},
+    {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "description": "Version légère et économique"},
     {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "description": "Le plus puissant, contexte de 2M tokens"},
     {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "description": "Rapide et polyvalent"},
     {"id": "gemini-1.5-flash-8b", "name": "Gemini 1.5 Flash 8B", "description": "Léger et économique"},
-    {"id": "gemini-2.0-flash-exp", "name": "Gemini 2.0 Flash (Exp)", "description": "Nouvelle génération expérimentale"},
-    {"id": "gemini-pro", "name": "Gemini Pro", "description": "Version stable classique"}
 ]
 
 
 class GeminiClient(BaseLLMClient):
-    """Client pour l'API Google Gemini."""
+    """Client pour l'API Google Gemini utilisant le nouveau SDK google-genai."""
     
     def __init__(self, api_key: str = ""):
         """
@@ -31,34 +31,24 @@ class GeminiClient(BaseLLMClient):
             api_key: Clé API Google AI Studio
         """
         self._api_key = api_key
-        self._configured = False
+        self._client = None
     
-    def _configure(self):
-        """Configure le SDK Gemini."""
-        if self._configured:
-            return
+    def _get_client(self):
+        """Retourne le client Gemini, en le créant si nécessaire."""
+        if self._client is not None:
+            return self._client
         
         try:
-            import google.generativeai as genai
+            from google import genai
         except ImportError:
             raise LLMError(
-                "SDK Google Generative AI non installé. Exécutez: pip install google-generativeai",
+                "SDK Google GenAI non installé. Exécutez: pip install google-genai",
                 "gemini",
                 LLMErrorType.UNKNOWN
             )
         
-        genai.configure(api_key=self._api_key)
-        self._configured = True
-    
-    def _get_model(self, model_name: str):
-        """Retourne une instance du modèle Gemini."""
-        self._configure()
-        
-        try:
-            import google.generativeai as genai
-            return genai.GenerativeModel(model_name)
-        except Exception as e:
-            raise classify_gemini_error(e)
+        self._client = genai.Client(api_key=self._api_key)
+        return self._client
     
     @property
     def provider_name(self) -> str:
@@ -70,19 +60,25 @@ class GeminiClient(BaseLLMClient):
         
         Utilise l'API pour lister les modèles dynamiquement.
         """
-        self._configure()
-        
         try:
-            import google.generativeai as genai
+            client = self._get_client()
             
             models = []
-            for model in genai.list_models():
-                if "generateContent" in model.supported_generation_methods:
-                    models.append({
-                        "id": model.name.replace("models/", ""),
-                        "name": model.display_name,
-                        "description": model.description or ""
-                    })
+            for model in client.models.list():
+                # Vérifier si le modèle supporte la génération de contenu
+                if hasattr(model, 'supported_actions') and model.supported_actions:
+                    if 'generateContent' not in model.supported_actions:
+                        continue
+                
+                model_id = model.name.replace("models/", "") if model.name else ""
+                display_name = getattr(model, 'display_name', model_id)
+                description = getattr(model, 'description', "") or ""
+                
+                models.append({
+                    "id": model_id,
+                    "name": display_name,
+                    "description": description
+                })
             
             return models if models else GEMINI_MODELS.copy()
             
@@ -99,19 +95,19 @@ class GeminiClient(BaseLLMClient):
     ) -> Dict[str, Any]:
         """Envoie une requête de chat non-streaming."""
         try:
-            gemini_model = self._get_model(model)
+            client = self._get_client()
             
             # Convertir les messages au format Gemini
-            history, last_message = self._prepare_chat(messages)
+            contents, system_instruction = self._prepare_contents(messages)
             
             # Créer la config de génération
-            generation_config = self._make_generation_config(options)
+            config = self._make_generation_config(options, system_instruction)
             
-            # Créer le chat et envoyer
-            chat = gemini_model.start_chat(history=history)
-            response = chat.send_message(
-                last_message,
-                generation_config=generation_config
+            # Générer le contenu
+            response = client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config
             )
             
             # Extraction sécurisée du texte
@@ -119,8 +115,7 @@ class GeminiClient(BaseLLMClient):
             try:
                 content = response.text
             except Exception:
-                # Si response.text échoue (pas de parts valides), on renvoie une chaîne vide ou on log
-                # Cela peut arriver si le modèle s'arrête sans générer de texte (finish_reason)
+                # Si response.text échoue (pas de parts valides), on renvoie une chaîne vide
                 pass
 
             return {
@@ -143,27 +138,24 @@ class GeminiClient(BaseLLMClient):
     ) -> Iterable[Dict[str, Any]]:
         """Envoie une requête de chat streaming."""
         try:
-            gemini_model = self._get_model(model)
+            client = self._get_client()
             
             # Convertir les messages au format Gemini
-            history, last_message = self._prepare_chat(messages)
+            contents, system_instruction = self._prepare_contents(messages)
             
             # Ajouter les images au dernier message si présentes
-            if images:
-                last_message = self._prepare_content_with_images(last_message, images)
+            if images and contents:
+                contents = self._add_images_to_contents(contents, images)
             
             # Créer la config de génération
-            generation_config = self._make_generation_config(options)
+            config = self._make_generation_config(options, system_instruction)
             
-            # Créer le chat et stream
-            chat = gemini_model.start_chat(history=history)
-            response = chat.send_message(
-                last_message,
-                generation_config=generation_config,
-                stream=True
-            )
-            
-            for chunk in response:
+            # Stream du contenu
+            for chunk in client.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=config
+            ):
                 content = ""
                 try:
                     content = chunk.text
@@ -194,21 +186,20 @@ class GeminiClient(BaseLLMClient):
         except Exception as e:
             raise classify_gemini_error(e)
     
-    def _prepare_chat(self, messages: List[Dict[str, str]]) -> Tuple[list, str]:
+    def _prepare_contents(self, messages: List[Dict[str, str]]) -> Tuple[list, Optional[str]]:
         """
-        Convertit les messages au format Gemini.
+        Convertit les messages au format Gemini nouveau SDK.
         
         Returns:
-            Tuple (history, last_message)
+            Tuple (contents, system_instruction)
         """
         try:
-            from google.generativeai.types import content_types
+            from google.genai import types
         except ImportError:
-            content_types = None
+            types = None
         
-        history = []
+        contents = []
         system_instruction = None
-        last_user_message = ""
         
         for msg in messages:
             role = msg.get("role", "")
@@ -217,66 +208,111 @@ class GeminiClient(BaseLLMClient):
             if role == "system":
                 system_instruction = content
             elif role == "user":
-                last_user_message = content
-                if msg != messages[-1]:
-                    history.append({
+                if types:
+                    contents.append(types.Content(
+                        role="user",
+                        parts=[types.Part(text=content)]
+                    ))
+                else:
+                    contents.append({
                         "role": "user",
-                        "parts": [content]
+                        "parts": [{"text": content}]
                     })
             elif role == "assistant":
-                history.append({
-                    "role": "model",
-                    "parts": [content]
-                })
+                if types:
+                    contents.append(types.Content(
+                        role="model",
+                        parts=[types.Part(text=content)]
+                    ))
+                else:
+                    contents.append({
+                        "role": "model",
+                        "parts": [{"text": content}]
+                    })
         
-        # Préfixer le dernier message avec l'instruction système si présente
-        if system_instruction and last_user_message:
-            last_user_message = f"[Instructions système: {system_instruction}]\n\n{last_user_message}"
-        
-        return history, last_user_message
+        return contents, system_instruction
     
-    def _prepare_content_with_images(self, text: str, images: List[str]) -> list:
-        """Prépare le contenu avec images au format Gemini."""
+    def _add_images_to_contents(self, contents: list, images: List[str]) -> list:
+        """Ajoute des images au dernier message utilisateur."""
         import base64
         
         try:
-            from PIL import Image
-            import io
+            from google.genai import types
         except ImportError:
-            # Si PIL n'est pas disponible, retourner seulement le texte
-            return text
+            return contents
         
-        parts = [text]
+        if not contents:
+            return contents
         
-        for img_base64 in images:
-            try:
-                img_bytes = base64.b64decode(img_base64)
-                img = Image.open(io.BytesIO(img_bytes))
-                parts.append(img)
-            except Exception:
-                continue
+        # Trouver le dernier message utilisateur
+        for i in range(len(contents) - 1, -1, -1):
+            content = contents[i]
+            role = content.role if hasattr(content, 'role') else content.get('role')
+            if role == "user":
+                # Ajouter les images comme parts
+                parts = list(content.parts) if hasattr(content, 'parts') else list(content.get('parts', []))
+                
+                for img_base64 in images:
+                    try:
+                        img_bytes = base64.b64decode(img_base64)
+                        # Détecter le type MIME
+                        mime_type = "image/jpeg"
+                        if img_base64.startswith("/9j/"):
+                            mime_type = "image/jpeg"
+                        elif img_base64.startswith("iVBOR"):
+                            mime_type = "image/png"
+                        elif img_base64.startswith("R0lGOD"):
+                            mime_type = "image/gif"
+                        elif img_base64.startswith("UklGR"):
+                            mime_type = "image/webp"
+                        
+                        parts.append(types.Part(
+                            inline_data=types.Blob(
+                                mime_type=mime_type,
+                                data=img_bytes
+                            )
+                        ))
+                    except Exception:
+                        continue
+                
+                # Remplacer le content avec les nouvelles parts
+                contents[i] = types.Content(role="user", parts=parts)
+                break
         
-        return parts
+        return contents
     
-    def _make_generation_config(self, options: Optional[Dict[str, Any]]) -> dict:
+    def _make_generation_config(
+        self, 
+        options: Optional[Dict[str, Any]], 
+        system_instruction: Optional[str] = None
+    ) -> Any:
         """Crée la configuration de génération Gemini."""
-        config = {}
+        try:
+            from google.genai import types
+        except ImportError:
+            return None
         
-        if not options:
-            return config
+        config_kwargs = {}
         
-        if "temperature" in options:
-            config["temperature"] = float(options["temperature"])
-        if "top_p" in options:
-            config["top_p"] = float(options["top_p"])
-        if "top_k" in options:
-            config["top_k"] = int(options["top_k"])
-        if "max_tokens" in options:
-            config["max_output_tokens"] = int(options["max_tokens"])
-        elif "num_ctx" in options:
-            config["max_output_tokens"] = min(int(options["num_ctx"]), 8192)
+        if system_instruction:
+            config_kwargs["system_instruction"] = system_instruction
         
-        return config
+        if options:
+            if "temperature" in options:
+                config_kwargs["temperature"] = float(options["temperature"])
+            if "top_p" in options:
+                config_kwargs["top_p"] = float(options["top_p"])
+            if "top_k" in options:
+                config_kwargs["top_k"] = int(options["top_k"])
+            if "max_tokens" in options:
+                config_kwargs["max_output_tokens"] = int(options["max_tokens"])
+            elif "num_ctx" in options:
+                config_kwargs["max_output_tokens"] = min(int(options["num_ctx"]), 8192)
+        
+        if config_kwargs:
+            return types.GenerateContentConfig(**config_kwargs)
+        
+        return None
     
     def test_connection(self) -> Tuple[bool, str]:
         """Teste la connexion en listant les modèles."""
@@ -296,8 +332,23 @@ class GeminiClient(BaseLLMClient):
         return True
     
     def get_default_model(self) -> Optional[str]:
-        return "gemini-1.5-flash"
+        return "gemini-2.0-flash"
     
     def normalize_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Normalise les options (délégué à _make_generation_config)."""
-        return self._make_generation_config(options)
+        """Normalise les options."""
+        if not options:
+            return {}
+        
+        normalized = {}
+        if "temperature" in options:
+            normalized["temperature"] = float(options["temperature"])
+        if "top_p" in options:
+            normalized["top_p"] = float(options["top_p"])
+        if "top_k" in options:
+            normalized["top_k"] = int(options["top_k"])
+        if "max_tokens" in options:
+            normalized["max_output_tokens"] = int(options["max_tokens"])
+        elif "num_ctx" in options:
+            normalized["max_output_tokens"] = min(int(options["num_ctx"]), 8192)
+        
+        return normalized

@@ -1417,15 +1417,21 @@
                         const r = await fetch('/api/rag/config');
                         if (r.ok) {
                             const data = await r.json();
+                            // Sauvegarder les valeurs OCR avant de réinitialiser
+                            const savedOcrProvider = data.ocr_provider || '';
+                            const savedOcrModel = data.ocr_model || '';
+                            
                             this.ragConfig = {
                                 embedding_model: data.embedding_model || '',
+                                embedding_provider_id: data.embedding_provider_id || '',
+                                embedding_providers: data.embedding_providers || [],
                                 available_models: data.available_models || [],
                                 chunk_size: data.chunk_size || 500,
                                 chunk_overlap: data.chunk_overlap || 50,
                                 top_k: data.top_k || 5,
-                                // OCR
-                                ocr_provider: data.ocr_provider || '',
-                                ocr_model: data.ocr_model || '',
+                                // OCR - initialiser avec valeurs temporaires
+                                ocr_provider: savedOcrProvider,
+                                ocr_model: savedOcrModel,
                                 ocr_threshold: data.ocr_threshold || 50,
                                 ocr_models_available: [],
                                 ocr_configured_providers: [],
@@ -1436,9 +1442,17 @@
                             };
                             // Charger les fournisseurs OCR disponibles
                             await this.loadOcrProviders();
+                            
+                            // IMPORTANT: Restaurer les valeurs OCR après chargement des providers
+                            // Car x-model peut les réinitialiser si les options n'existent pas encore
+                            this.$nextTick(() => {
+                                this.ragConfig.ocr_provider = savedOcrProvider;
+                                this.ragConfig.ocr_model = savedOcrModel;
+                            });
+                            
                             // Si un provider est déjà sélectionné, charger ses modèles
-                            if (this.ragConfig.ocr_provider) {
-                                this.loadOcrModels(this.ragConfig.ocr_provider);
+                            if (savedOcrProvider) {
+                                this.loadOcrModels(savedOcrProvider);
                             }
                         }
                     } catch (e) {

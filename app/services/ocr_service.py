@@ -114,8 +114,9 @@ def extract_images_from_pdf(pdf_bytes: bytes) -> List[Dict]:
     images = []
     
     for page_num, page in enumerate(doc):
-        # Convertir la page en image (1.5x zoom - bon compromis qualité/performance)
-        mat = fitz.Matrix(1.5, 1.5)
+        # Convertir la page en image (2.5x zoom - haute qualité pour OCR)
+        # Plus haute résolution = meilleure reconnaissance des caractères
+        mat = fitz.Matrix(2.5, 2.5)
         pix = page.get_pixmap(matrix=mat)
         
         # Convertir en bytes PNG
@@ -189,10 +190,15 @@ def process_pdf_intelligent(
     """
     Pipeline complet d'extraction intelligente de PDF.
     
+    Stratégie d'extraction:
+    1. Tenter l'extraction directe PyMuPDF (PDFs natifs)
+    2. Si échec et PDF scanné: utiliser LLM Vision si disponible (meilleure qualité)
+    3. Fallback sur Tesseract avec pré-traitement si LLM Vision indisponible
+    
     Args:
         pdf_bytes: Contenu binaire du PDF
         filename: Nom du fichier
-        ocr_provider: Provider pour OCR Vision (auto, gemini, openai, ollama, tesseract)
+        ocr_provider: Provider OCR (auto, vision, gemini, openai, anthropic, ollama, tesseract)
         ocr_model: Modèle spécifique à utiliser (ex: gemini-1.5-flash, llava:latest)
         chunk_size: Taille des chunks
         chunk_overlap: Chevauchement des chunks
@@ -201,15 +207,21 @@ def process_pdf_intelligent(
         Dict avec texte, chunks, type_pdf, stats, ocr_used
     """
     from .pdf_service import chunk_text
+    from .vision_ocr_service import (
+        extract_text_with_ocr, 
+        extract_text_with_vision_llm,
+        is_vision_llm_available,
+        get_best_ocr_method
+    )
     import signal
     
     # Timeout handler pour éviter les blocages sur certains PDFs malformés
     def timeout_handler(signum, frame):
-        raise TimeoutError(f"PDF processing timeout after 60 seconds for {filename}")
+        raise TimeoutError(f"PDF processing timeout after 180 seconds for {filename}")
     
-    # Configurer le timeout (60 secondes max pour tout le traitement)
+    # Configurer le timeout (180 secondes max pour le traitement complet)
     old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-    signal.alarm(60)  # 60 secondes timeout
+    signal.alarm(180)  # 180 secondes timeout (plus long pour LLM Vision)
     
     try:
         # Déterminer le seuil depuis la config
@@ -225,53 +237,122 @@ def process_pdf_intelligent(
             "pdf_type": pdf_type,
             "stats": stats,
             "ocr_provider_used": None,
+            "ocr_method": None,
             "full_text": "",
             "chunks": [],
             "pages": []
         }
         
-        # TOUJOURS essayer d'abord l'extraction directe PyMuPDF
+        # ÉTAPE 1: Toujours essayer d'abord l'extraction directe PyMuPDF
         # Même sur les PDFs "scannés", certains (comme PDF24) ont du texte vectoriel extractible
         full_text, pages = extract_with_pymupdf(pdf_bytes)
         
         if full_text and len(full_text.strip()) > 100:
-            # Extraction directe réussie - on utilise ça
+            # Extraction directe réussie
             result["full_text"] = full_text
             result["pages"] = pages
             result["ocr_provider_used"] = "pymupdf"
+            result["ocr_method"] = "direct"
             current_app.logger.info(f"Direct extraction successful: {len(full_text)} chars")
             
         elif pdf_type in ("scanned", "hybrid"):
-            # Pas assez de texte ET détecté comme scanné -> OCR Tesseract
+            # ÉTAPE 2: Pas assez de texte -> OCR nécessaire
             current_app.logger.info(f"Direct extraction failed ({len(full_text) if full_text else 0} chars), trying OCR...")
-            from .vision_ocr_service import extract_text_with_ocr
             
             # Extraire les images des pages pour OCR
             page_images = extract_images_from_pdf(pdf_bytes)
             
+            # Déterminer la méthode OCR à utiliser
+            use_vision_llm = False
+            vision_provider = None
+            
+            if ocr_provider == "auto":
+                # Auto: préférer LLM Vision si disponible
+                if is_vision_llm_available():
+                    use_vision_llm = True
+                    vision_provider = "auto"
+            elif ocr_provider == "vision":
+                use_vision_llm = True
+                vision_provider = "auto"
+            elif ocr_provider in ["gemini", "openai", "anthropic", "ollama"]:
+                use_vision_llm = True
+                vision_provider = ocr_provider
+            elif ocr_provider == "tesseract":
+                use_vision_llm = False
+            else:
+                # Défaut: auto
+                use_vision_llm = is_vision_llm_available()
+            
             pages = []
-            for img_data in page_images:
-                try:
-                    page_text = extract_text_with_ocr(
-                        image_bytes=img_data["image_bytes"]
-                    )
-                    pages.append({
-                        "page": img_data["page"],
-                        "content": page_text,
-                        "type": "ocr_tesseract"
-                    })
-                except Exception as e:
-                    current_app.logger.warning(f"OCR failed for page {img_data['page']}: {e}")
-                    pages.append({
-                        "page": img_data["page"],
-                        "content": "",
-                        "type": "error",
-                        "error": str(e)
-                    })
+            
+            if use_vision_llm:
+                # MÉTHODE 1: OCR via LLM Vision (haute qualité)
+                current_app.logger.info(f"Using LLM Vision OCR (provider: {vision_provider or 'auto'})")
+                
+                for img_data in page_images:
+                    try:
+                        page_text = extract_text_with_vision_llm(
+                            image_bytes=img_data["image_bytes"],
+                            provider=vision_provider or "auto",
+                            model=ocr_model
+                        )
+                        pages.append({
+                            "page": img_data["page"],
+                            "content": page_text,
+                            "type": "ocr_vision"
+                        })
+                        result["ocr_provider_used"] = vision_provider or "vision"
+                        result["ocr_method"] = "vision_llm"
+                    except Exception as e:
+                        current_app.logger.warning(f"Vision OCR failed for page {img_data['page']}: {e}")
+                        # Fallback sur Tesseract pour cette page
+                        try:
+                            page_text = extract_text_with_ocr(
+                                image_bytes=img_data["image_bytes"],
+                                use_preprocessing=True
+                            )
+                            pages.append({
+                                "page": img_data["page"],
+                                "content": page_text,
+                                "type": "ocr_tesseract_fallback"
+                            })
+                        except Exception as e2:
+                            current_app.logger.error(f"Tesseract fallback also failed for page {img_data['page']}: {e2}")
+                            pages.append({
+                                "page": img_data["page"],
+                                "content": "",
+                                "type": "error",
+                                "error": str(e)
+                            })
+            else:
+                # MÉTHODE 2: OCR via Tesseract avec pré-traitement
+                current_app.logger.info("Using Tesseract OCR with preprocessing")
+                
+                for img_data in page_images:
+                    try:
+                        page_text = extract_text_with_ocr(
+                            image_bytes=img_data["image_bytes"],
+                            use_preprocessing=True
+                        )
+                        pages.append({
+                            "page": img_data["page"],
+                            "content": page_text,
+                            "type": "ocr_tesseract"
+                        })
+                    except Exception as e:
+                        current_app.logger.warning(f"OCR failed for page {img_data['page']}: {e}")
+                        pages.append({
+                            "page": img_data["page"],
+                            "content": "",
+                            "type": "error",
+                            "error": str(e)
+                        })
+                
+                result["ocr_provider_used"] = "tesseract"
+                result["ocr_method"] = "tesseract_preprocessed"
             
             result["pages"] = pages
             result["full_text"] = "\n\n---\n\n".join([p["content"] for p in pages if p["content"]])
-            result["ocr_provider_used"] = "tesseract"
         
         # Convertir en Markdown
         result["full_text"] = convert_to_markdown(result["full_text"])
@@ -279,6 +360,15 @@ def process_pdf_intelligent(
         # Chunking
         if result["full_text"]:
             result["chunks"] = chunk_text(result["full_text"], chunk_size, chunk_overlap)
+        
+        # Log du résultat
+        current_app.logger.info(
+            f"PDF processing complete: {filename} | "
+            f"Method: {result['ocr_method']} | "
+            f"Provider: {result['ocr_provider_used']} | "
+            f"Text: {len(result['full_text'])} chars | "
+            f"Chunks: {len(result['chunks'])}"
+        )
         
         return result
     

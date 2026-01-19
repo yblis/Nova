@@ -157,7 +157,28 @@ def list_models() -> Response:
     if view == "list":
         html = []
         if error:
-            return Response(f"<div class='col-span-12 text-center py-8 text-red-500'>Service unavailable: {escape(error)}</div>", mimetype="text/html")
+            # Message convivial pour guider l'utilisateur
+            error_html = """
+            <div class='col-span-12 text-center py-12'>
+                <div class='mx-auto w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-2xl flex items-center justify-center mb-4'>
+                    <svg class='w-8 h-8 text-amber-600 dark:text-amber-400' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' />
+                    </svg>
+                </div>
+                <h3 class='text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2'>Ollama indisponible</h3>
+                <p class='text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-md mx-auto'>
+                    Impossible de se connecter à Ollama. Vérifiez qu'il est démarré ou configurez-le dans les paramètres.
+                </p>
+                <a href='/settings#providers' class='inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-medium transition-colors'>
+                    <svg class='w-4 h-4' fill='none' viewBox='0 0 24 24' stroke='currentColor'>
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z' />
+                        <path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 12a3 3 0 11-6 0 3 3 0 016 0z' />
+                    </svg>
+                    Configurer Ollama
+                </a>
+            </div>
+            """
+            return Response(error_html, mimetype="text/html")
         if not items:
             return Response("<div class='col-span-12 text-center py-8 text-zinc-500'>No models installed.</div>", mimetype="text/html")
             
@@ -269,7 +290,24 @@ def list_models() -> Response:
     # Grid Layout (Default)
     html = ["<div id=\"models\" class=\"grid gap-4 sm:grid-cols-2 xl:grid-cols-3\">"]
     if error:
-        html.append("<div class=\"sm:col-span-2 xl:col-span-3\"><p class=\"text-sm text-red-600\">Service indisponible: " + escape(error) + "</p></div>")
+        # Message convivial pour guider l'utilisateur
+        error_block = """
+        <div class="sm:col-span-2 xl:col-span-3">
+            <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 text-center">
+                <div class="mx-auto w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h3 class="font-semibold text-amber-800 dark:text-amber-200 mb-1">Ollama indisponible</h3>
+                <p class="text-sm text-amber-700 dark:text-amber-300 mb-3">Vérifiez qu'Ollama est démarré ou configurez-le.</p>
+                <a href="/settings#providers" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium transition-colors">
+                    Configurer Ollama
+                </a>
+            </div>
+        </div>
+        """
+        html.append(error_block)
     if not items:
         html.append("<div class=\"sm:col-span-2 xl:col-span-3\"><p class=\"text-sm text-slate-500 dark:text-zinc-400\">Aucun modèle.</p></div>")
     for m in items:
@@ -977,7 +1015,22 @@ def stats() -> Response:
         """
         return Response(html, mimetype="text/html")
     except Exception as e:
-        return Response(f"<div class='col-span-4 text-red-500'>Error loading stats: {e}</div>", mimetype="text/html")
+        # Message convivial pour le dashboard
+        error_html = """
+        <div class="col-span-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-6 text-center">
+            <div class="mx-auto w-12 h-12 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center mb-3">
+                <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h3 class=\"font-semibold text-amber-800 dark:text-amber-200 mb-1\">Ollama indisponible</h3>
+            <p class=\"text-sm text-amber-700 dark:text-amber-300 mb-3\">Impossible de se connecter à Ollama.</p>
+            <a href=\"/settings#providers\" class=\"inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium transition-colors\">
+                Configurer Ollama
+            </a>
+        </div>
+        """
+        return Response(error_html, mimetype="text/html")
 
 
 @api_models_bp.get("/stats/count")
@@ -1042,7 +1095,14 @@ def recent_models() -> Response:
              """)
         return Response("".join(html), mimetype="text/html")
     except Exception as e:
-        return Response(f"<div class='text-red-500'>Error: {e}</div>", mimetype="text/html")
+        # Message convivial pour recent_models
+        error_html = """
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-center">
+            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Ollama indisponible</p>
+            <p class="text-xs text-amber-700 dark:text-amber-300 mt-1">Vérifiez qu'Ollama est démarré</p>
+        </div>
+        """
+        return Response(error_html, mimetype="text/html")
 
 
 @api_models_bp.get("/running")
@@ -1101,7 +1161,19 @@ def running() -> Response:
     html.append(f"<span id='running-count' hx-swap-oob='true' class='text-brand-600 font-bold'>{count}</span>")
     
     if error and not lmstudio_procs:
-        html.append("<p class=\"text-sm text-red-600\">Ollama indisponible: " + escape(error) + "</p>")
+        # Message convivial au lieu de l'erreur technique
+        error_block = """
+        <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+                <p class="text-sm font-medium text-amber-800 dark:text-amber-200">Ollama indisponible</p>
+                <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">Vérifiez qu'Ollama est démarré dans <a href="/settings#providers" class="underline hover:no-underline">Paramètres</a></p>
+            </div>
+        </div>
+        """
+        html.append(error_block)
     
     if not all_procs:
         html.append("""

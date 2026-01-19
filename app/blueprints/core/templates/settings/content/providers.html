@@ -67,13 +67,15 @@
                                 par défaut</label>
                         </div>
                         <div class="mt-1.5 flex items-center gap-2">
-                            <select @change="setProviderDefaultModel(provider.id, $event.target.value)"
+                            <select x-data="{ selectedModel: provider.default_model || '' }"
+                                x-init="$watch('providerModels[provider.id]', () => { selectedModel = provider.default_model || '' })"
+                                x-model="selectedModel"
+                                @change="setProviderDefaultModel(provider.id, selectedModel)"
                                 class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                                 <option value="">-- Aucun --</option>
                                 <template x-for="m in (providerModels[provider.id] || [])"
                                     :key="typeof m === 'string' ? m : m.id || m.name">
                                     <option :value="typeof m === 'string' ? m : m.id || m.name"
-                                        :selected="provider.default_model === (typeof m === 'string' ? m : m.id || m.name)"
                                         x-text="typeof m === 'string' ? m : m.id || m.name">
                                     </option>
                                 </template>

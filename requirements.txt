@@ -26,7 +26,7 @@ Pillow>=10.0.0
 # LLM Providers SDKs
 openai>=1.12
 anthropic>=0.18
-google-generativeai>=0.5
+google-genai>=1.0
 mistralai>=0.1
 groq>=0.4
 dashscope>=1.14

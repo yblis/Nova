@@ -41,6 +41,13 @@ PROVIDER_CONFIGS = {
         "supports_vision": True,
         "extra_headers_required": ["HTTP-Referer", "X-Title"]
     },
+    "openrouter_free": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "default_model": "meta-llama/llama-3.2-3b-instruct:free",
+        "supports_vision": True,
+        "extra_headers_required": ["HTTP-Referer", "X-Title"],
+        "free_models_only": True
+    },
     "deepseek": {
         "base_url": "https://api.deepseek.com",
         "default_model": "deepseek-chat",
@@ -53,7 +60,7 @@ PROVIDER_CONFIGS = {
         "unsupported_params": ["frequency_penalty", "presence_penalty", "top_p"]
     },
     "huggingface": {
-        "base_url": "https://api-inference.huggingface.co/v1",
+        "base_url": "https://router.huggingface.co/v1",
         "default_model": "mistralai/Mistral-7B-Instruct-v0.3",
         "supports_vision": False,
         "unsupported_params": ["frequency_penalty", "presence_penalty"]
@@ -173,15 +180,26 @@ class OpenAICompatibleClient(BaseLLMClient):
         if self._provider_type == "lmstudio":
             return self._list_models_lmstudio_native()
         
+        # Pour Hugging Face, utiliser l'API du Hub
+        if self._provider_type == "huggingface":
+            return self._list_models_huggingface_hub()
+        
         try:
             client = self._get_client()
             response = client.models.list()
             
             models = []
             for model in response.data:
+                model_id = model.id
+                
+                # Filter for free models only if configured (OpenRouter Free)
+                if self._config.get("free_models_only"):
+                    if not model_id.endswith(":free"):
+                        continue
+                
                 models.append({
-                    "id": model.id,
-                    "name": model.id,
+                    "id": model_id,
+                    "name": model_id,
                     "description": getattr(model, "description", "") or "",
                     "created": getattr(model, "created", None),
                     "owned_by": getattr(model, "owned_by", "")
@@ -211,6 +229,55 @@ class OpenAICompatibleClient(BaseLLMClient):
                 ]
 
             raise classify_openai_error(e, self._provider_type)
+
+    def _list_models_huggingface_hub(self) -> List[Dict[str, Any]]:
+        """Liste les modèles Hugging Face disponibles pour l'inférence via l'API du Hub."""
+        try:
+            import httpx
+            
+            url = "https://huggingface.co/api/models"
+            headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
+            
+            # Filtrer pour ne garder que les modèles:
+            # - disponibles pour l'inférence (inference=warm)
+            # - de type text-generation (chat/completion)
+            # - compatibles avec text-generation-inference
+            params = {
+                "limit": 100,
+                "sort": "likes",
+                "direction": "-1",
+                "pipeline_tag": "text-generation",
+                "inference": "warm",  # Seulement les modèles disponibles pour l'inférence
+                "other": "text-generation-inference"  # Compatible TGI
+            }
+            
+            with httpx.Client(timeout=10.0) as http_client:
+                response = http_client.get(url, headers=headers, params=params)
+                response.raise_for_status()
+                models_list = response.json()
+            
+            models = []
+            for model in models_list:
+                model_id = model.get("modelId", "")
+                likes = model.get("likes", 0)
+                downloads = model.get("downloads", 0)
+                
+                models.append({
+                    "id": model_id,
+                    "name": model_id,
+                    "description": f"❤️ {likes:,} | ⬇️ {downloads:,}",
+                    "created": None,
+                    "owned_by": "Hugging Face Hub"
+                })
+            
+            return models
+            
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to list Hugging Face models via Hub API: {e}")
+            # Fallback sur le modèle par défaut si l'API Hub échoue
+            default = self.get_default_model()
+            return [{"id": default, "name": default, "owned_by": "system"}] if default else []
     
     def _list_models_lmstudio_native(self) -> List[Dict[str, Any]]:
         """Liste tous les modèles LM Studio via l'API native /api/v0/models."""
@@ -360,7 +427,12 @@ class OpenAICompatibleClient(BaseLLMClient):
         images: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None
     ) -> Iterable[Dict[str, Any]]:
-        """Envoie une requête de chat streaming."""
+        """Envoie une requête de chat streaming.
+        
+        Supporte l'extraction du contenu 'thinking' pour les modèles de raisonnement :
+        - Via le champ `reasoning_content` dans delta (DeepSeek, Hugging Face)
+        - Via les balises <think>...</think> dans le contenu (Qwen3)
+        """
         try:
             client = self._get_client()
             normalized_opts = self.normalize_options(options)
@@ -375,19 +447,102 @@ class OpenAICompatibleClient(BaseLLMClient):
                 **normalized_opts
             )
             
+            # État pour parser les balises <think>...</think>
+            in_thinking = False
+            buffer = ""
+            
             for chunk in stream:
                 if chunk.choices:
                     delta = chunk.choices[0].delta
-                    content = delta.content or ""
+                    raw_content = delta.content or ""
                     
-                    yield {
-                        "message": {
-                            "role": "assistant",
-                            "content": content,
-                            "thinking": ""
-                        },
-                        "done": chunk.choices[0].finish_reason is not None
-                    }
+                    # Vérifier si le delta contient reasoning_content (DeepSeek/HF format)
+                    reasoning_content = getattr(delta, 'reasoning_content', None) or ""
+                    
+                    # Si on a du reasoning_content directement, l'utiliser
+                    if reasoning_content:
+                        yield {
+                            "message": {
+                                "role": "assistant",
+                                "content": raw_content,
+                                "thinking": reasoning_content
+                            },
+                            "done": chunk.choices[0].finish_reason is not None
+                        }
+                        continue
+                    
+                    # Sinon, parser les balises <think>...</think> dans le contenu
+                    buffer += raw_content
+                    
+                    # Variables pour ce chunk
+                    thinking_content = ""
+                    regular_content = ""
+                    
+                    # Parser le buffer pour extraire thinking et contenu
+                    while buffer:
+                        if in_thinking:
+                            # Chercher la fin de la balise thinking
+                            end_idx = buffer.find("</think>")
+                            if end_idx != -1:
+                                # Extraire le thinking jusqu'à la fermeture
+                                thinking_content += buffer[:end_idx]
+                                buffer = buffer[end_idx + 8:]  # len("</think>") = 8
+                                in_thinking = False
+                            else:
+                                # Pas de fermeture trouvée, garder une partie du buffer
+                                # au cas où "</think>" serait coupé entre chunks
+                                safe_len = max(0, len(buffer) - 8)
+                                if safe_len > 0:
+                                    thinking_content += buffer[:safe_len]
+                                    buffer = buffer[safe_len:]
+                                break
+                        else:
+                            # Chercher le début d'une balise thinking
+                            start_idx = buffer.find("<think>")
+                            if start_idx != -1:
+                                # Contenu avant la balise
+                                regular_content += buffer[:start_idx]
+                                buffer = buffer[start_idx + 7:]  # len("<think>") = 7
+                                in_thinking = True
+                            else:
+                                # Pas de balise trouvée, garder une partie du buffer
+                                # au cas où "<think>" serait coupé entre chunks
+                                safe_len = max(0, len(buffer) - 7)
+                                if safe_len > 0:
+                                    regular_content += buffer[:safe_len]
+                                    buffer = buffer[safe_len:]
+                                break
+                    
+                    # Émettre le chunk si on a du contenu
+                    if thinking_content or regular_content:
+                        yield {
+                            "message": {
+                                "role": "assistant",
+                                "content": regular_content,
+                                "thinking": thinking_content
+                            },
+                            "done": False
+                        }
+                    
+                    # Émettre un chunk final si terminé
+                    if chunk.choices[0].finish_reason is not None:
+                        # Vider le buffer restant
+                        final_thinking = ""
+                        final_content = ""
+                        if buffer:
+                            if in_thinking:
+                                final_thinking = buffer
+                            else:
+                                final_content = buffer
+                        
+                        yield {
+                            "message": {
+                                "role": "assistant",
+                                "content": final_content,
+                                "thinking": final_thinking
+                            },
+                            "done": True
+                        }
                     
         except Exception as e:
             raise classify_openai_error(e, self._provider_type)

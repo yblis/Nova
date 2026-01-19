@@ -59,7 +59,7 @@ def detect_capabilities_from_metadata(metadata: Dict[str, Any]) -> List[str]:
         capabilities.append('tools')
     
     # Thinking/Reasoning models
-    thinking_patterns = ['deepseek-r1', 'qwq', 'o1-', 'reflection']
+    thinking_patterns = ['deepseek-r1', 'qwq', 'qwen3', 'o1-', 'o3-', 'reflection']
     if any(p in model_name for p in thinking_patterns):
         capabilities.append('thinking')
     

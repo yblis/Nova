@@ -89,6 +89,16 @@ PROVIDER_TYPES = {
         "description": "Agrégateur multi-modèles (Claude, GPT, Llama, etc.)",
         "extra_headers": ["HTTP-Referer", "X-Title"]
     },
+    "openrouter_free": {
+        "name": "OpenRouter (Free)",
+        "requires_api_key": True,
+        "requires_url": False,
+        "default_url": "https://openrouter.ai/api/v1",
+        "color": "emerald",
+        "icon": "gift",
+        "description": "Modèles gratuits uniquement (Llama, Mistral, etc.)",
+        "extra_headers": ["HTTP-Referer", "X-Title"]
+    },
     "deepseek": {
         "name": "DeepSeek",
         "requires_api_key": True,
@@ -120,7 +130,7 @@ PROVIDER_TYPES = {
         "name": "Hugging Face",
         "requires_api_key": True,
         "requires_url": False,
-        "default_url": "https://api-inference.huggingface.co/v1",
+        "default_url": "https://router.huggingface.co/v1",
         "color": "yellow",
         "icon": "face-smile",
         "description": "Hugging Face Inference API (Mistral, Llama, etc.)"
@@ -188,18 +198,75 @@ class ProviderManager:
             print("Created default Ollama provider (http://localhost:11434)")
     
     def _load_data(self) -> Dict:
-        """Charge les données depuis le fichier JSON."""
+        """Charge les données depuis le fichier JSON avec fallback sur le backup."""
+        backup_path = self.data_path + ".backup"
+        
+        # Try loading from main file first
         try:
             with open(self.data_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Validate data structure
+                if isinstance(data, dict) and "providers" in data:
+                    return data
+                raise json.JSONDecodeError("Invalid structure", "", 0)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"[ProviderManager] Failed to load {self.data_path}: {e}")
+        
+        # Try loading from backup
+        try:
+            with open(backup_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if isinstance(data, dict) and "providers" in data:
+                    print(f"[ProviderManager] Restored from backup: {len(data.get('providers', []))} providers")
+                    # Restore main file from backup
+                    self._save_data(data)
+                    return data
         except (FileNotFoundError, json.JSONDecodeError):
-            return {"active_provider_id": None, "providers": []}
+            pass
+        
+        return {"active_provider_id": None, "providers": []}
     
     def _save_data(self, data: Dict):
-        """Sauvegarde les données dans le fichier JSON."""
-        os.makedirs(os.path.dirname(self.data_path), exist_ok=True)
-        with open(self.data_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        """Sauvegarde les données dans le fichier JSON avec backup automatique."""
+        import shutil
+        
+        # Ensure directory exists
+        data_dir = os.path.dirname(self.data_path)
+        if data_dir:
+            os.makedirs(data_dir, exist_ok=True)
+        
+        backup_path = self.data_path + ".backup"
+        
+        # Create backup of existing file before overwriting
+        if os.path.exists(self.data_path):
+            try:
+                # Only backup if the current file has valid data
+                with open(self.data_path, 'r', encoding='utf-8') as f:
+                    current_data = json.load(f)
+                    # Only backup if there are providers (don't backup empty/corrupt files)
+                    if isinstance(current_data, dict) and current_data.get("providers"):
+                        shutil.copy2(self.data_path, backup_path)
+            except (json.JSONDecodeError, IOError):
+                pass  # Don't backup corrupt files
+        
+        # Try atomic write (write to temp, then rename)
+        temp_path = self.data_path + ".tmp"
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Atomic rename
+            os.replace(temp_path, self.data_path)
+        except (OSError, IOError) as e:
+            # Fallback to direct write if atomic fails (e.g., cross-device link)
+            print(f"[ProviderManager] Atomic write failed ({e}), falling back to direct write")
+            with open(self.data_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Clean up temp file if it exists
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
     
     def get_providers(self, include_api_key_masked: bool = True) -> List[Dict]:
         """
@@ -602,6 +669,41 @@ def ensure_local_audio_providers():
             print("Added Local AllTalk provider")
         except Exception as e:
             print(f"Failed to add AllTalk provider: {e}")
+    
+    # Migrate deprecated URLs (like old Hugging Face API)
+    _migrate_deprecated_provider_urls(mgr)
+
+
+def _migrate_deprecated_provider_urls(mgr: ProviderManager):
+    """Migre les URLs dépréciées vers les nouvelles URLs.
+    
+    Cette fonction met à jour automatiquement les providers qui utilisent
+    des URLs dépréciées (ex: ancien endpoint Hugging Face).
+    """
+    # URLs à migrer
+    url_migrations = {
+        "https://api-inference.huggingface.co/v1": "https://router.huggingface.co/v1",
+        "https://api-inference.huggingface.co": "https://router.huggingface.co/v1",
+        "https://router.huggingface.co/hf-inference/v1": "https://router.huggingface.co/v1",
+    }
+    
+    data = mgr._load_data()
+    modified = False
+    
+    for provider in data.get("providers", []):
+        old_url = provider.get("url", "")
+        
+        # Check if this URL needs migration
+        for deprecated_url, new_url in url_migrations.items():
+            if old_url == deprecated_url or old_url.startswith(deprecated_url):
+                provider["url"] = new_url
+                provider["updated_at"] = int(__import__("time").time())
+                modified = True
+                print(f"[ProviderManager] Migrated {provider.get('name', 'Unknown')} URL: {old_url} -> {new_url}")
+                break
+    
+    if modified:
+        mgr._save_data(data)
 
 
 

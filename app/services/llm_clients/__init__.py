@@ -33,7 +33,7 @@ def get_client_for_provider(provider: dict) -> "BaseLLMClient":
             base_url=provider.get("url", "http://localhost:11434")
         )
     
-    elif provider_type in ("openai", "lmstudio", "groq", "mistral", "openrouter", "deepseek", "cerebras", "huggingface", "openai_compatible"):
+    elif provider_type in ("openai", "lmstudio", "groq", "mistral", "openrouter", "openrouter_free", "deepseek", "cerebras", "huggingface", "openai_compatible"):
         from .openai_compatible_client import OpenAICompatibleClient
         return OpenAICompatibleClient(
             provider_type=provider_type,

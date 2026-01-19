@@ -141,9 +141,67 @@
                         </svg>
                         OCR pour PDF scannés
                     </h4>
-                    <!-- Tesseract OCR (simplifié) -->
+
                     <div class="space-y-4">
-                        <div
+                        <!-- OCR Provider Selection -->
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                                Moteur OCR
+                            </label>
+                            <select x-model="ragConfig.ocr_provider"
+                                @change="loadOcrModels(ragConfig.ocr_provider)"
+                                class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                <option value="">Tesseract OCR (local, par défaut)</option>
+                                <template x-for="provider in ragConfig.ocr_configured_providers" :key="provider.id">
+                                    <option :value="provider.type + ':' + provider.id" 
+                                            x-text="provider.name + (provider.type === 'mistral' ? ' (OCR spécialisé ⭐)' : ' (Vision)')">
+                                    </option>
+                                </template>
+                            </select>
+                            <p class="text-xs text-zinc-400 mt-1">
+                                Mistral OCR et LLMs Vision offrent une bien meilleure qualité que Tesseract pour les documents complexes.
+                            </p>
+                        </div>
+
+                        <!-- OCR Model Selection (shown when provider is selected) -->
+                        <div x-show="ragConfig.ocr_provider" x-cloak>
+                            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                                Modèle OCR
+                            </label>
+                            <div x-show="ocrModelsLoading" class="flex items-center gap-2 text-sm text-zinc-500">
+                                <div class="animate-spin w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
+                                Chargement des modèles...
+                            </div>
+                            <template x-if="!ocrModelsLoading && ragConfig.ocr_models_available.length > 0">
+                                <select x-model="ragConfig.ocr_model"
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                                    <option value="">Modèle par défaut</option>
+                                    <template x-for="model in ragConfig.ocr_models_available" :key="model.id">
+                                        <option :value="model.id" 
+                                                x-text="model.name + (model.is_vision ? ' 🔍' : '')">
+                                        </option>
+                                    </template>
+                                </select>
+                            </template>
+                            <template x-if="!ocrModelsLoading && ragConfig.ocr_models_available.length === 0">
+                                <input type="text" x-model="ragConfig.ocr_model"
+                                    placeholder="Ex: mistral-ocr-latest, gpt-4o, llava:latest"
+                                    class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                            </template>
+                            <p class="text-xs text-zinc-400 mt-1">
+                                <span x-show="ragConfig.ocr_provider.startsWith('mistral')">
+                                    Recommandé: <code class="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">mistral-ocr-latest</code>
+                                </span>
+                                <span x-show="ragConfig.ocr_provider.startsWith('ollama')">
+                                    Modèles OCR: <code class="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">minicpm-v</code>, 
+                                    <code class="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">llava</code>,
+                                    <code class="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">bakllava</code>
+                                </span>
+                            </p>
+                        </div>
+
+                        <!-- Tesseract info (shown when no provider selected) -->
+                        <div x-show="!ragConfig.ocr_provider"
                             class="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                             <div
                                 class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 dark:bg-green-900/40 rounded-full">
@@ -155,12 +213,35 @@
                             </div>
                             <div class="flex-1">
                                 <div class="font-medium text-green-700 dark:text-green-400">
-                                    Tesseract OCR</div>
-                                <div class="text-xs text-green-600 dark:text-green-500">Moteur OCR
-                                    open source (Français + Anglais)</div>
+                                    Tesseract OCR (par défaut)</div>
+                                <div class="text-xs text-green-600 dark:text-green-500">
+                                    Moteur OCR local open source (Français + Anglais) avec pré-traitement d'image
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Selected OCR info -->
+                        <div x-show="ragConfig.ocr_provider"
+                            class="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <div
+                                class="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-amber-100 dark:bg-amber-900/40 rounded-full">
+                                <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-medium text-amber-700 dark:text-amber-400">
+                                    OCR via LLM Vision</div>
+                                <div class="text-xs text-amber-600 dark:text-amber-500">
+                                    Meilleure qualité pour documents complexes, tableaux, formules. 
+                                    <span x-show="ragConfig.ocr_model" x-text="'Modèle: ' + ragConfig.ocr_model"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- OCR Threshold -->
                         <div>
                             <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                                 Seuil détection PDF scanné

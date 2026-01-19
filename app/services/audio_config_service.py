@@ -4,12 +4,23 @@ Service de configuration Audio (STT/TTS).
 Ce service permet de gérer les paramètres globaux pour les services audio :
 - Provider et Modèle STT (Speech-to-Text)
 - Provider, Modèle et Voix TTS (Text-to-Speech)
+
+Quand TTS ou STT est désactivé, le container Docker correspondant est arrêté
+pour libérer les ressources GPU.
 """
 
 import json
 import os
+import subprocess
+import logging
 from typing import Dict, Any, Optional
 from flask import current_app
+
+logger = logging.getLogger(__name__)
+
+# Noms des containers Docker pour TTS et STT
+TTS_CONTAINER_NAME = "nova-alltalk"
+STT_CONTAINER_NAME = "nova-whisper"
 
 
 # Valeurs par défaut
@@ -71,6 +82,53 @@ class AudioConfigService:
                 pass
             return False
 
+    def _manage_docker_container(self, container_name: str, action: str) -> bool:
+        """
+        Démarre ou arrête un container Docker.
+        
+        Args:
+            container_name: Nom du container (ex: nova-alltalk)
+            action: "start" ou "stop"
+            
+        Returns:
+            True si l'action a réussi
+        """
+        try:
+            result = subprocess.run(
+                ["docker", action, container_name],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                logger.info(f"Container {container_name} {action}ed successfully")
+                return True
+            else:
+                logger.error(f"Failed to {action} container {container_name}: {result.stderr}")
+                return False
+        except subprocess.TimeoutExpired:
+            logger.error(f"Timeout while trying to {action} container {container_name}")
+            return False
+        except FileNotFoundError:
+            logger.error("Docker command not found")
+            return False
+        except Exception as e:
+            logger.error(f"Error managing container {container_name}: {e}")
+            return False
+
+    def _is_container_running(self, container_name: str) -> bool:
+        """Vérifie si un container Docker est en cours d'exécution."""
+        try:
+            result = subprocess.run(
+                ["docker", "inspect", "-f", "{{.State.Running}}", container_name],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.returncode == 0 and result.stdout.strip() == "true"
+        except Exception:
+            return False
+
     def get_config(self) -> Dict[str, Any]:
         """
         Récupère la configuration audio complète.
@@ -83,6 +141,8 @@ class AudioConfigService:
     def set_config(self, updates: Dict[str, Any]) -> bool:
         """
         Met à jour la configuration audio.
+        Gère également le démarrage/arrêt des containers Docker TTS et STT
+        quand leur état enabled change.
         
         Args:
             updates: Dictionnaire avec les valeurs à mettre à jour.
@@ -90,7 +150,9 @@ class AudioConfigService:
         Returns:
             True si la sauvegarde a réussi.
         """
-        config = self._load_config()
+        # Charger la config actuelle pour détecter les changements
+        old_config = self._load_config()
+        config = old_config.copy()
         
         # Mettre à jour les champs autorisés
         allowed_keys = DEFAULT_CONFIG.keys()
@@ -116,7 +178,97 @@ class AudioConfigService:
                 else:
                     config[key] = str(value) if value is not None else ""
         
-        return self._save_config(config)
+        # Sauvegarder la config
+        save_success = self._save_config(config)
+        
+        # Gérer les containers Docker si les états enabled ont changé
+        if save_success:
+            # TTS (AllTalk)
+            old_tts_enabled = old_config.get('tts_enabled', True)
+            new_tts_enabled = config.get('tts_enabled', True)
+            
+            if old_tts_enabled and not new_tts_enabled:
+                # TTS désactivé -> arrêter le container
+                logger.info("TTS disabled, stopping nova-alltalk container...")
+                self._manage_docker_container(TTS_CONTAINER_NAME, "stop")
+            elif not old_tts_enabled and new_tts_enabled:
+                # TTS activé -> démarrer le container
+                logger.info("TTS enabled, starting nova-alltalk container...")
+                self._manage_docker_container(TTS_CONTAINER_NAME, "start")
+            
+            # STT (Whisper)
+            old_stt_enabled = old_config.get('stt_enabled', True)
+            new_stt_enabled = config.get('stt_enabled', True)
+            
+            if old_stt_enabled and not new_stt_enabled:
+                # STT désactivé -> arrêter le container
+                logger.info("STT disabled, stopping nova-whisper container...")
+                self._manage_docker_container(STT_CONTAINER_NAME, "stop")
+            elif not old_stt_enabled and new_stt_enabled:
+                # STT activé -> démarrer le container
+                logger.info("STT enabled, starting nova-whisper container...")
+                self._manage_docker_container(STT_CONTAINER_NAME, "start")
+        
+        return save_success
+
+    def sync_containers(self) -> Dict[str, Any]:
+        """
+        Synchronise l'état des containers Docker avec la configuration actuelle.
+        Arrête les containers dont le service est désactivé, démarre ceux qui sont activés.
+        
+        Returns:
+            Dict avec le résultat de la synchronisation pour chaque service.
+        """
+        config = self._load_config()
+        results = {}
+        
+        # TTS (AllTalk)
+        tts_enabled = config.get('tts_enabled', True)
+        tts_running = self._is_container_running(TTS_CONTAINER_NAME)
+        
+        if tts_enabled and not tts_running:
+            logger.info("TTS is enabled but container is stopped, starting...")
+            results['tts'] = {
+                'action': 'start',
+                'success': self._manage_docker_container(TTS_CONTAINER_NAME, "start")
+            }
+        elif not tts_enabled and tts_running:
+            logger.info("TTS is disabled but container is running, stopping...")
+            results['tts'] = {
+                'action': 'stop',
+                'success': self._manage_docker_container(TTS_CONTAINER_NAME, "stop")
+            }
+        else:
+            results['tts'] = {
+                'action': 'none',
+                'success': True,
+                'message': f"Already {'running' if tts_running else 'stopped'}"
+            }
+        
+        # STT (Whisper)
+        stt_enabled = config.get('stt_enabled', True)
+        stt_running = self._is_container_running(STT_CONTAINER_NAME)
+        
+        if stt_enabled and not stt_running:
+            logger.info("STT is enabled but container is stopped, starting...")
+            results['stt'] = {
+                'action': 'start',
+                'success': self._manage_docker_container(STT_CONTAINER_NAME, "start")
+            }
+        elif not stt_enabled and stt_running:
+            logger.info("STT is disabled but container is running, stopping...")
+            results['stt'] = {
+                'action': 'stop',
+                'success': self._manage_docker_container(STT_CONTAINER_NAME, "stop")
+            }
+        else:
+            results['stt'] = {
+                'action': 'none',
+                'success': True,
+                'message': f"Already {'running' if stt_running else 'stopped'}"
+            }
+        
+        return results
 
 # Singleton instance
 audio_config_service = AudioConfigService()
@@ -127,3 +279,7 @@ def get_config():
 
 def set_config(updates):
     return audio_config_service.set_config(updates)
+
+def sync_audio_containers():
+    """Synchronise les containers audio avec la configuration actuelle."""
+    return audio_config_service.sync_containers()
