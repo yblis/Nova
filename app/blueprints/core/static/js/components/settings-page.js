@@ -222,6 +222,10 @@
                     const r = await fetch('/api/rag/config');
                     if (r.ok) {
                         const data = await r.json();
+                        // Sauvegarder les valeurs OCR avant réinitialisation
+                        const savedOcrProvider = data.ocr_provider || '';
+                        const savedOcrModel = data.ocr_model || '';
+                        
                         this.ragConfig = {
                             embedding_model: data.embedding_model || '',
                             embedding_provider_id: data.embedding_provider_id || '',
@@ -230,9 +234,9 @@
                             chunk_size: data.chunk_size || 500,
                             chunk_overlap: data.chunk_overlap || 50,
                             top_k: data.top_k || 5,
-                            // OCR
-                            ocr_provider: data.ocr_provider || '',
-                            ocr_model: data.ocr_model || '',
+                            // OCR - initialiser avec valeurs sauvegardées
+                            ocr_provider: savedOcrProvider,
+                            ocr_model: savedOcrModel,
                             ocr_threshold: data.ocr_threshold || 50,
                             ocr_models_available: [],
                             ocr_configured_providers: [],
@@ -243,10 +247,18 @@
                         };
                         // Load OCR providers
                         await this.loadOcrProviders();
-                        // If a provider is already selected, load its models
-                        if (this.ragConfig.ocr_provider) {
-                            this.loadOcrModels(this.ragConfig.ocr_provider);
+                        
+                        // If a provider is already selected, load its models AND WAIT
+                        if (savedOcrProvider) {
+                            await this.loadOcrModels(savedOcrProvider);
                         }
+                        
+                        // IMPORTANT: Restaurer les valeurs OCR APRÈS que les options soient rendues
+                        // Utiliser setTimeout car $nextTick ne suffit pas pour x-for
+                        setTimeout(() => {
+                            this.ragConfig.ocr_provider = savedOcrProvider;
+                            this.ragConfig.ocr_model = savedOcrModel;
+                        }, 100);
                     }
                 } catch (e) {
                     console.error('Failed to load RAG config', e);
@@ -600,6 +612,11 @@
             providersSaving: false,
             showApiKey: false,
 
+            // Helper function to safely get models for a provider
+            getModelsForProvider(providerId) {
+                return this.providerModels[providerId] || [];
+            },
+
             // Provider type info with colors and icons
             getProviderTypeInfo(type) {
                 const info = this.providerTypes[type] || {};
@@ -759,9 +776,10 @@
                 try {
                     const r = await fetch(`/api/settings/providers/${id}/models`);
                     const data = await r.json();
-                    this.providerModels[id] = data.models || [];
+                    // Use spread operator to force Alpine.js reactivity on nested object updates
+                    this.providerModels = { ...this.providerModels, [id]: data.models || [] };
                 } catch (e) {
-                    this.providerModels[id] = [];
+                    this.providerModels = { ...this.providerModels, [id]: [] };
                 }
             },
 

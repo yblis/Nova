@@ -1442,18 +1442,38 @@
                             };
                             // Charger les fournisseurs OCR disponibles
                             await this.loadOcrProviders();
-                            
-                            // IMPORTANT: Restaurer les valeurs OCR après chargement des providers
-                            // Car x-model peut les réinitialiser si les options n'existent pas encore
-                            this.$nextTick(() => {
-                                this.ragConfig.ocr_provider = savedOcrProvider;
-                                this.ragConfig.ocr_model = savedOcrModel;
+                            console.log('[OCR Debug] After loadOcrProviders:', {
+                                savedOcrProvider,
+                                savedOcrModel,
+                                configuredProviders: this.ragConfig.ocr_configured_providers,
+                                currentProvider: this.ragConfig.ocr_provider
                             });
                             
-                            // Si un provider est déjà sélectionné, charger ses modèles
+                            // Si un provider OCR est déjà sélectionné, charger ses modèles ET ATTENDRE
                             if (savedOcrProvider) {
-                                this.loadOcrModels(savedOcrProvider);
+                                await this.loadOcrModels(savedOcrProvider);
+                                console.log('[OCR Debug] After loadOcrModels:', {
+                                    modelsAvailable: this.ragConfig.ocr_models_available,
+                                    currentModel: this.ragConfig.ocr_model
+                                });
                             }
+                            
+                            // IMPORTANT: Restaurer les valeurs OCR APRÈS que les options soient rendues
+                            // Utiliser setTimeout car $nextTick ne suffit pas pour x-for
+                            setTimeout(() => {
+                                console.log('[OCR Debug] In setTimeout, about to restore:', {
+                                    savedOcrProvider,
+                                    savedOcrModel,
+                                    beforeProvider: this.ragConfig.ocr_provider,
+                                    beforeModel: this.ragConfig.ocr_model
+                                });
+                                this.ragConfig.ocr_provider = savedOcrProvider;
+                                this.ragConfig.ocr_model = savedOcrModel;
+                                console.log('[OCR Debug] After restore:', {
+                                    afterProvider: this.ragConfig.ocr_provider,
+                                    afterModel: this.ragConfig.ocr_model
+                                });
+                            }, 100);
                         }
                     } catch (e) {
                         console.error('Failed to load RAG config', e);
@@ -1716,6 +1736,11 @@
                 providersSaving: false,
                 showApiKey: false,
 
+                // Helper function to safely get models for a provider
+                getModelsForProvider(providerId) {
+                    return this.providerModels[providerId] || [];
+                },
+
                 // Provider type info with colors and icons
                 getProviderTypeInfo(type) {
                     const info = this.providerTypes[type] || {};
@@ -1875,9 +1900,10 @@
                     try {
                         const r = await fetch(`/api/settings/providers/${id}/models`);
                         const data = await r.json();
-                        this.providerModels[id] = data.models || [];
+                        // Use spread operator to force Alpine.js reactivity
+                        this.providerModels = { ...this.providerModels, [id]: data.models || [] };
                     } catch (e) {
-                        this.providerModels[id] = [];
+                        this.providerModels = { ...this.providerModels, [id]: [] };
                     }
                 },
 

@@ -56,7 +56,7 @@
                             x-text="testResult?.message"></span>
                     </div>
                     <!-- Default Model Selector -->
-                    <div x-show="testResult && testResult.id === provider.id && testResult.ok || provider.default_model"
+                    <div x-show="(testResult && testResult.id === provider.id && testResult.ok) || getModelsForProvider(provider.id).length > 0"
                         class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
                         <div class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
@@ -67,15 +67,14 @@
                                 par défaut</label>
                         </div>
                         <div class="mt-1.5 flex items-center gap-2">
-                            <select x-data="{ selectedModel: provider.default_model || '' }"
-                                x-init="$watch('providerModels[provider.id]', () => { selectedModel = provider.default_model || '' })"
-                                x-model="selectedModel"
-                                @change="setProviderDefaultModel(provider.id, selectedModel)"
+                            <select :value="provider.default_model || ''"
+                                @change="setProviderDefaultModel(provider.id, $event.target.value)"
                                 class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                                 <option value="">-- Aucun --</option>
-                                <template x-for="m in (providerModels[provider.id] || [])"
-                                    :key="typeof m === 'string' ? m : m.id || m.name">
+                                <template x-for="(m, idx) in getModelsForProvider(provider.id)"
+                                    :key="(typeof m === 'string' ? m : m.id || m.name) + '-' + idx">
                                     <option :value="typeof m === 'string' ? m : m.id || m.name"
+                                        :selected="provider.default_model === (typeof m === 'string' ? m : m.id || m.name)"
                                         x-text="typeof m === 'string' ? m : m.id || m.name">
                                     </option>
                                 </template>

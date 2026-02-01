@@ -6,6 +6,13 @@ data/
 logs/
 *.log
 
+# Data volumes (bind mounts)
+_redis_data/
+_postgres_data/
+_qdrant_data/
+_gguf_models/
+_rag_uploads/
+
 # Cache Python
 __pycache__/
 *.py[cod]

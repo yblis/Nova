@@ -172,18 +172,18 @@
                                 <div class="animate-spin w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full"></div>
                                 Chargement des modèles...
                             </div>
-                            <template x-if="!ocrModelsLoading && ragConfig.ocr_models_available.length > 0">
+                            <template x-if="!ocrModelsLoading && (ragConfig.ocr_models_available || []).length > 0">
                                 <select x-model="ragConfig.ocr_model"
                                     class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                                     <option value="">Modèle par défaut</option>
-                                    <template x-for="model in ragConfig.ocr_models_available" :key="model.id">
-                                        <option :value="model.id" 
-                                                x-text="model.name + (model.is_vision ? ' 🔍' : '')">
+                                    <template x-for="(model, idx) in (ragConfig.ocr_models_available || [])" :key="(model.id || model.name || model) + '-' + idx">
+                                        <option :value="model.id || model.name || model" 
+                                                x-text="(model.name || model.id || model) + (model.is_vision ? ' 🔍' : '')">
                                         </option>
                                     </template>
                                 </select>
                             </template>
-                            <template x-if="!ocrModelsLoading && ragConfig.ocr_models_available.length === 0">
+                            <template x-if="!ocrModelsLoading && (ragConfig.ocr_models_available || []).length === 0">
                                 <input type="text" x-model="ragConfig.ocr_model"
                                     placeholder="Ex: mistral-ocr-latest, gpt-4o, llava:latest"
                                     class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
