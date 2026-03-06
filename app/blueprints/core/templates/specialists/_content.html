@@ -1,0 +1,22 @@
+<!-- Specialists Page - AI Assistants with Custom Knowledge -->
+<div class="specialists-container flex-1 h-full flex flex-col sm:flex-row bg-white dark:bg-zinc-900 overflow-hidden"
+    x-data="specialistsApp">
+
+    {% include "specialists/_sidebar.html" %}
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {% include "specialists/_header.html" %}
+
+        <!-- Content Area -->
+        <div class="flex-1 flex min-h-0">
+            {% include "specialists/_chat_area.html" %}
+            {% include "specialists/_knowledge_panel.html" %}
+        </div>
+    </div>
+
+    {% include "specialists/_modals.html" %}
+
+</div>
+
+<script src="{{ url_for('core.static', filename='js/pages/specialists-app.js') }}?v={{ range(1, 10000) | random }}"></script>

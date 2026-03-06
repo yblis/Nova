@@ -7,15 +7,15 @@
 const SpaRouter = {
     // Configuration des routes
     routes: {
-        '/': { partial: '/partials/index', component: null, title: 'Dashboard' },
-        '/models': { partial: '/partials/models', component: null, title: 'Modèles installés' },
-        '/discover': { partial: '/partials/discover', component: null, title: 'Découvrir' },
-        '/downloads': { partial: '/partials/downloads', component: null, title: 'Téléchargements' },
-        '/chat': { partial: '/partials/chat', component: 'chatApp', title: 'Chat' },
-        '/texts': { partial: '/partials/texts', component: 'textsApp', title: 'Assistant' },
-        '/settings': { partial: '/partials/settings', component: 'settingsPage', title: 'Paramètres' },
-        '/admin/users': { partial: '/admin/partials/users', component: null, title: 'Utilisateurs' },
-        '/specialists': { partial: '/partials/specialists', component: 'specialistsApp', title: 'Spécialistes' }
+        '/': { partial: '/spa/index', component: null, title: 'Dashboard' },
+        '/models': { partial: '/spa/models', component: null, title: 'Modèles installés' },
+        '/discover': { partial: '/spa/discover', component: null, title: 'Découvrir' },
+        '/downloads': { partial: '/spa/downloads', component: null, title: 'Téléchargements' },
+        '/chat': { partial: '/spa/chat', component: 'chatApp', title: 'Chat' },
+        '/texts': { partial: '/spa/texts', component: 'textsApp', title: 'Assistant' },
+        '/settings': { partial: '/spa/settings', component: 'settingsPage', title: 'Paramètres' },
+        '/admin/users': { partial: '/admin/spa/users', component: null, title: 'Utilisateurs' },
+        '/specialists': { partial: '/spa/specialists', component: 'specialistsApp', title: 'Spécialistes' }
     },
 
     // État interne

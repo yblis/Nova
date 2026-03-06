@@ -1,0 +1,130 @@
+    <!-- Debug Console -->
+    <div x-show="debug"
+        class="fixed bottom-0 left-0 right-0 h-48 bg-black/90 text-green-400 font-mono text-xs p-4 overflow-y-auto z-50 border-t border-green-900 opacity-90">
+        <div class="flex justify-between items-center mb-2 border-b border-green-800 pb-1">
+            <span class="font-bold" x-text="t('chat.debug.title', 'DEBUG CONSOLE')"></span>
+            <button @click="debug=false" class="text-white hover:text-red-400"
+                x-text="t('chat.debug.close', 'Close')"></button>
+        </div>
+        <template x-for="(log, i) in debugLogs" :key="i">
+            <div x-text="log"></div>
+        </template>
+    </div>
+
+    <!-- Chunks Visualization Modal -->
+    <div x-show="showChunksModal" style="display: none;" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title"
+        role="dialog" aria-modal="true">
+
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div x-show="showChunksModal" @click="showChunksModal = false"
+                class="fixed inset-0 bg-black/50 transition-opacity" aria-hidden="true"></div>
+
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+            <div x-show="showChunksModal" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                class="inline-block align-bottom bg-white dark:bg-zinc-900 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-zinc-200 dark:border-zinc-800">
+
+                <!-- Header -->
+                <div
+                    class="bg-white dark:bg-zinc-900 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg leading-6 font-medium text-zinc-900 dark:text-zinc-100" id="modal-title">
+                            <span x-text="t('chat.chunksModal.title', 'Chunks :')"></span> <span
+                                x-text="currentDocFilename"></span>
+                        </h3>
+                        <button @click="showChunksModal = false" class="text-zinc-400 hover:text-zinc-500">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Stats -->
+                    <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        <div class="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
+                            <div class="text-xs text-zinc-500 uppercase"
+                                x-text="t('chat.chunksModal.total', 'Total Chunks')"></div>
+                            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100"
+                                x-text="currentDocStats.total_chunks || 0"></div>
+                        </div>
+                        <div class="bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
+                            <div class="text-xs text-zinc-500 uppercase"
+                                x-text="t('chat.chunksModal.avgSize', 'Taille Moy.')"></div>
+                            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100"
+                                x-text="(currentDocStats.avg_chunk_size || 0) + ' ' + t('chat.chunksModal.chars', 'cars')">
+                            </div>
+                        </div>
+                        <!-- Placeholder for future stats -->
+                    </div>
+
+                    <!-- Search -->
+                    <div class="mt-4 flex gap-4">
+                        <div class="relative flex-1">
+                            <input type="text" x-model="currentDocSearchQuery" @keydown.enter="searchChunks()"
+                                :placeholder="t('chat.chunksModal.searchPlaceholder', 'Rechercher dans ce document...')"
+                                class="w-full pl-10 pr-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+                            <svg class="w-5 h-5 text-zinc-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <button @click="searchChunks()"
+                            class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm font-medium transition-colors"
+                            x-text="t('chat.chunksModal.search', 'Rechercher')">
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Content List -->
+                <div class="bg-white dark:bg-zinc-900 px-4 py-3 sm:px-6 h-[60vh] overflow-y-auto">
+                    <ul class="space-y-3">
+                        <template x-for="chunk in currentDocChunks" :key="chunk.id || chunk.chunk_index">
+                            <li
+                                class="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-4 border border-zinc-100 dark:border-zinc-800/50 hover:border-brand-200 dark:hover:border-brand-800 transition-colors group">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-300">
+                                                <span x-text="t('chat.chunksModal.chunkPrefix', 'Chunk #')"></span><span
+                                                    x-text="chunk.chunk_index"></span>
+                                            </span>
+                                            <span x-show="chunk.score"
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                                                <span x-text="t('chat.chunksModal.score', 'Score :') + ' '"></span><span
+                                                    x-text="(chunk.score * 100).toFixed(1) + '%'"></span>
+                                            </span>
+                                            <span class="text-xs text-zinc-400"
+                                                x-text="(chunk.size || chunk.content.length) + ' ' + t('chat.chunksModal.characters', 'caractères')"></span>
+                                        </div>
+                                        <p class="text-sm text-zinc-700 dark:text-zinc-300 font-mono whitespace-pre-wrap break-words bg-white dark:bg-zinc-900 p-2 rounded border border-zinc-200 dark:border-zinc-800"
+                                            x-text="chunk.content"></p>
+                                    </div>
+                                    <button x-show="chunk.id" @click="deleteChunk(chunk.id)"
+                                        class="text-zinc-400 hover:text-red-500 transition-colors p-1 opacity-0 group-hover:opacity-100"
+                                        :title="t('chat.chunksModal.deleteChunk', 'Supprimer ce chunk')">
+                                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </li>
+                        </template>
+                        <li x-show="currentDocChunks.length === 0" class="text-center py-8 text-zinc-500"
+                            x-text="t('chat.chunksModal.noChunks', 'Aucun chunk trouvé.')">
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>

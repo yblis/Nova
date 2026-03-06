@@ -90,6 +90,7 @@ class GeminiClient(BaseLLMClient):
         self,
         messages: List[Dict[str, str]],
         model: str,
+        images: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None,
         stream: bool = False
     ) -> Dict[str, Any]:
@@ -99,6 +100,10 @@ class GeminiClient(BaseLLMClient):
             
             # Convertir les messages au format Gemini
             contents, system_instruction = self._prepare_contents(messages)
+            
+            # Ajouter les images au dernier message si présentes
+            if images and contents:
+                contents = self._add_images_to_contents(contents, images)
             
             # Créer la config de génération
             config = self._make_generation_config(options, system_instruction)

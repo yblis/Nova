@@ -1,13 +1,3 @@
-"""
-RAG Service - Gestion des documents et recherche sémantique
-
-Supporte deux backends :
-- PostgreSQL/pgvector (fallback, toujours disponible)
-- Qdrant (recommandé pour recherche hybride haute performance)
-
-Le backend est sélectionné via la config RAG_USE_QDRANT.
-"""
-
 import os
 import uuid
 from typing import List, Dict, Optional, Tuple
@@ -34,12 +24,13 @@ def use_qdrant() -> bool:
 
 def get_db_connection(register_vec=True):
     """
-    Crée une connexion à PostgreSQL.
+    Crée une connexion à PostgreSQL via le pool partagé.
     
     Args:
         register_vec: Si True, enregistre le type vector (nécessite extension)
     """
-    conn = psycopg2.connect(current_app.config["POSTGRES_URL"])
+    from .chat_history_pg import get_db_connection as get_pooled_conn
+    conn = get_pooled_conn()
     if register_vec:
         try:
             from pgvector.psycopg2 import register_vector
@@ -47,6 +38,12 @@ def get_db_connection(register_vec=True):
         except Exception as e:
             current_app.logger.warning(f"Could not register vector type: {e}")
     return conn
+
+
+def release_connection(conn):
+    """Libère une connexion dans le pool partagé."""
+    from .chat_history_pg import release_db_connection
+    release_db_connection(conn)
 
 
 def init_db():
@@ -71,7 +68,7 @@ def init_db():
         current_app.logger.info("pgvector extension created/verified")
         
         cur.close()
-        conn.close()
+        release_connection(conn)
         
         # Deuxième connexion AVEC register_vector maintenant que l'extension existe
         conn = get_db_connection(register_vec=True)
@@ -124,7 +121,7 @@ def init_db():
         
         conn.commit()
         cur.close()
-        conn.close()
+        release_connection(conn)
         
         _db_initialized = True
         current_app.logger.info("RAG database initialized successfully")
@@ -183,7 +180,7 @@ def store_document(
         raise
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
     
     
     # Si pas de chunks (initialisation pending), on s'arrête là
@@ -234,7 +231,7 @@ def _store_chunks_postgres(doc_id: str, chunks: List[Dict], embeddings: List[Lis
         raise
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def pad_embedding(embedding: List[float], target_dim: int) -> List[float]:
@@ -337,7 +334,7 @@ def _search_similar_postgres(
         return []
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def get_context_for_query(session_id: str, query: str) -> Tuple[str, List[Dict]]:
@@ -396,7 +393,7 @@ def has_documents(session_id: str) -> bool:
         )
         count = cur.fetchone()[0]
         cur.close()
-        conn.close()
+        release_connection(conn)
         return count > 0
     except Exception:
         return False
@@ -422,7 +419,7 @@ def list_documents(session_id: str) -> List[Dict]:
         
         result = [dict(row) for row in cur.fetchall()]
         cur.close()
-        conn.close()
+        release_connection(conn)
         return result
         
     except Exception as e:
@@ -467,7 +464,7 @@ def delete_document(document_id: str) -> bool:
         return False
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def delete_session_documents(session_id: str) -> bool:
@@ -506,7 +503,7 @@ def delete_session_documents(session_id: str) -> bool:
         return False
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def get_document_chunks(document_id: str) -> List[Dict]:
@@ -546,7 +543,7 @@ def get_document_chunks(document_id: str) -> List[Dict]:
         return []
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def delete_chunk(chunk_id: str) -> bool:
@@ -566,7 +563,7 @@ def delete_chunk(chunk_id: str) -> bool:
         return False
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)
 
 
 def get_document_stats(document_id: str) -> Dict:
@@ -619,4 +616,4 @@ def get_document_metadata(document_id: str) -> Optional[Dict]:
         return None
     finally:
         cur.close()
-        conn.close()
+        release_connection(conn)

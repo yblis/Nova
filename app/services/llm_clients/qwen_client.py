@@ -64,6 +64,7 @@ class QwenClient(BaseLLMClient):
         self,
         messages: List[Dict[str, str]],
         model: str,
+        images: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None,
         stream: bool = False
     ) -> Dict[str, Any]:
@@ -75,6 +76,12 @@ class QwenClient(BaseLLMClient):
             
             # Convertir les messages au format DashScope
             dashscope_messages = self._prepare_messages(messages)
+            
+            # Ajouter les images si présentes (pour modèles VL)
+            if images and model.startswith("qwen-vl"):
+                dashscope_messages = self._prepare_messages_with_images(
+                    dashscope_messages, images
+                )
             
             # Paramètres de génération
             params = self._make_generation_params(options)

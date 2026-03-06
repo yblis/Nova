@@ -1,0 +1,377 @@
+                    <!-- Right Column: Output -->
+                    <div
+                        class="bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 sm:p-5 flex flex-col min-h-0">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between mb-3" x-show="currentTool !== 'mermaid' && currentTool !== 'resume' && currentTool !== 'documentation'">
+                            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300" x-text="
+                                currentTool === 'reformulation' ? t('assistant.tools.reformulation', 'Reformulation') + ':' :
+                                currentTool === 'translation' ? t('assistant.tools.translation', 'Traduction') + ':' :
+                                currentTool === 'correction' ? t('assistant.tools.correction', 'Correction') + ':' :
+                                currentTool === 'email' ? t('assistant.tools.email', 'Email') + ':' :
+                                currentTool === 'summarize' ? t('assistant.tools.summarize', 'Résumé') + ':' :
+                                currentTool === 'resume' ? 'Aperçu du CV :' :
+                                currentTool === 'extractor' ? 'Données extraites :' :
+                                currentTool === 'simplify' ? 'Texte simplifié :' :
+                                currentTool === 'expand' ? 'Texte développé :' :
+                                currentTool === 'todolist' ? 'Plan d\'action :' :
+                                t('assistant.tools.prompt', 'Générateur de Prompt') + ':'
+                            "></label>
+                            <div class="flex items-center gap-1" x-show="resultText">
+                                <button x-data="{ copied: false }"
+                                    @click="copyResultAsHtml(); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    :class="copied ? 'text-green-500' : 'text-zinc-500 dark:text-zinc-400 hover:text-brand-600'"
+                                    :title="copied ? 'Copié !' : 'Copier pour Word (HTML riche)'">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <span x-text="copied ? 'Copié !' : 'Word'"></span>
+                                </button>
+                                <button x-data="{ copied: false }"
+                                    @click="copyResult(); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    :class="copied ? 'text-green-500' : 'text-zinc-500 dark:text-zinc-400 hover:text-brand-600'"
+                                    :title="copied ? 'Copié !' : 'Copier en Markdown'">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span x-text="copied ? 'Copié !' : 'Markdown'"></span>
+                                </button>
+                                <button @click="resultText = ''"
+                                    class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    :title="t('assistant.common.clear', 'Effacer')">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Documentation Header -->
+                        <div class="flex items-center justify-between mb-3" x-show="currentTool === 'documentation'">
+                            <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Documentation generee</label>
+                            <div class="flex items-center gap-1" x-show="resultText">
+                                <button x-data="{ copied: false }"
+                                    @click="copyDocAsHtml(); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    :class="copied ? 'text-green-500' : 'text-zinc-500 dark:text-zinc-400 hover:text-brand-600'"
+                                    :title="copied ? 'Copie !' : 'Copier pour Word (HTML riche)'">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <span x-text="copied ? 'Copie !' : 'Word'"></span>
+                                </button>
+                                <button x-data="{ copied: false }"
+                                    @click="copyDocAsMarkdown(); copied = true; setTimeout(() => copied = false, 2000)"
+                                    class="flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                    :class="copied ? 'text-green-500' : 'text-zinc-500 dark:text-zinc-400 hover:text-brand-600'"
+                                    :title="copied ? 'Copie !' : 'Copier en Markdown'">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span x-text="copied ? 'Copie !' : 'Markdown'"></span>
+                                </button>
+                                <button @click="resultText = ''; docPreviousResult = ''"
+                                    class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    title="Effacer">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Output Content (flex-grow) -->
+                        <div class="flex-1 flex flex-col min-h-[200px] lg:min-h-0" x-show="currentTool !== 'mermaid' && currentTool !== 'resume'">
+                            <div
+                                class="texts-output flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 overflow-y-auto min-h-[150px]">
+                                <!-- Empty State -->
+                                <div x-show="!resultText && !processing"
+                                    class="h-full flex flex-col items-center justify-center text-zinc-400">
+                                    <svg class="w-10 h-10 mb-2 opacity-30" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <p class="text-sm"
+                                        x-text="t('assistant.common.resultWillShow', 'Le résultat s\'affichera ici')">
+                                    </p>
+                                </div>
+                                <!-- Loading State -->
+                                <div x-show="processing" class="h-full flex flex-col items-center justify-center">
+                                    <div class="animate-pulse flex flex-col items-center gap-2">
+                                        <div class="h-2 w-32 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                        <div class="h-2 w-48 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                        <div class="h-2 w-40 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                    </div>
+                                </div>
+                                <!-- Result -->
+                                <div x-show="resultText && !processing">
+                                    <div class="markdown-content text-sm text-zinc-800 dark:text-zinc-200"
+                                        x-html="currentTool === 'documentation' ? docRenderWithImages(resultText) : formatResult(resultText)"></div>
+                                    <template
+                                        x-if="currentTool === 'correction' && synonyms && Object.keys(synonyms).length > 0">
+                                        <div class="mt-6 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                                            <h4
+                                                class="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
+                                                Suggestions</h4>
+                                            <div class="space-y-1">
+                                                <template x-for="(synList, word) in synonyms" :key="word">
+                                                    <div class="text-xs">
+                                                        <span class="font-medium text-amber-600" x-text="word"></span>:
+                                                        <span class="text-zinc-500 dark:text-zinc-400"
+                                                            x-text="synList.join(', ')"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <!-- Stats -->
+                            <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1" x-show="resultText">
+                                <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                        x-text="resultText.length"></span></span>
+                                <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                        x-text="resultText.trim() ? resultText.trim().split(/\s+/).length : 0"></span></span>
+                                <span><span x-text="t('assistant.common.paragraphs', 'Paragraphes')"></span>: <span
+                                        x-text="resultText.trim() ? resultText.trim().split(/\n\s*\n/).length : 0"></span></span>
+                            </div>
+                        </div>
+
+                        <!-- Resume CV Preview Output -->
+                        <template x-if="currentTool === 'resume'">
+                            <div class="flex-1 flex flex-col min-h-[200px] lg:min-h-0">
+                                <div class="texts-output flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-y-auto min-h-[150px]">
+                                    <!-- Empty State -->
+                                    <div x-show="!resumeGeneratedHtml && !resumeLoading"
+                                        class="h-full flex flex-col items-center justify-center text-zinc-400 p-4">
+                                        <svg class="w-10 h-10 mb-2 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <p class="text-sm">Le CV généré s'affichera ici</p>
+                                    </div>
+                                    <!-- Loading -->
+                                    <div x-show="resumeLoading" class="h-full flex flex-col items-center justify-center">
+                                        <div class="animate-pulse flex flex-col items-center gap-2">
+                                            <div class="h-2 w-32 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                            <div class="h-2 w-48 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                            <div class="h-2 w-40 bg-zinc-300 dark:bg-zinc-700 rounded"></div>
+                                        </div>
+                                    </div>
+                                    <!-- CV Preview -->
+                                    <div x-show="resumeGeneratedHtml && !resumeLoading" id="cv-preview-resume" x-html="resumeGeneratedHtml"></div>
+                                </div>
+                                <!-- Download Buttons -->
+                                <div x-show="resumeGeneratedHtml" class="flex gap-2 mt-2">
+                                    <button @click="downloadResumeHTML()"
+                                        class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors text-sm font-medium">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        HTML
+                                    </button>
+                                    <button @click="downloadResumePDF()"
+                                        class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-500 transition-colors text-sm font-medium">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ============ MERMAID OUTPUT ============ -->
+                        <template x-if="currentTool === 'mermaid'">
+                            <div class="flex flex-col gap-3 h-full">
+                                <!-- Empty State -->
+                                <template x-if="!mermaidRenderedSvg && !mermaidLoading && !mermaidError">
+                                    <div class="flex-1 flex items-center justify-center">
+                                        <div class="text-center max-w-xs">
+                                            <svg class="mx-auto w-16 h-16 text-zinc-300 dark:text-zinc-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                    d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM9 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                    d="M7 10v2a2 2 0 002 2h1M17 10v2a2 2 0 01-2 2h-1" />
+                                            </svg>
+                                            <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                                                Decrivez votre diagramme et cliquez sur <b>Generer</b> pour voir le resultat ici.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Loading State -->
+                                <template x-if="mermaidLoading">
+                                    <div class="flex-1 flex items-center justify-center">
+                                        <div class="text-center">
+                                            <svg class="mx-auto w-10 h-10 text-brand-500 animate-spin mb-3" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            <p class="text-sm text-zinc-500 dark:text-zinc-400">Generation du diagramme...</p>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Diagram Preview -->
+                                <template x-if="mermaidRenderedSvg && !mermaidLoading">
+                                    <div class="flex flex-col gap-2 h-full">
+                                        <!-- Toolbar -->
+                                        <div class="flex items-center justify-between flex-shrink-0">
+                                            <div class="flex items-center gap-1">
+                                                <!-- Zoom controls -->
+                                                <button @click="mermaidZoomOut()" title="Dezoomer"
+                                                    class="mermaid-toolbar-btn p-1.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                                    </svg>
+                                                </button>
+                                                <span class="text-xs font-mono text-zinc-500 dark:text-zinc-400 w-12 text-center select-none"
+                                                    x-text="Math.round(mermaidZoom * 100) + '%'"></span>
+                                                <button @click="mermaidZoomIn()" title="Zoomer"
+                                                    class="mermaid-toolbar-btn p-1.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                                    </svg>
+                                                </button>
+                                                <button @click="mermaidResetView()" title="Reinitialiser la vue"
+                                                    class="mermaid-toolbar-btn p-1.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors ml-1">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+
+                                            <div class="flex items-center gap-1">
+                                                <!-- Fullscreen -->
+                                                <button @click="mermaidToggleFullscreen()" title="Plein ecran"
+                                                    class="mermaid-toolbar-btn p-1.5 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                                                    </svg>
+                                                </button>
+                                                <!-- Export -->
+                                                <button @click="exportMermaidSVG()"
+                                                    class="px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                                    SVG
+                                                </button>
+                                                <button @click="exportMermaidPNG()"
+                                                    class="px-2 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                                    PNG
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- SVG Render Container with zoom/pan -->
+                                        <div class="mermaid-preview-container flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden relative"
+                                            :class="mermaidPanning ? 'cursor-grabbing' : 'cursor-grab'"
+                                            @wheel.prevent="mermaidHandleWheel($event)"
+                                            @mousedown.prevent="mermaidStartPan($event)"
+                                            @mousemove="mermaidOnPan($event)"
+                                            @mouseup="mermaidEndPan()"
+                                            @mouseleave="mermaidEndPan()"
+                                            @touchstart.prevent="mermaidStartPan($event)"
+                                            @touchmove="mermaidOnPan($event)"
+                                            @touchend="mermaidEndPan()">
+                                            <div class="mermaid-svg-wrapper w-full h-full flex items-center justify-center"
+                                                :style="'transform: translate(' + mermaidPanX + 'px, ' + mermaidPanY + 'px) scale(' + mermaidZoom + '); transform-origin: center center;'"
+                                                x-html="mermaidRenderedSvg">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- ====== MERMAID FULLSCREEN OVERLAY ====== -->
+                        <template x-if="currentTool === 'mermaid'">
+                            <template x-teleport="body">
+                                <div x-show="mermaidFullscreen" x-cloak
+                                    class="mermaid-fullscreen-overlay fixed inset-0 z-[9999] bg-white dark:bg-zinc-950 flex flex-col"
+                                    @keydown.escape.window="mermaidFullscreen = false">
+
+                                <!-- Fullscreen Toolbar -->
+                                <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0 bg-zinc-50 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Apercu du diagramme</span>
+                                        <span class="text-xs text-zinc-400 font-mono" x-text="Math.round(mermaidZoom * 100) + '%'"></span>
+                                    </div>
+
+                                    <div class="flex items-center gap-1">
+                                        <button @click="mermaidZoomOut()"
+                                            class="mermaid-toolbar-btn p-2 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+                                            </svg>
+                                        </button>
+                                        <button @click="mermaidZoomIn()"
+                                            class="mermaid-toolbar-btn p-2 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                        <button @click="mermaidResetView()"
+                                            class="mermaid-toolbar-btn p-2 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                        </button>
+
+                                        <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-700 mx-1"></div>
+
+                                        <button @click="exportMermaidSVG()"
+                                            class="px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                            SVG
+                                        </button>
+                                        <button @click="exportMermaidPNG()"
+                                            class="px-3 py-2 text-xs font-medium text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                                            PNG
+                                        </button>
+
+                                        <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-700 mx-1"></div>
+
+                                        <!-- Close / Reduce button -->
+                                        <button @click="mermaidFullscreen = false"
+                                            class="p-2 text-zinc-500 hover:text-red-500 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            title="Reduire">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Fullscreen SVG canvas -->
+                                <div class="flex-1 overflow-hidden relative"
+                                    :class="mermaidPanning ? 'cursor-grabbing' : 'cursor-grab'"
+                                    @wheel.prevent="mermaidHandleWheel($event)"
+                                    @mousedown.prevent="mermaidStartPan($event)"
+                                    @mousemove="mermaidOnPan($event)"
+                                    @mouseup="mermaidEndPan()"
+                                    @mouseleave="mermaidEndPan()"
+                                    @touchstart.prevent="mermaidStartPan($event)"
+                                    @touchmove="mermaidOnPan($event)"
+                                    @touchend="mermaidEndPan()">
+                                    <div class="mermaid-svg-wrapper w-full h-full flex items-center justify-center"
+                                        :style="'transform: translate(' + mermaidPanX + 'px, ' + mermaidPanY + 'px) scale(' + mermaidZoom + '); transform-origin: center center;'"
+                                        x-html="mermaidRenderedSvg">
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        </template>
+                    </div>

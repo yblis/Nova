@@ -1,0 +1,11 @@
+{% extends layout_template|default('layouts/base.html') %}
+
+{% block title %}Paramètres • Ollama Manager{% endblock %}
+
+{% block content %}
+<script src="{{ url_for('core.static', filename='js/components/settings/settings-providers.js') }}"></script>
+<script src="{{ url_for('core.static', filename='js/components/settings/settings-integrations.js') }}"></script>
+<script src="{{ url_for('core.static', filename='js/components/settings/settings-llm.js') }}"></script>
+<script src="{{ url_for('core.static', filename='js/components/settings-page.js') }}"></script>
+{% include 'settings/_content.html' %}
+{% endblock %}

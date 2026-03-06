@@ -1,0 +1,41 @@
+<div class="texts-container flex-1 h-full flex flex-col sm:flex-row bg-zinc-50 dark:bg-zinc-950 overflow-hidden"
+    x-data="textsApp()" x-cloak>
+
+    {% include "texts/_sidebar.html" %}
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-full relative w-full sm:w-auto">
+        {% include "texts/_header.html" %}
+        {% include "texts/_history_panel.html" %}
+
+        <!-- Main Content - Full Height -->
+        <div class="flex-1 overflow-y-auto lg:overflow-hidden lg:flex lg:flex-col">
+            <div class="lg:flex-1 lg:flex lg:flex-col p-4 sm:p-6 lg:min-h-0">
+                <div class="lg:flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:min-h-0">
+
+                    {% include "texts/_input_tools.html" %}
+                    {% include "texts/_output.html" %}
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('core.static', filename='js/pages/texts/texts-mermaid.js') }}?v=2"></script>
+<script src="{{ url_for('core.static', filename='js/pages/texts-app.js') }}?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+    if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
+            securityLevel: 'loose',
+            fontFamily: 'Inter, system-ui, sans-serif',
+            themeVariables: {
+                fontSize: '14px'
+            }
+        });
+    }
+</script>

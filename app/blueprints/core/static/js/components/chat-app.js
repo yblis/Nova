@@ -1,6 +1,11 @@
 /**
  * Chat Application Component
  * Alpine.js component for the /chat page
+ *
+ * Methods are split into mixins loaded before this file:
+ * - ChatSessionsMixin  (chat-sessions.js)
+ * - ChatRagMixin       (chat-rag.js)
+ * - ChatDebateMixin    (chat-debate.js)
  */
 document.addEventListener('alpine:init', () => {
     Alpine.data('chatApp', () => ({
@@ -32,6 +37,12 @@ document.addEventListener('alpine:init', () => {
         // Web Search
         webSearchEnabled: false,
         webSearchAvailable: false,
+        // Email Agent
+        emailAgentEnabled: false,
+        emailAgentAvailable: false,
+        // Bookstack Documentation
+        bookstackEnabled: false,
+        bookstackAvailable: false,
         // Multi-selection mode
         selectionMode: false,
         selectedSessions: [],
@@ -46,6 +57,26 @@ document.addEventListener('alpine:init', () => {
         showParticipantSelector: false,
         debateLoading: false,
         debateModeOption: 'parallel', // 'parallel' or 'sequential'
+        // Debate Settings
+        showDebateSettings: false,
+        debateSystemPrompt: '',
+        // Voice / TTS Settings
+        voiceSettings: { lang: 'fr-FR', voiceURI: '', rate: 1, autoRead: false },
+        availableVoices: [],
+        // Audio / STT
+        isRecording: false,
+        audioBackendConfig: { stt_enabled: false, tts_enabled: false },
+        // Drag & Drop
+        isDragging: false,
+        // TTS speaking state
+        speakingId: null,
+
+        // ============== Mixins ==============
+        ...window.ChatSessionsMixin,
+        ...window.ChatRagMixin,
+        ...window.ChatDebateMixin,
+
+        // ============== Core Methods ==============
 
         log(msg) {
             this.debugLogs.push(`[${new Date().toISOString().split('T')[1].split('.')[0]}] ${msg}`);
@@ -73,6 +104,8 @@ document.addEventListener('alpine:init', () => {
             
             // Vérification web search en arrière-plan (non bloquant)
             this.checkWebSearchAvailable();
+            this.checkEmailAvailable();
+            this.checkBookstackAvailable();
 
             // Load session from URL hash if present
             const hashSessionId = window.location.hash.slice(1);
@@ -120,13 +153,31 @@ document.addEventListener('alpine:init', () => {
                             });
                         // Use provider_default_model if currentModel is not set (no query param)
                         if (!this.currentModel && this.models.length > 0) {
-                            if (data.provider_default_model && this.models.includes(data.provider_default_model)) {
-                                this.currentModel = data.provider_default_model;
+                            const defaultModel = data.provider_default_model || '';
+                            this.log(`Provider default model: "${defaultModel}"`);
+                            
+                            // Try exact match first
+                            if (defaultModel && this.models.includes(defaultModel)) {
+                                this.currentModel = defaultModel;
+                                this.log(`Using exact match for default model: ${defaultModel}`);
+                            } else if (defaultModel) {
+                                // Try case-insensitive match
+                                const lowerDefault = defaultModel.toLowerCase();
+                                const match = this.models.find(m => m.toLowerCase() === lowerDefault);
+                                if (match) {
+                                    this.currentModel = match;
+                                    this.log(`Using case-insensitive match for default model: ${match}`);
+                                } else {
+                                    // Fallback to first model
+                                    this.currentModel = this.models[0];
+                                    this.log(`Default model "${defaultModel}" not found in models list, using first: ${this.models[0]}`);
+                                }
                             } else {
                                 this.currentModel = this.models[0];
+                                this.log(`No default model set, using first: ${this.models[0]}`);
                             }
                         }
-                        this.log(`Loaded ${this.models.length} models from active provider`);
+                        this.log(`Loaded ${this.models.length} models from active provider, current: ${this.currentModel}`);
                         return;
                     }
                 }
@@ -166,246 +217,32 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
-        async loadSessions() {
-            const start = performance.now();
+        async checkEmailAvailable() {
             try {
-                const r = await fetch('/api/chat/sessions');
-                const fetchTime = performance.now();
-                this.log(`Sessions fetch took: ${(fetchTime - start).toFixed(0)}ms`);
+                const r = await fetch('/api/settings/email/config');
                 if (r.ok) {
                     const data = await r.json();
-                    this.sessions = data.sessions || [];
-                    this.log(`Sessions parsed and assigned: ${this.sessions.length} sessions in ${(performance.now() - start).toFixed(0)}ms`);
-                    return true;
+                    this.emailAgentAvailable = data.is_available || false;
                 }
             } catch (e) {
-                this.log("Error loading sessions: " + e);
+                this.emailAgentAvailable = false;
             }
-            return false;
         },
 
-        async loadSession(id) {
-            if (this.selectionMode) return; // Don't load session in selection mode
-            if (this.currentSessionId === id) return;
-            this.currentSessionId = id;
-            this.loading = true;
-            if (window.innerWidth < 640) this.sidebarOpen = false;
-
-            // Update URL hash to persist session
-            if (window.location.hash.slice(1) !== id) {
-                history.replaceState(null, '', '#' + id);
-            }
-
+        async checkBookstackAvailable() {
             try {
-                const r = await fetch(`/api/chat/sessions/${id}`);
+                const r = await fetch('/api/settings/bookstack/config');
+                console.log('[Bookstack] Config response status:', r.status);
                 if (r.ok) {
                     const data = await r.json();
-                    // Map messages et extraire web_sources et memory_concepts de extra_data
-                    this.messages = (data.messages || []).map(m => {
-                        const extra = m.extra_data || {};
-                        return {
-                            ...m,
-                            web_sources: extra.web_sources || m.web_sources,
-                            memory_concepts: extra.memory_concepts || m.memory_concepts
-                        };
-                    });
-                    const sessionModel = data.model;
-                    this.currentModel = sessionModel;
-                    this.systemPrompt = data.system_prompt || '';
-                    this.modelConfig = data.model_config || { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 };
-
-                    // Afficher immédiatement la session (scroll + loading = false)
-                    this.scrollToBottom();
-                    this.loading = false;
-
-                    // Charger les documents RAG en parallèle (non bloquant)
-                    this.loadRagDocuments(id);
-
-                    // Résoudre le provider en arrière-plan (non bloquant pour l'affichage)
-                    if (sessionModel) {
-                        this._resolveProviderInBackground(sessionModel);
-                    }
+                    console.log('[Bookstack] Config data:', JSON.stringify(data));
+                    this.bookstackAvailable = data.is_available || false;
+                    console.log('[Bookstack] bookstackAvailable set to:', this.bookstackAvailable);
                 }
             } catch (e) {
-                this.log("Error loading session: " + e);
-                this.loading = false;
+                console.error('[Bookstack] Check failed:', e);
+                this.bookstackAvailable = false;
             }
-        },
-
-        // Résolution du provider en arrière-plan sans bloquer l'UI
-        async _resolveProviderInBackground(sessionModel) {
-            try {
-                const providerResp = await fetch('/api/settings/providers/resolve-model', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model: sessionModel })
-                });
-                if (providerResp.ok) {
-                    const providerData = await providerResp.json();
-                    if (providerData.found && providerData.provider_id) {
-                        // Changer le provider actif (fire-and-forget)
-                        fetch('/api/settings/providers/active', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ provider_id: providerData.provider_id })
-                        });
-                        // Recharger les modèles en arrière-plan
-                        await this.loadModels();
-                        // Restaurer le modèle de la session
-                        this.currentModel = sessionModel;
-                        this.log(`Provider switched to ${providerData.provider_name} for model ${sessionModel}`);
-                    }
-                }
-            } catch (e) {
-                this.log('Could not resolve provider for model: ' + sessionModel);
-            }
-        },
-
-        newChat() {
-            this.currentSessionId = null;
-            this.messages = [];
-            this.systemPrompt = '';
-            this.modelConfig = { temperature: 0.7, num_ctx: 4096, top_p: 0.9, top_k: 40 };
-            this.pendingImages = [];
-            this.pendingFiles = [];
-            this.ragDocuments = [];
-            this.sidebarOpen = window.innerWidth >= 640;
-            this.selectionMode = false;
-            this.selectedSessions = [];
-
-            // Remove hash from URL
-            if (window.location.hash) {
-                history.replaceState(null, '', window.location.pathname + window.location.search);
-            }
-        },
-
-        async deleteSession(id) {
-            showConfirmDialog({
-                title: 'Supprimer la conversation',
-                message: 'Voulez-vous vraiment supprimer cette conversation ?',
-                type: 'danger',
-                confirmText: 'Supprimer',
-                onConfirm: async () => {
-                    try {
-                        await fetch(`/api/chat/sessions/${id}`, { method: 'DELETE' });
-                        this.sessions = this.sessions.filter(s => s.id !== id);
-                        if (this.currentSessionId === id) this.newChat();
-                    } catch (e) { }
-                }
-            });
-        },
-
-        async togglePin(id) {
-            // Optimistic update
-            const session = this.sessions.find(s => s.id === id);
-            if (!session) return;
-
-            session.is_pinned = !session.is_pinned;
-
-            // Re-sort locally: pinned first, then by date desc
-            this.sortSessions();
-
-            try {
-                const r = await fetch(`/api/chat/sessions/${id}/pin`, { method: 'POST' });
-                if (!r.ok) {
-                    // Revert on error
-                    session.is_pinned = !session.is_pinned;
-                    this.sortSessions();
-                    showToast('Erreur lors de l\'épinglage');
-                }
-            } catch (e) {
-                session.is_pinned = !session.is_pinned;
-                this.sortSessions();
-                showToast('Erreur connexion');
-            }
-        },
-
-        sortSessions() {
-            this.sessions.sort((a, b) => {
-                if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
-                return (b.updated_at || 0) - (a.updated_at || 0);
-            });
-        },
-
-        // Multi-selection methods
-        toggleSelectionMode() {
-            this.selectionMode = !this.selectionMode;
-            if (!this.selectionMode) {
-                this.selectedSessions = [];
-            }
-        },
-
-        toggleSessionSelection(id) {
-            const idx = this.selectedSessions.indexOf(id);
-            if (idx > -1) {
-                this.selectedSessions.splice(idx, 1);
-            } else {
-                this.selectedSessions.push(id);
-            }
-        },
-
-        isSessionSelected(id) {
-            return this.selectedSessions.includes(id);
-        },
-
-        selectAllSessions() {
-            if (this.selectedSessions.length === this.sessions.length) {
-                this.selectedSessions = [];
-            } else {
-                this.selectedSessions = this.sessions.map(s => s.id);
-            }
-        },
-
-        async deleteSelectedSessions() {
-            if (this.selectedSessions.length === 0) return;
-            const count = this.selectedSessions.length;
-            showConfirmDialog({
-                title: 'Supprimer les conversations',
-                message: `Voulez-vous vraiment supprimer ${count} conversation${count > 1 ? 's' : ''} ?`,
-                type: 'danger',
-                confirmText: 'Supprimer',
-                onConfirm: async () => {
-                    try {
-                        await fetch('/api/chat/sessions/bulk', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ session_ids: this.selectedSessions })
-                        });
-                        this.sessions = this.sessions.filter(s => !this.selectedSessions.includes(s.id));
-                        if (this.selectedSessions.includes(this.currentSessionId)) {
-                            this.newChat();
-                        }
-                        this.selectedSessions = [];
-                        this.selectionMode = false;
-                        showToast(`${count} conversation${count > 1 ? 's' : ''} supprimée${count > 1 ? 's' : ''}`);
-                    } catch (e) {
-                        showToast('Erreur lors de la suppression');
-                    }
-                }
-            });
-        },
-
-        async deleteAllSessions() {
-            if (this.sessions.length === 0) return;
-            const count = this.sessions.length;
-            showConfirmDialog({
-                title: 'Supprimer toutes les conversations',
-                message: `Voulez-vous vraiment supprimer <strong>toutes</strong> les ${count} conversation${count > 1 ? 's' : ''} ? Cette action est irréversible.`,
-                type: 'danger',
-                confirmText: 'Tout supprimer',
-                onConfirm: async () => {
-                    try {
-                        await fetch('/api/chat/sessions/all', { method: 'DELETE' });
-                        this.sessions = [];
-                        this.newChat();
-                        this.selectionMode = false;
-                        this.selectedSessions = [];
-                        showToast('Toutes les conversations ont été supprimées');
-                    } catch (e) {
-                        showToast('Erreur lors de la suppression');
-                    }
-                }
-            });
         },
 
         formatContent(content) {
@@ -479,148 +316,6 @@ document.addEventListener('alpine:init', () => {
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = error => reject(error);
             });
-        },
-
-        async loadRagDocuments(sessionId) {
-            if (!sessionId) { this.ragDocuments = []; return; }
-            try {
-                const r = await fetch(`/api/chat/sessions/${sessionId}/documents`);
-                if (r.ok) {
-                    const data = await r.json();
-                    this.ragDocuments = data.documents || [];
-
-                    // Auto-polling if documents are processing
-                    if (this.ragDocuments.some(d => d.status === 'processing' || d.status === 'pending')) {
-                        if (this._ragPollingTimeout) clearTimeout(this._ragPollingTimeout);
-                        this._ragPollingTimeout = setTimeout(() => this.loadRagDocuments(sessionId), 2000);
-                    }
-                }
-            } catch (e) {
-                this.ragDocuments = [];
-            }
-        },
-
-        async handlePdfUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!this.currentSessionId) {
-                if (!this.currentModel) {
-                    showToast('Veuillez d\'abord sélectionner un modèle');
-                    event.target.value = '';
-                    return;
-                }
-                try {
-                    const r = await fetch('/api/chat/sessions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ model: this.currentModel })
-                    });
-                    if (r.ok) {
-                        this.currentSessionId = (await r.json()).id;
-                        this.loadSessions();
-                    } else {
-                        showToast('Erreur création session');
-                        event.target.value = '';
-                        return;
-                    }
-                } catch (e) {
-                    showToast('Erreur lors de la création de la session');
-                    event.target.value = '';
-                    return;
-                }
-            }
-
-            this.pdfUploading = true;
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('session_id', this.currentSessionId);
-
-            try {
-                const r = await fetch('/api/chat/upload-pdf', { method: 'POST', body: formData });
-                const data = await r.json();
-                if (r.ok) {
-                    await this.loadRagDocuments(this.currentSessionId);
-                } else {
-                    showToast(data.error || 'Erreur lors de l\'upload du PDF');
-                }
-            } catch (e) {
-                showToast('Erreur lors de l\'upload du PDF');
-            } finally {
-                this.pdfUploading = false;
-                event.target.value = '';
-            }
-        },
-
-        async deleteRagDocument(docId, filename) {
-            if (!confirm(`Supprimer le document "${filename}" ?`)) return;
-            try {
-                const r = await fetch(`/api/chat/documents/${docId}`, { method: 'DELETE' });
-                if (r.ok) {
-                    this.ragDocuments = this.ragDocuments.filter(d => d.id !== docId);
-                } else {
-                    showToast((await r.json()).error || 'Erreur lors de la suppression');
-                }
-            } catch (e) {
-                showToast('Erreur lors de la suppression');
-            }
-        },
-
-        async viewChunks(docId, filename) {
-            this.currentDocFilename = filename;
-            this.currentDocId = docId;
-            this.showChunksModal = true;
-            this.currentDocChunks = [];
-            this.currentDocStats = {};
-            this.currentDocSearchQuery = '';
-            try {
-                const r = await fetch(`/api/rag/documents/${docId}/chunks`);
-                if (r.ok) {
-                    const data = await r.json();
-                    this.currentDocChunks = data.chunks || [];
-                    this.currentDocStats = data.stats || {};
-                }
-            } catch (e) {
-                console.error('Failed to load chunks', e);
-                showToast('Erreur chargement chunks');
-            }
-        },
-
-        async searchChunks() {
-            if (!this.currentDocSearchQuery.trim()) {
-                // If empty, reload all chunks
-                this.viewChunks(this.currentDocId, this.currentDocFilename);
-                return;
-            }
-            try {
-                const r = await fetch(`/api/rag/documents/${this.currentDocId}/search`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: this.currentDocSearchQuery })
-                });
-                if (r.ok) {
-                    const data = await r.json();
-                    this.currentDocChunks = data.results || [];
-                }
-            } catch (e) {
-                showToast('Erreur recherche');
-            }
-        },
-
-        async deleteChunk(chunkId) {
-            if (!confirm('Supprimer ce chunk ?')) return;
-            try {
-                const r = await fetch(`/api/rag/chunks/${chunkId}`, { method: 'DELETE' });
-                if (r.ok) {
-                    this.currentDocChunks = this.currentDocChunks.filter(c => c.id !== chunkId);
-                    // Update stats locally (simple approximation)
-                    this.currentDocStats.total_chunks = (this.currentDocStats.total_chunks || 1) - 1;
-                } else {
-                    showToast('Erreur suppression chunk');
-                }
-            } catch (e) {
-                showToast('Erreur suppression chunk');
-            }
         },
 
         async saveSettings() {
@@ -701,7 +396,9 @@ document.addEventListener('alpine:init', () => {
                         session_id: this.currentSessionId,
                         images: imagesToSend.map(img => img.data),
                         files: filesToSend,
-                        web_search: this.webSearchEnabled
+                        web_search: this.webSearchEnabled,
+                        email_context: this.emailAgentEnabled,
+                        bookstack_context: this.bookstackEnabled
                     }),
                     signal: this.abortController.signal
                 });
@@ -744,6 +441,15 @@ document.addEventListener('alpine:init', () => {
                                     }
                                     if (json.web_sources) {
                                         this.messages[msgIndex].web_sources = json.web_sources;
+                                    }
+                                    if (json.email_context) {
+                                        this.messages[msgIndex].email_context = json.email_context;
+                                    }
+                                    if (json.email_actions) {
+                                        this.messages[msgIndex].email_actions = json.email_actions;
+                                    }
+                                    if (json.bookstack_sources) {
+                                        this.messages[msgIndex].bookstack_sources = json.bookstack_sources;
                                     }
                                     if (json.title_update) {
                                         const session = this.sessions.find(s => s.id === json.session_id);
@@ -925,6 +631,70 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        // TTS: Toggle speech synthesis
+        toggleSpeech(content, id) {
+            if (this.speakingId === id) {
+                window.speechSynthesis.cancel();
+                this.speakingId = null;
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(content);
+            utterance.lang = this.voiceSettings.lang || 'fr-FR';
+            utterance.rate = this.voiceSettings.rate || 1;
+            if (this.voiceSettings.voiceURI) {
+                const voice = this.availableVoices.find(v => v.voiceURI === this.voiceSettings.voiceURI);
+                if (voice) utterance.voice = voice;
+            }
+            utterance.onend = () => { this.speakingId = null; };
+            utterance.onerror = () => { this.speakingId = null; };
+            this.speakingId = id;
+            window.speechSynthesis.speak(utterance);
+        },
+
+        // Drag & Drop file handler
+        handleDrop(event) {
+            this.isDragging = false;
+            const files = event.dataTransfer?.files;
+            if (!files || files.length === 0) return;
+            for (const file of files) {
+                if (file.type.startsWith('image/')) {
+                    this.fileToBase64(file).then(base64 => {
+                        this.pendingImages.push({ name: file.name, data: base64.split(',')[1] });
+                    });
+                } else if (file.type === 'application/pdf') {
+                    // Simulate PDF upload
+                    const fakeEvent = { target: { files: [file], value: '' } };
+                    this.handlePdfUpload(fakeEvent);
+                }
+            }
+        },
+
+        // Paste handler for images
+        handlePaste(event) {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        this.fileToBase64(file).then(base64 => {
+                            this.pendingImages.push({ name: 'pasted-image.png', data: base64.split(',')[1] });
+                        });
+                    }
+                }
+            }
+        },
+
+        // Get filtered sessions based on search query
+        get filteredSessions() {
+            if (!this.sessionSearchQuery.trim()) return this.sessions;
+            const q = this.sessionSearchQuery.toLowerCase();
+            return this.sessions.filter(s =>
+                (s.title || '').toLowerCase().includes(q)
+            );
+        },
+
         /**
          * Destroy method for SPA lifecycle.
          * Cleans up event listeners and timeouts.
@@ -951,245 +721,6 @@ document.addEventListener('alpine:init', () => {
             }
 
             this.log("chatApp cleanup complete");
-        },
-
-        // ============== Multi-LLM Debate Mode ==============
-
-        async toggleDebateMode() {
-            console.log('toggleDebateMode called! Current state:', this.debateMode);
-            this.debateMode = !this.debateMode;
-            console.log('debateMode is now:', this.debateMode);
-            if (this.debateMode) {
-                if (this.availableProviders.length === 0) {
-                    await this.loadDebateProviders();
-                }
-                if (this.participants.length === 0) {
-                    await this.loadDebateDefaults();
-                }
-                this.showParticipantSelector = true;
-            } else {
-                this.showParticipantSelector = false;
-                // Don't clear participants immediately to allow toggling back
-            }
-        },
-
-        async loadDebateProviders() {
-            try {
-                const r = await fetch('/api/chat/debate/providers');
-                if (r.ok) {
-                    const data = await r.json();
-                    this.availableProviders = data.providers || [];
-                }
-            } catch (e) {
-                console.error('Error loading debate providers:', e);
-                this.availableProviders = [];
-            }
-        },
-
-        async loadDebateDefaults() {
-            try {
-                const r = await fetch('/api/chat/debate/defaults');
-                if (r.ok) {
-                    const data = await r.json();
-                    if (Array.isArray(data) && data.length > 0) {
-                        this.participants = data.map(p => ({
-                            ...p,
-                            // Ensure ID is unique if not present
-                            id: p.id || crypto.randomUUID()
-                        }));
-                    }
-                }
-            } catch (e) {
-                console.error('Error loading debate defaults:', e);
-            }
-        },
-
-        async saveDebateDefaults() {
-            if (this.participants.length === 0) {
-                showToast('Aucun participant à sauvegarder');
-                return;
-            }
-            try {
-                const r = await fetch('/api/chat/debate/defaults', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.participants)
-                });
-                if (r.ok) {
-                    showToast('Configuration par défaut sauvegardée');
-                } else {
-                    showToast('Erreur lors de la sauvegarde');
-                }
-            } catch (e) {
-                showToast('Erreur réseau');
-            }
-        },
-
-        async loadProviderModels(providerId) {
-            try {
-                const r = await fetch(`/api/settings/providers/${providerId}/models`);
-                if (r.ok) {
-                    const data = await r.json();
-                    return data.models || [];
-                }
-            } catch (e) {
-                console.error('Error loading provider models:', e);
-            }
-            return [];
-        },
-
-        addParticipant(provider, model) {
-            if (this.participants.length >= 4) {
-                showToast('Maximum 4 participants');
-                return;
-            }
-            // Check if already added
-            const exists = this.participants.some(p =>
-                p.provider_id === provider.id && p.model === model
-            );
-            if (exists) {
-                showToast('Participant déjà ajouté');
-                return;
-            }
-            this.participants.push({
-                id: crypto.randomUUID(),
-                provider_id: provider.id,
-                model: model,
-                name: `${provider.name} (${model.split(':')[0]})`,
-                color: provider.color || 'zinc'
-            });
-        },
-
-        removeParticipant(participantId) {
-            this.participants = this.participants.filter(p => p.id !== participantId);
-        },
-
-        async sendDebateMessage() {
-            if (this.debateLoading || !this.input.trim() || this.participants.length < 2) {
-                if (this.participants.length < 2) {
-                    showToast('Sélectionnez au moins 2 participants');
-                }
-                return;
-            }
-
-            const userMsg = this.input.trim();
-            this.input = '';
-
-            // Add user message to display
-            this.messages.push({ role: 'user', content: userMsg });
-            this.debateLoading = true;
-            this.loading = true;
-            this.scrollToBottom();
-
-            try {
-                this.abortController = new AbortController();
-                const response = await fetch('/api/chat/debate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        session_id: this.currentSessionId,
-                        message: userMsg,
-                        participants: this.participants.map(p => ({
-                            provider_id: p.provider_id,
-                            model: p.model,
-                            name: p.name
-                        })),
-                        mode: this.debateModeOption
-                    }),
-                    signal: this.abortController.signal
-                });
-
-                if (!response.ok) throw new Error('Debate request failed');
-
-                // Track responses per participant
-                const participantMsgs = {};
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const json = JSON.parse(line.substring(6));
-
-                                // Handle session ID
-                                if (json.session_id && !this.currentSessionId) {
-                                    this.currentSessionId = json.session_id;
-                                    this.loadSessions();
-                                }
-
-                                // Handle participant response
-                                if (json.participant_id && json.content) {
-                                    if (!participantMsgs[json.participant_id]) {
-                                        // New participant message
-                                        const msg = {
-                                            role: 'assistant',
-                                            content: '',
-                                            participant_id: json.participant_id,
-                                            participant_name: json.name,
-                                            color: json.color
-                                        };
-                                        this.messages.push(msg);
-                                        participantMsgs[json.participant_id] = this.messages.length - 1;
-                                    }
-                                    // Append content
-                                    const idx = participantMsgs[json.participant_id];
-                                    this.messages[idx].content += json.content;
-                                    this.scrollToBottom();
-                                }
-
-                                // Handle start marker for sequential mode
-                                if (json.start && json.participant_id) {
-                                    const msg = {
-                                        role: 'assistant',
-                                        content: '',
-                                        participant_id: json.participant_id,
-                                        participant_name: json.name,
-                                        color: json.color
-                                    };
-                                    this.messages.push(msg);
-                                    participantMsgs[json.participant_id] = this.messages.length - 1;
-                                    this.scrollToBottom();
-                                }
-
-                                if (json.error) {
-                                    showToast('Erreur: ' + json.error);
-                                }
-
-                                if (json.complete) {
-                                    this.loadSessions();
-                                }
-                            } catch (e) { }
-                        }
-                    }
-                }
-            } catch (e) {
-                if (e.name !== 'AbortError') {
-                    console.error('Debate error:', e);
-                    showToast('Erreur lors du débat');
-                }
-            } finally {
-                this.debateLoading = false;
-                this.loading = false;
-                this.abortController = null;
-            }
-        },
-
-        // Get filtered sessions based on search query
-        get filteredSessions() {
-            if (!this.sessionSearchQuery.trim()) return this.sessions;
-            const q = this.sessionSearchQuery.toLowerCase();
-            return this.sessions.filter(s =>
-                (s.title || '').toLowerCase().includes(q)
-            );
         }
     }));
 });

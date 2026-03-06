@@ -28,12 +28,15 @@ def _get_or_create_key() -> bytes:
         try:
             current_app.logger.warning(
                 "LLM_ENCRYPTION_KEY not set in environment. "
-                f"Generated new key: {key} - Add this to your .env file!"
+                "A temporary key has been generated (will be lost on restart). "
+                "Run: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" "
+                "and add the result to your .env as LLM_ENCRYPTION_KEY."
             )
         except RuntimeError:
             # Hors contexte Flask
-            print(f"WARNING: Generated new LLM_ENCRYPTION_KEY={key}")
-            print("Add this to your .env file to persist API keys encryption!")
+            print("WARNING: LLM_ENCRYPTION_KEY not set. A temporary key was generated.")
+            print("Run: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+            print("Add the result to your .env as LLM_ENCRYPTION_KEY to persist API key encryption.")
         
         # Stocker temporairement dans l'environnement pour cette session
         os.environ["LLM_ENCRYPTION_KEY"] = key

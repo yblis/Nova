@@ -1,11 +1,20 @@
 from flask import Flask
 from .config import Config
-from .extensions import cache, init_redis_rq
+from .extensions import cache, csrf, init_redis_rq
 
 
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
+
+    # Validate SECRET_KEY in production
+    if app.config.get('FLASK_ENV') == 'production' or not app.debug:
+        secret = app.config.get('SECRET_KEY', '')
+        if secret in ('change-me', '', 'change-me-to-a-secure-random-string'):
+            app.logger.warning(
+                "⚠️  SECRET_KEY is set to an insecure default. "
+                "Please set a strong SECRET_KEY in your .env file."
+            )
 
     # Extensions
     try:
@@ -18,11 +27,26 @@ def create_app() -> Flask:
 
     init_redis_rq(app)
 
+    # CSRF Protection
+    csrf.init_app(app)
+
+    # Rate Limiting
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    limiter = Limiter(
+        key_func=get_remote_address,
+        app=app,
+        default_limits=[],  # No global limit, apply per-route
+        storage_uri=app.config.get('REDIS_URL', 'memory://'),
+    )
+    app.limiter = limiter  # Store for access in blueprints
+
     # Blueprints
     from .blueprints.core.routes import core_bp
     from .blueprints.api.routes_models import api_models_bp
     from .blueprints.api.routes_remote import api_remote_bp
     from .blueprints.api.routes_huggingface import api_huggingface_bp
+    from .blueprints.api.routes_lmstudio import api_lmstudio_bp
     from .blueprints.api.sse import sse_bp
     from .blueprints.api.routes_settings import api_settings_bp
     from .blueprints.api.routes_chat import api_chat_bp
@@ -32,10 +56,24 @@ def create_app() -> Flask:
     from .blueprints.auth import auth_bp
     from .blueprints.admin import admin_bp
 
+    # Exempt API blueprints from CSRF (they use JSON, not form submissions)
+    # NOTE: csrf.exempt() requires the Blueprint OBJECT to exempt an entire blueprint
+    csrf.exempt(api_chat_bp)
+    csrf.exempt(sse_bp)
+    csrf.exempt(api_models_bp)
+    csrf.exempt(api_remote_bp)
+    csrf.exempt(api_huggingface_bp)
+    csrf.exempt(api_lmstudio_bp)
+    csrf.exempt(api_settings_bp)
+    csrf.exempt(api_texts_bp)
+    csrf.exempt(api_audio_bp)
+    csrf.exempt(specialists_bp)
+
     app.register_blueprint(core_bp)
     app.register_blueprint(api_models_bp, url_prefix="/api")
     app.register_blueprint(api_remote_bp, url_prefix="/api")
     app.register_blueprint(api_huggingface_bp, url_prefix="/api")
+    app.register_blueprint(api_lmstudio_bp, url_prefix="/api")
     app.register_blueprint(sse_bp, url_prefix="/api/stream")
     app.register_blueprint(api_settings_bp, url_prefix="/api/settings")
     app.register_blueprint(api_chat_bp, url_prefix="/api")
@@ -55,13 +93,38 @@ def create_app() -> Flask:
     def load_user(user_id):
         return user_service.get_user(user_id)
     
-    # Ensure admin exists
+    # Ensure admin exists and initialize databases
     with app.app_context():
         user_service.ensure_admin_exists()
         
         # Ensure local audio providers exist
         from .services.provider_manager import ensure_local_audio_providers
         ensure_local_audio_providers()
+        
+        # Initialize database tables at startup (instead of per-request)
+        try:
+            from .services.rag_service import init_db as init_rag_db
+            init_rag_db()
+        except Exception as e:
+            app.logger.warning(f"RAG DB init failed (will retry on first use): {e}")
+        
+        try:
+            from .services.specialist import init_db as init_specialist_db
+            init_specialist_db()
+        except Exception as e:
+            app.logger.warning(f"Specialist DB init failed (will retry on first use): {e}")
+        
+        try:
+            from .services.chat_history_pg import init_chat_db
+            init_chat_db()
+        except Exception as e:
+            app.logger.warning(f"Chat DB init failed (will retry on first use): {e}")
+        
+        try:
+            from .services.memory_graph_service import init_memory_graph_db
+            init_memory_graph_db()
+        except Exception as e:
+            app.logger.warning(f"Memory Graph DB init failed (will retry on first use): {e}")
 
     # Global Login Requirement
     from flask import request, redirect, url_for

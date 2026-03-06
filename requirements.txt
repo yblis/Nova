@@ -12,6 +12,8 @@ mypy>=1.10
 
 beautifulsoup4>=4.12
 Flask-Login>=0.6.3
+Flask-WTF>=1.2
+flask-limiter>=4.0
 
 # RAG / PDF support
 PyMuPDF>=1.24

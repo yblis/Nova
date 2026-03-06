@@ -1,0 +1,1877 @@
+                    <!-- Left Column: Input -->
+                    <div
+                        class="bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 sm:p-5 flex flex-col lg:min-h-0">
+
+                        <!-- ============ REFORMULATION ============ -->
+                        <template x-if="currentTool === 'reformulation'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <!-- Header with Context Toggle -->
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.reformulation.inputLabel', 'Texte à reformuler')"></label>
+                                    <div class="flex items-center gap-3">
+                                        <!-- Context Toggle -->
+                                        <label class="flex items-center gap-2 cursor-pointer">
+                                            <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                                                x-text="t('assistant.reformulation.contextLabel', 'Contexte')"></span>
+                                            <button type="button" @click="showContext = !showContext"
+                                                :class="showContext ? 'bg-brand-600' : 'bg-zinc-300 dark:bg-zinc-600'"
+                                                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors">
+                                                <span :class="showContext ? 'translate-x-5' : 'translate-x-1'"
+                                                    class="inline-block h-3 w-3 transform rounded-full bg-white transition-transform"></span>
+                                            </button>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Context Field (collapsible) -->
+                                <div x-show="showContext" x-collapse class="relative">
+                                    <textarea x-model="contextText"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                        rows="2"
+                                        :placeholder="t('assistant.reformulation.contextPlaceholder', 'Collez ici le contexte...')"></textarea>
+                                    <button @click="navigator.clipboard.readText().then(t => contextText = t)"
+                                        class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                        :title="t('assistant.common.paste', 'Coller')">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Main Textarea (flex-grow) -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            :placeholder="t('assistant.reformulation.inputPlaceholder', 'Entrez votre texte ici...')"></textarea>
+                                        <button @click="pasteFromClipboard()"
+                                            class="absolute top-2 right-2 p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <!-- Stats -->
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                                x-text="inputText.length"></span></span>
+                                        <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                        <span><span x-text="t('assistant.common.paragraphs', 'Paragraphes')"></span>:
+                                            <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\n\s*\n/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Button -->
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.reformulation.processing', 'Reformulation...') : t('assistant.reformulation.button', 'Reformuler')"></span>
+                                </button>
+
+                                <!-- Options Panel -->
+                                <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                                    <button @click="showOptions = !showOptions" type="button"
+                                        class="w-full flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 py-2">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <span x-text="t('assistant.common.options', 'Options')"></span>
+                                        </div>
+                                        <svg :class="showOptions ? 'rotate-180' : ''"
+                                            class="w-4 h-4 transition-transform" fill="none" viewBox="0 0 24 24"
+                                            stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </button>
+
+                                    <div x-show="showOptions" x-collapse class="space-y-4 pt-3">
+                                        <!-- Emoji Toggle -->
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="addEmojis"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span
+                                                x-text="t('assistant.reformulation.addEmojis', 'Ajouter des emojis')"></span>
+                                        </label>
+                                        <!-- Paraphrase Toggle -->
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="paraphraseMode"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span>Paraphrase profonde (anti-plagiat)</span>
+                                        </label>
+
+                                        <!-- Options Grid -->
+                                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <!-- TON -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddTone: false, newTone: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.tone', 'Ton')"></span>
+                                                    <button @click="showAddTone = !showAddTone" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new tone input -->
+                                                <div x-show="showAddTone" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newTone"
+                                                            @keydown.enter="if(newTone.trim()) { options.tones.push(newTone.trim()); newTone = ''; showAddTone = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newTone', 'Nouveau ton...')">
+                                                        <button
+                                                            @click="if(newTone.trim()) { options.tones.push(newTone.trim()); newTone = ''; showAddTone = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(tone, index) in options.tones" :key="tone">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedTone === tone 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedTone = (selectedTone === tone ? '' : tone)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="tone"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedTone === tone) selectedTone = ''; options.tones.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- FORMAT -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddFormat: false, newFormat: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.format', 'Format')"></span>
+                                                    <button @click="showAddFormat = !showAddFormat" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new format input -->
+                                                <div x-show="showAddFormat" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newFormat"
+                                                            @keydown.enter="if(newFormat.trim()) { options.formats.push(newFormat.trim()); newFormat = ''; showAddFormat = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newFormat', 'Nouveau format...')">
+                                                        <button
+                                                            @click="if(newFormat.trim()) { options.formats.push(newFormat.trim()); newFormat = ''; showAddFormat = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(format, index) in options.formats" :key="format">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedFormat === format 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedFormat = (selectedFormat === format ? '' : format)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="format"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedFormat === format) selectedFormat = ''; options.formats.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+
+                                            <!-- LONGUEUR -->
+                                            <div class="options-card bg-zinc-100/50 dark:bg-zinc-900/50 rounded-lg p-3 border border-zinc-200 dark:border-zinc-700"
+                                                x-data="{ showAddLength: false, newLength: '' }">
+                                                <div class="flex items-center justify-between mb-2">
+                                                    <span
+                                                        class="text-xs font-semibold text-brand-600 dark:text-brand-400 uppercase tracking-wider"
+                                                        x-text="t('assistant.reformulation.length', 'Longueur')"></span>
+                                                    <button @click="showAddLength = !showAddLength" type="button"
+                                                        class="p-1 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-400 hover:text-brand-600 transition-colors">
+                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                            stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <!-- Add new length input -->
+                                                <div x-show="showAddLength" x-collapse class="mb-2">
+                                                    <div class="flex gap-1">
+                                                        <input type="text" x-model="newLength"
+                                                            @keydown.enter="if(newLength.trim()) { options.lengths.push(newLength.trim()); newLength = ''; showAddLength = false; }"
+                                                            class="flex-1 px-2 py-1 text-xs rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 focus:ring-1 focus:ring-brand-500 focus:border-brand-500"
+                                                            :placeholder="t('assistant.reformulation.newLength', 'Nouvelle longueur...')">
+                                                        <button
+                                                            @click="if(newLength.trim()) { options.lengths.push(newLength.trim()); newLength = ''; showAddLength = false; }"
+                                                            type="button"
+                                                            class="px-2 py-1 text-xs bg-brand-600 text-white rounded hover:bg-brand-500">
+                                                            OK
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    <template x-for="(length, index) in options.lengths" :key="length">
+                                                        <div class="option-chip px-2 py-1 text-xs font-medium rounded-md border transition-all flex items-center gap-1"
+                                                            :class="selectedLength === length 
+                                                                ? 'bg-brand-600 text-white border-brand-600' 
+                                                                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-600'">
+                                                            <button
+                                                                @click="selectedLength = (selectedLength === length ? '' : length)"
+                                                                type="button" class="hover:opacity-80">
+                                                                <span x-text="length"></span>
+                                                            </button>
+                                                            <button
+                                                                @click.stop="if(selectedLength === length) selectedLength = ''; options.lengths.splice(index, 1)"
+                                                                type="button"
+                                                                class="ml-0.5 hover:text-red-500 transition-colors"
+                                                                title="Supprimer">
+                                                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
+                                                                    stroke="currentColor">
+                                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ============ TRANSLATION ============ -->
+                        <template x-if="currentTool === 'translation'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.translation.sourceLabel', 'Texte source')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.translation.inputPlaceholder', 'Entrez votre texte ici...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span>Caractères: <span x-text="inputText.length"></span></span>
+                                    <span>Mots: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider"
+                                        x-text="t('assistant.translation.targetLabel', 'Langue cible')"></label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="lang in options.languages" :key="lang">
+                                            <button @click="targetLanguage = lang" type="button"
+                                                :class="targetLanguage === lang ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="lang"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.translation.processing', 'Traduction...') : t('assistant.translation.button', 'Traduire')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ CORRECTION ============ -->
+                        <template x-if="currentTool === 'correction'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.correction.inputLabel', 'Texte à corriger')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.correction.inputPlaceholder', 'Collez votre texte ici...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                            x-text="inputText.length"></span></span>
+                                    <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <details class="group" open>
+                                    <summary
+                                        class="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                        <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <span x-text="t('assistant.common.options', 'Options')"></span>
+                                    </summary>
+                                    <div class="mt-4 grid grid-cols-2 gap-3">
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.spelling"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.spelling', 'Orthographe')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.grammar"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.grammar', 'Grammaire')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.syntax"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.syntax', 'Syntaxe')"></span>
+                                        </label>
+                                        <label
+                                            class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                                            <input type="checkbox" x-model="correctionOptions.style"
+                                                class="rounded border-zinc-300 dark:border-zinc-600 text-brand-600 focus:ring-brand-500">
+                                            <span x-text="t('assistant.correction.style', 'Style')"></span>
+                                        </label>
+                                    </div>
+                                </details>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.correction.processing', 'Correction...') : t('assistant.correction.button', 'Corriger')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ EMAIL ============ -->
+                        <template x-if="currentTool === 'email'">
+                            <div class="flex flex-col gap-4">
+                                <!-- Mode Selector -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Mode</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="m in options.email_modes || ['Générer', 'Répondre', 'Lettre de motivation']" :key="m">
+                                            <button @click="emailMode = m === 'Générer' ? 'generate' : (m === 'Répondre' ? 'reply' : 'cover_letter')" type="button"
+                                                :class="(emailMode === 'generate' && m === 'Générer') || (emailMode === 'reply' && m === 'Répondre') || (emailMode === 'cover_letter' && m === 'Lettre de motivation') ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="m"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- === MODE: GENERATE === -->
+                                <template x-if="emailMode === 'generate'">
+                                    <div class="flex flex-col gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                                x-text="t('assistant.email.typeLabel', 'Type d\'email')"></label>
+                                            <input type="text" x-model="emailType"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                                :placeholder="t('assistant.email.typePlaceholder', 'Ex: Email de réclamation...')">
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                                x-text="t('assistant.email.contextLabel', 'Contenu et contexte')"></label>
+                                            <textarea x-model="inputText"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[100px]"
+                                                :placeholder="t('assistant.email.contextPlaceholder', 'Décrivez le contenu...')"></textarea>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- === MODE: REPLY === -->
+                                <template x-if="emailMode === 'reply'">
+                                    <div class="flex flex-col gap-3">
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email reçu</label>
+                                            <textarea x-model="emailReceived"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[120px]"
+                                                placeholder="Collez ici l'email auquel vous souhaitez répondre..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Type de réponse</label>
+                                            <div class="flex flex-wrap gap-2">
+                                                <template x-for="rt in options.reply_types || ['Acceptation', 'Refus diplomatique', 'Demande d\'info', 'Réponse neutre']" :key="rt">
+                                                    <button @click="replyType = rt" type="button"
+                                                        :class="replyType === rt ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                        class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                        x-text="rt"></button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Instructions supplémentaires (optionnel)</label>
+                                            <textarea x-model="inputText"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[60px]"
+                                                placeholder="Précisions pour la réponse..."></textarea>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- === MODE: COVER LETTER === -->
+                                <template x-if="emailMode === 'cover_letter'">
+                                    <div class="flex flex-col gap-3">
+                                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div>
+                                                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Poste visé</label>
+                                                <input type="text" x-model="coverLetterData.job_title"
+                                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                                    placeholder="Ex: Développeur Full-Stack">
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Entreprise</label>
+                                                <input type="text" x-model="coverLetterData.company"
+                                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                                    placeholder="Ex: Google">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Profil & compétences</label>
+                                            <textarea x-model="coverLetterData.profile"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[80px]"
+                                                placeholder="Décrivez votre parcours, compétences clés..."></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Informations complémentaires (optionnel)</label>
+                                            <textarea x-model="inputText"
+                                                class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[60px]"
+                                                placeholder="Annonce, motivations particulières..."></textarea>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Common: Sender Name -->
+                                <div>
+                                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                                        x-text="emailMode === 'cover_letter' ? 'Nom du candidat' : t('assistant.email.senderLabel', 'Prénom NOM')"></label>
+                                    <input type="text" x-model="senderName"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-4 py-2.5 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                        :placeholder="t('assistant.email.senderPlaceholder', 'Ex: Jean DUPONT')">
+                                </div>
+
+                                <!-- Common: Tone (not for cover letter) -->
+                                <div x-show="emailMode !== 'cover_letter'">
+                                    <label
+                                        class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider"
+                                        x-text="t('assistant.email.toneLabel', 'Ton de l\'email')"></label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="tone in options.email_tones" :key="tone">
+                                            <button @click="selectedTone = tone" type="button"
+                                                :class="selectedTone === tone ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="tone"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Action Button -->
+                                <button @click="process" :disabled="processing || !currentModel || (emailMode === 'generate' && (!inputText || !emailType)) || (emailMode === 'reply' && !emailReceived) || (emailMode === 'cover_letter' && (!coverLetterData.job_title || !coverLetterData.company))"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.email.processing', 'Génération...') : (emailMode === 'reply' ? 'Générer la réponse' : emailMode === 'cover_letter' ? 'Générer la lettre' : t('assistant.email.button', 'Générer l\'email'))"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ PROMPT ============ -->
+                        <template x-if="currentTool === 'prompt'">
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.prompt.inputLabel', 'Décrivez votre besoin')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea x-model="inputText"
+                                    class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm min-h-[150px]"
+                                    :placeholder="t('assistant.prompt.inputPlaceholder', 'Exemple: Je veux...')"></textarea>
+                                <div class="flex justify-between text-xs text-zinc-400">
+                                    <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span
+                                            x-text="inputText.length"></span></span>
+                                    <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                            x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                </div>
+                                <details class="group" open>
+                                    <summary
+                                        class="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                        <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none"
+                                            viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 5l7 7-7 7" />
+                                        </svg>
+                                        <span x-text="t('assistant.prompt.tipsTitle', 'Conseils')"></span>
+                                    </summary>
+                                    <div class="mt-3 p-4 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-sm space-y-4">
+                                        <!-- Tips -->
+                                        <div>
+                                            <div
+                                                class="flex items-center gap-2 text-amber-500 dark:text-amber-400 font-medium mb-2">
+                                                <span>💡</span>
+                                                <span
+                                                    x-text="t('assistant.prompt.tipsSubtitle', 'Tips pour une demande efficace :')"></span>
+                                            </div>
+                                            <ul class="space-y-1 text-zinc-600 dark:text-zinc-400 text-xs">
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipContext', 'Contexte') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipContextDesc', 'Précisez le domaine...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipObjective', 'Objectif') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipObjectiveDesc', 'Expliquez clairement...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipFormat', 'Format') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipFormatDesc', 'Indiquez le type...')"></span>
+                                                </li>
+                                                <li>• <span class="font-semibold text-zinc-700 dark:text-zinc-300"
+                                                        x-text="t('assistant.prompt.tipConstraints', 'Contraintes') + ':'"></span>
+                                                    <span
+                                                        x-text="t('assistant.prompt.tipConstraintsDesc', 'Mentionnez les limitations...')"></span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <!-- Exemples -->
+                                        <div>
+                                            <div
+                                                class="flex items-center gap-2 text-amber-500 dark:text-amber-400 font-medium mb-2">
+                                                <span>⭐</span>
+                                                <span
+                                                    x-text="t('assistant.prompt.examplesTitle', 'Exemples de bonnes demandes :')"></span>
+                                            </div>
+                                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium mb-1">
+                                                        <span>🔍</span> <span
+                                                            x-text="t('assistant.prompt.exAnalysis', 'Analyse') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exAnalysisText', 'Analyser des avis clients...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-orange-600 dark:text-orange-400 font-medium mb-1">
+                                                        <span>📊</span> <span
+                                                            x-text="t('assistant.prompt.exBusiness', 'Business') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exBusinessText', 'Créer un plan marketing...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-blue-600 dark:text-blue-400 font-medium mb-1">
+                                                        <span>💻</span> <span
+                                                            x-text="t('assistant.prompt.exCoding', 'Code') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exCodingText', 'Générer du code Python...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <div
+                                                        class="flex items-center gap-1 text-purple-600 dark:text-purple-400 font-medium mb-1">
+                                                        <span>✍️</span> <span
+                                                            x-text="t('assistant.prompt.exCreative', 'Rédaction') + ':'"></span>
+                                                    </div>
+                                                    <p class="text-zinc-500 dark:text-zinc-400 italic"
+                                                        x-text="'&quot;' + t('assistant.prompt.exCreativeText', 'Rédiger des articles...') + '&quot;'">
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none"
+                                        viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span
+                                        x-text="processing ? t('assistant.prompt.processing', 'Génération...') : t('assistant.prompt.button', 'Générer le prompt')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ SUMMARIZE ============ -->
+                        <template x-if="currentTool === 'summarize'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                                        x-text="t('assistant.summarize.inputLabel', 'Texte à résumer')"></label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.paste', 'Coller')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            :title="t('assistant.common.clear', 'Effacer')">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- File Upload Area -->
+                                <div x-show="!uploadedFile" 
+                                    class="border-2 border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg p-4 text-center hover:border-brand-400 transition-colors cursor-pointer"
+                                    @click="$refs.summarizeFileInput.click()">
+                                    <svg class="w-8 h-8 mx-auto text-zinc-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="text-sm text-zinc-500 dark:text-zinc-400" 
+                                        x-text="t('assistant.summarize.uploadHint', 'Ou importez un fichier (PDF, TXT, DOCX)')"></p>
+                                    <input type="file" x-ref="summarizeFileInput" @change="uploadFile($event)" 
+                                        accept=".pdf,.txt,.docx,.doc,.md" class="hidden">
+                                </div>
+
+                                <!-- Uploaded File Badge -->
+                                <div x-show="uploadedFile" class="flex items-center gap-2 p-2 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-brand-200 dark:border-brand-800">
+                                    <svg class="w-5 h-5 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span class="text-sm text-brand-700 dark:text-brand-300 flex-1 truncate" x-text="uploadedFile?.name"></span>
+                                    <button @click="uploadedFile = null" class="p-1 text-zinc-400 hover:text-red-500">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Main Textarea -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            :placeholder="t('assistant.summarize.inputPlaceholder', 'Collez votre texte ici ou importez un fichier...')"></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span><span x-text="t('assistant.common.chars', 'Caractères')"></span>: <span x-text="inputText.length"></span></span>
+                                        <span><span x-text="t('assistant.common.words', 'Mots')"></span>: <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Action Button -->
+                                <button @click="process" :disabled="processing || (!inputText && !(uploadedFile && uploadedFile.status === 'completed')) || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span x-text="processing ? t('assistant.summarize.processing', 'Résumé en cours...') : t('assistant.summarize.button', 'Résumer')"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ DOCUMENTATION WRITER ============ -->
+                        <template x-if="currentTool === 'documentation'">
+                            <div class="flex flex-col lg:h-full gap-3 overflow-y-auto">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        Trame de documentation
+                                    </label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Effacer">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Main Textarea -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            @paste="docHandlePaste($event)"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici votre trame, plan, notes ou structure de documentation... (Ctrl+V pour coller une image)"></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caracteres: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span
+                                                x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Style Selector -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
+                                        Style de documentation
+                                    </label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="style in docStyles" :key="style">
+                                            <button @click="docStyle = style" type="button"
+                                                :class="docStyle === style ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="style"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- ===== Images sources (pour analyse) ===== -->
+                                <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            </svg>
+                                            <label class="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                                                Images sources
+                                            </label>
+                                            <span class="text-xs text-zinc-400" x-show="docSourceImages.length > 0"
+                                                x-text="'(' + docSourceImages.length + ')'"></span>
+                                        </div>
+                                        <label class="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded cursor-pointer transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Ajouter
+                                            <input type="file" accept="image/*" multiple class="hidden" @change="docAddSourceImages($event)">
+                                        </label>
+                                    </div>
+                                    <p class="text-xs text-zinc-400">L'IA analyse ces images pour rediger la documentation</p>
+                                    <!-- Source Images Grid -->
+                                    <template x-if="docSourceImages.length > 0">
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="(img, index) in docSourceImages" :key="img.id">
+                                                <div class="relative group">
+                                                    <img :src="img.preview" class="h-16 w-16 object-cover rounded-md border border-zinc-200 dark:border-zinc-700">
+                                                    <button @click="docRemoveSourceImage(index)"
+                                                        class="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                                        title="Supprimer">
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- ===== Images a integrer (embed inline) ===== -->
+                                <div class="border border-amber-200 dark:border-amber-700/50 rounded-lg p-3 space-y-2 bg-amber-50/30 dark:bg-amber-900/10">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <label class="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                                                Captures a integrer
+                                            </label>
+                                            <span class="text-xs text-zinc-400" x-show="docEmbedImages.length > 0"
+                                                x-text="'(' + docEmbedImages.length + ')'"></span>
+                                        </div>
+                                        <label class="flex items-center gap-1 px-2 py-1 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded cursor-pointer transition-colors">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                            Ajouter
+                                            <input type="file" accept="image/*" multiple class="hidden" @change="docAddEmbedImages($event)">
+                                        </label>
+                                    </div>
+                                    <p class="text-xs text-zinc-400">L'IA placera ces images aux bons endroits dans la procedure</p>
+                                    <!-- Embed Images Grid (numbered) -->
+                                    <template x-if="docEmbedImages.length > 0">
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="(img, index) in docEmbedImages" :key="img.id">
+                                                <div class="relative group">
+                                                    <img :src="img.preview" class="h-16 w-16 object-cover rounded-md border-2 border-amber-300 dark:border-amber-600">
+                                                    <span class="absolute bottom-0 left-0 right-0 bg-amber-600 text-white text-[10px] text-center py-0.5 rounded-b-md font-medium"
+                                                        x-text="'IMG ' + (index + 1)"></span>
+                                                    <button @click="docRemoveEmbedImage(index)"
+                                                        class="absolute -top-1.5 -right-1.5 p-0.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                                        title="Supprimer">
+                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Generate Button -->
+                                <button @click="process" :disabled="processing || (!inputText.trim() && docSourceImages.length === 0 && docEmbedImages.length === 0) || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                            stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span x-text="processing ? 'Generation en cours...' : ((docSourceImages.length > 0 || docEmbedImages.length > 0) ? 'Analyser et generer' : 'Generer la documentation')"></span>
+                                </button>
+
+                                <!-- Paste Image Choice Popup -->
+                                <template x-if="docPasteChoiceOpen">
+                                    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="docPasteChoiceCancel()">
+                                        <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl p-5 max-w-xs w-full mx-4 space-y-4 border border-zinc-200 dark:border-zinc-700">
+                                            <div class="text-center">
+                                                <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Type d'image collee</p>
+                                                <p class="text-xs text-zinc-400 mt-1">Comment utiliser cette image ?</p>
+                                            </div>
+                                            <div class="flex flex-col gap-2">
+                                                <button @click="docPasteChoose('source')"
+                                                    class="flex items-center gap-3 w-full p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors text-left">
+                                                    <svg class="w-5 h-5 text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Image source</p>
+                                                        <p class="text-xs text-zinc-400">L'IA l'analyse pour rediger la doc</p>
+                                                    </div>
+                                                </button>
+                                                <button @click="docPasteChoose('embed')"
+                                                    class="flex items-center gap-3 w-full p-3 rounded-lg border border-amber-200 dark:border-amber-700/50 hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors text-left">
+                                                    <svg class="w-5 h-5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    <div>
+                                                        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Capture a integrer</p>
+                                                        <p class="text-xs text-zinc-400">L'IA la place dans la procedure</p>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                            <button @click="docPasteChoiceCancel()" class="w-full text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 py-1 transition-colors">
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+                                <!-- Improvement Section (visible after first generation) -->
+                                <template x-if="docPreviousResult">
+                                    <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3 space-y-2">
+                                        <label class="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                            Ameliorer la documentation
+                                        </label>
+                                        <textarea x-model="docImprovementPrompt"
+                                            class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            rows="3"
+                                            placeholder="Ex: Ajoute plus de details dans la section X, reformule la partie Y..."></textarea>
+                                        <button @click="improveDoc()"
+                                            :disabled="processing || !docImprovementPrompt.trim() || !currentModel"
+                                            class="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                                            <svg x-show="processing" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                                    stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                                </path>
+                                            </svg>
+                                            <svg x-show="!processing" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            <span x-text="processing ? 'Amelioration...' : 'Ameliorer'"></span>
+                                        </button>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- ============ RESUME / CV GENERATOR ============ -->
+                        <template x-if="currentTool === 'resume'">
+                            <div class="flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-220px)] pr-1">
+
+                                <!-- Personal Info -->
+                                <div class="space-y-3">
+                                    <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        Informations personnelles
+                                    </h3>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <input type="text" x-model="resumeData.firstname" placeholder="Prénom"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                        <input type="text" x-model="resumeData.lastname" placeholder="Nom"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                    </div>
+                                    <input type="text" x-model="resumeData.title" placeholder="Titre professionnel"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <input type="email" x-model="resumeData.email" placeholder="Email"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                        <input type="tel" x-model="resumeData.phone" placeholder="Téléphone"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <input type="text" x-model="resumeData.location" placeholder="Localisation"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                        <input type="url" x-model="resumeData.website" placeholder="Site web"
+                                            class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none">
+                                    </div>
+                                    <textarea x-model="resumeData.summary" placeholder="Résumé professionnel..." rows="3"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none"></textarea>
+                                </div>
+
+                                <!-- Experience -->
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                            </svg>
+                                            Expérience
+                                        </h3>
+                                        <button @click="addExperience()" type="button"
+                                            class="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <template x-for="(exp, i) in resumeData.experience" :key="i">
+                                        <div class="p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg space-y-2 relative group">
+                                            <button @click="removeExperience(i)" type="button"
+                                                class="absolute top-2 right-2 p-1 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input type="text" x-model="exp.role" placeholder="Poste"
+                                                    class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                                <input type="text" x-model="exp.company" placeholder="Entreprise"
+                                                    class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                            </div>
+                                            <input type="text" x-model="exp.date" placeholder="Période (ex: 2020 - Présent)"
+                                                class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                            <textarea x-model="exp.description" placeholder="Description..." rows="2"
+                                                class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none resize-none"></textarea>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Education -->
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                            </svg>
+                                            Formation
+                                        </h3>
+                                        <button @click="addEducation()" type="button"
+                                            class="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <template x-for="(edu, i) in resumeData.education" :key="i">
+                                        <div class="p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg space-y-2 relative group">
+                                            <button @click="removeEducation(i)" type="button"
+                                                class="absolute top-2 right-2 p-1 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                            <input type="text" x-model="edu.school" placeholder="Établissement"
+                                                class="w-full bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <input type="text" x-model="edu.degree" placeholder="Diplôme"
+                                                    class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                                <input type="text" x-model="edu.date" placeholder="Période"
+                                                    class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm focus:ring-1 focus:ring-brand-500 focus:outline-none">
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Skills -->
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Compétences</h3>
+                                        <button @click="addSkill()" type="button"
+                                            class="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(skill, i) in resumeData.skills" :key="i">
+                                            <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 group">
+                                                <input type="text" x-model="skill.name" placeholder="Compétence"
+                                                    class="bg-transparent px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-0 border-0">
+                                                <button @click="removeSkill(i)" type="button"
+                                                    class="pr-2 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Languages -->
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Langues</h3>
+                                        <button @click="addLanguage()" type="button"
+                                            class="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(lang, i) in resumeData.languages" :key="i">
+                                            <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 group">
+                                                <input type="text" x-model="lang.name" placeholder="Langue"
+                                                    class="bg-transparent px-3 py-1.5 text-sm w-36 focus:outline-none focus:ring-0 border-0">
+                                                <button @click="removeLanguage(i)" type="button"
+                                                    class="pr-2 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Interests -->
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <h3 class="text-sm font-semibold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Centres d'intérêt</h3>
+                                        <button @click="addInterest()" type="button"
+                                            class="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="(interest, i) in resumeData.interests" :key="i">
+                                            <div class="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-700 group">
+                                                <input type="text" x-model="interest.name" placeholder="Intérêt"
+                                                    class="bg-transparent px-3 py-1.5 text-sm w-28 focus:outline-none focus:ring-0 border-0">
+                                                <button @click="removeInterest(i)" type="button"
+                                                    class="pr-2 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Instructions & Style -->
+                                <div class="space-y-3 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                                    <textarea x-model="resumeData.instructions" placeholder="Instructions supplémentaires pour l'IA (optionnel)..." rows="2"
+                                        class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 text-sm text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none"></textarea>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Style du CV</label>
+                                        <div class="flex flex-wrap gap-2">
+                                            <template x-for="style in resumeStyles" :key="style.id">
+                                                <button @click="resumeStyle = style.id" type="button"
+                                                    :class="resumeStyle === style.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="style.name"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="flex gap-2">
+                                    <button @click="generateResume()" :disabled="resumeLoading || !currentModel"
+                                        class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <svg x-show="resumeLoading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                            </path>
+                                        </svg>
+                                        <span x-text="resumeLoading ? 'Génération...' : 'Générer le CV'"></span>
+                                    </button>
+                                    <button @click="resetResume()" type="button"
+                                        class="px-4 py-3 bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg hover:bg-zinc-300 dark:hover:bg-zinc-600 transition-colors text-sm font-medium">
+                                        Reset
+                                    </button>
+                                </div>
+
+                                <!-- Error -->
+                                <div x-show="resumeError" x-cloak
+                                    class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400"
+                                    x-text="resumeError"></div>
+                            </div>
+                        </template>
+
+                        <!-- ============ MERMAID DIAGRAM ============ -->
+                        <template x-if="currentTool === 'mermaid'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                        Decrivez votre diagramme
+                                    </label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="resetMermaid()"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Reinitialiser">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Main Textarea -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            @paste="mermaidPasteImage($event)"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            :placeholder="mermaidCode ? 'Decrivez la modification souhaitee...' : 'Decrivez le diagramme ou collez une image (Ctrl+V)...\n\nExemple : Un flux d\'authentification avec login, verification MFA et redirection vers le dashboard'"
+                                            rows="4"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Image Upload / Paste / Sketch Zone -->
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <!-- Upload Button -->
+                                    <label class="flex items-center gap-2 px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg cursor-pointer hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors text-sm text-zinc-600 dark:text-zinc-300">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                        <span>Image</span>
+                                        <input type="file" accept="image/*" class="hidden"
+                                            @change="mermaidHandleImageUpload($event)">
+                                    </label>
+                                    <!-- Sketch Button -->
+                                    <button @click="mermaidToggleCanvas()"
+                                        class="flex items-center gap-2 px-3 py-2 border rounded-lg transition-colors text-sm"
+                                        :class="mermaidShowCanvas
+                                            ? 'bg-brand-50 dark:bg-brand-900/20 border-brand-300 dark:border-brand-700 text-brand-600 dark:text-brand-400'
+                                            : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                        </svg>
+                                        <span>Croquis</span>
+                                    </button>
+                                    <span class="text-xs text-zinc-400">ou Ctrl+V</span>
+                                </div>
+
+                                <!-- Canvas Drawing Area -->
+                                <template x-if="mermaidShowCanvas && !mermaidCanvasFullscreen">
+                                    <div class="flex flex-col border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden bg-white dark:bg-zinc-900">
+                                        <!-- Canvas Toolbar -->
+                                        <div class="flex items-center gap-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700 flex-wrap">
+                                            <button @click="mermaidCanvasTool = 'pen'" title="Stylo"
+                                                class="p-1.5 rounded-md transition-colors"
+                                                :class="mermaidCanvasTool === 'pen' ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600' : 'text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                </svg>
+                                            </button>
+                                            <button @click="mermaidCanvasTool = 'eraser'" title="Gomme"
+                                                class="p-1.5 rounded-md transition-colors"
+                                                :class="mermaidCanvasTool === 'eraser' ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600' : 'text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                            <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                            <label class="relative cursor-pointer p-1" title="Couleur">
+                                                <span class="block w-5 h-5 rounded-full border-2 border-zinc-300 dark:border-zinc-600"
+                                                    :style="'background-color:' + mermaidCanvasColor"></span>
+                                                <input type="color" x-model="mermaidCanvasColor"
+                                                    class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                                            </label>
+                                            <template x-for="c in ['#000000','#EF4444','#3B82F6','#10B981','#F59E0B']" :key="c">
+                                                <button @click="mermaidCanvasColor = c; mermaidCanvasTool = 'pen'"
+                                                    class="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                                                    :class="mermaidCanvasColor === c ? 'border-brand-500 scale-110' : 'border-zinc-300 dark:border-zinc-600'"
+                                                    :style="'background-color:' + c"></button>
+                                            </template>
+                                            <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                            <input type="range" min="1" max="12" step="1" x-model="mermaidCanvasSize"
+                                                class="w-16 h-1 accent-brand-500" title="Epaisseur">
+                                            <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                            <button @click="mermaidCanvasUndo()" title="Annuler"
+                                                class="p-1.5 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+                                                </svg>
+                                            </button>
+                                            <button @click="mermaidCanvasClear()" title="Effacer tout"
+                                                class="p-1.5 text-zinc-500 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                            <div class="w-px h-5 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                            <!-- Fullscreen toggle -->
+                                            <button @click="mermaidToggleCanvasFullscreen()" title="Plein ecran"
+                                                class="p-1.5 text-zinc-500 hover:text-brand-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-md transition-colors">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <!-- Canvas -->
+                                        <div class="relative" style="height: 300px;">
+                                            <canvas id="mermaidCanvasInline" x-ref="mermaidCanvas"
+                                                class="block"
+                                                style="touch-action: none;"
+                                                :class="mermaidCanvasTool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair'"
+                                                @mousedown="mermaidCanvasDown($event)"
+                                                @mousemove="mermaidCanvasMove($event)"
+                                                @mouseup="mermaidCanvasUp($event)"
+                                                @mouseleave="mermaidCanvasUp($event)"
+                                                @touchstart="mermaidCanvasDown($event)"
+                                                @touchmove="mermaidCanvasMove($event)"
+                                                @touchend="mermaidCanvasUp($event)">
+                                            </canvas>
+                                        </div>
+                                        <!-- Submit sketch -->
+                                        <div class="flex items-center justify-between px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border-t border-zinc-200 dark:border-zinc-700">
+                                            <button @click="mermaidShowCanvas = false"
+                                                class="px-3 py-1.5 text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+                                                Annuler
+                                            </button>
+                                            <button @click="mermaidCanvasSubmit()"
+                                                class="px-4 py-1.5 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                                Utiliser ce croquis
+                                            </button>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <!-- Canvas Fullscreen Overlay -->
+                                <template x-if="mermaidCanvasFullscreen">
+                                    <template x-teleport="body">
+                                        <div class="fixed inset-0 z-[9999] bg-white dark:bg-zinc-950 flex flex-col"
+                                            @keydown.escape.window="mermaidToggleCanvasFullscreen()">
+                                            <!-- Fullscreen Toolbar -->
+                                            <div class="flex items-center gap-1 px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex-wrap flex-shrink-0">
+                                                <button @click="mermaidCanvasTool = 'pen'" title="Stylo"
+                                                    class="p-2 rounded-lg transition-colors"
+                                                    :class="mermaidCanvasTool === 'pen' ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600' : 'text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                                <button @click="mermaidCanvasTool = 'eraser'" title="Gomme"
+                                                    class="p-2 rounded-lg transition-colors"
+                                                    :class="mermaidCanvasTool === 'eraser' ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-600' : 'text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700'">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                                <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                                <label class="relative cursor-pointer p-1" title="Couleur">
+                                                    <span class="block w-6 h-6 rounded-full border-2 border-zinc-300 dark:border-zinc-600"
+                                                        :style="'background-color:' + mermaidCanvasColor"></span>
+                                                    <input type="color" x-model="mermaidCanvasColor"
+                                                        class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                                                </label>
+                                                <template x-for="c in ['#000000','#EF4444','#3B82F6','#10B981','#F59E0B','#8B5CF6','#EC4899']" :key="c">
+                                                    <button @click="mermaidCanvasColor = c; mermaidCanvasTool = 'pen'"
+                                                        class="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110"
+                                                        :class="mermaidCanvasColor === c ? 'border-brand-500 scale-110' : 'border-zinc-300 dark:border-zinc-600'"
+                                                        :style="'background-color:' + c"></button>
+                                                </template>
+                                                <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                                <input type="range" min="1" max="20" step="1" x-model="mermaidCanvasSize"
+                                                    class="w-24 h-1 accent-brand-500" title="Epaisseur">
+                                                <span class="text-xs text-zinc-400 ml-1 w-6" x-text="mermaidCanvasSize + 'px'"></span>
+                                                <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-600 mx-1"></div>
+                                                <button @click="mermaidCanvasUndo()" title="Annuler (Ctrl+Z)"
+                                                    class="p-2 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+                                                    </svg>
+                                                </button>
+                                                <button @click="mermaidCanvasClear()" title="Effacer tout"
+                                                    class="p-2 text-zinc-500 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                            d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                                <div class="flex-1"></div>
+                                                <!-- Submit & Close -->
+                                                <button @click="mermaidCanvasSubmit()"
+                                                    class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                    Utiliser
+                                                </button>
+                                                <button @click="mermaidToggleCanvasFullscreen()" title="Quitter le plein ecran"
+                                                    class="p-2 text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors ml-1">
+                                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <!-- Fullscreen Canvas -->
+                                            <div class="flex-1 relative">
+                                                <canvas id="mermaidCanvasFs" x-ref="mermaidCanvasFs"
+                                                    class="block"
+                                                    style="touch-action: none;"
+                                                    :class="mermaidCanvasTool === 'eraser' ? 'cursor-cell' : 'cursor-crosshair'"
+                                                    @mousedown="mermaidCanvasDown($event)"
+                                                    @mousemove="mermaidCanvasMove($event)"
+                                                    @mouseup="mermaidCanvasUp($event)"
+                                                    @mouseleave="mermaidCanvasUp($event)"
+                                                    @touchstart="mermaidCanvasDown($event)"
+                                                    @touchmove="mermaidCanvasMove($event)"
+                                                    @touchend="mermaidCanvasUp($event)">
+                                                </canvas>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+
+                                <!-- Image Preview -->
+                                <template x-if="mermaidImagePreview">
+                                    <div class="relative inline-block">
+                                        <div class="relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 inline-flex">
+                                            <img :src="mermaidImagePreview" alt="Image importee"
+                                                class="max-h-32 max-w-full object-contain rounded-lg">
+                                            <button @click="mermaidRemoveImage()"
+                                                class="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm"
+                                                title="Supprimer l'image">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <p class="text-xs text-zinc-400 mt-1">L'IA analysera cette image pour generer le diagramme</p>
+                                    </div>
+                                </template>
+
+                                <!-- Action Button -->
+                                <button @click="process()" :disabled="mermaidLoading || (!inputText.trim() && !mermaidImageBase64) || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="mermaidLoading" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                                        </path>
+                                    </svg>
+                                    <span x-text="mermaidLoading ? 'Generation en cours...' : (mermaidImageBase64 ? 'Analyser l\'image' : (mermaidCode ? 'Modifier le diagramme' : 'Generer le diagramme'))"></span>
+                                </button>
+
+                                <!-- Code Editor (shown after generation) -->
+                                <template x-if="mermaidCode">
+                                    <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                                                Code Mermaid
+                                            </label>
+                                            <button x-data="{ copied: false }"
+                                                @click="copyMermaidCode(); copied = true; setTimeout(() => copied = false, 2000)"
+                                                class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                                :class="copied ? 'text-green-500' : ''"
+                                                :title="copied ? 'Copie !' : 'Copier le code'">
+                                                <svg x-show="!copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                <svg x-show="copied" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <textarea x-model="mermaidEditorCode"
+                                            @input.debounce.500ms="renderMermaidPreview()"
+                                            class="mermaid-code-editor w-full bg-zinc-900 text-green-400 border border-zinc-700 rounded-lg p-3 text-xs focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none"
+                                            rows="6" spellcheck="false"></textarea>
+                                    </div>
+                                </template>
+
+                                <!-- Predefined Examples -->
+                                <template x-if="!mermaidCode">
+                                    <details class="group">
+                                        <summary class="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200">
+                                            <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            Exemples de prompts
+                                        </summary>
+                                        <div class="mt-3 grid grid-cols-1 gap-2">
+                                            <button @click="applyMermaidExample('Un flux d\'authentification : l\'utilisateur entre ses identifiants, le serveur verifie, si valide il cree une session et redirige, sinon il affiche une erreur avec retry')" type="button"
+                                                class="text-left p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-700">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">Flux d'authentification</span>
+                                                <span class="block mt-1 text-zinc-500">Login, verification, session, redirection</span>
+                                            </button>
+                                            <button @click="applyMermaidExample('Architecture microservices : un API Gateway distribue les requetes vers 4 services (Users, Orders, Products, Payments), chacun avec sa propre base de donnees, et un message broker (RabbitMQ) pour la communication asynchrone')" type="button"
+                                                class="text-left p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-700">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">Architecture microservices</span>
+                                                <span class="block mt-1 text-zinc-500">API Gateway, services, databases, broker</span>
+                                            </button>
+                                            <button @click="applyMermaidExample('Diagramme de sequence d\'un appel API REST : le client envoie une requete POST au serveur, le serveur valide le token JWT, interroge la base de donnees, et retourne une reponse JSON avec un code 200 ou 401')" type="button"
+                                                class="text-left p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-700">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">Sequence API REST</span>
+                                                <span class="block mt-1 text-zinc-500">Client, serveur, JWT, base de donnees</span>
+                                            </button>
+                                            <button @click="applyMermaidExample('Diagramme de classes pour un systeme e-commerce : User, Product, Order, OrderItem, Payment, avec les relations d\'heritage et de composition')" type="button"
+                                                class="text-left p-3 bg-zinc-100 dark:bg-zinc-900 rounded-lg text-xs text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors border border-zinc-200 dark:border-zinc-700">
+                                                <span class="font-medium text-zinc-700 dark:text-zinc-300">Classes e-commerce</span>
+                                                <span class="block mt-1 text-zinc-500">User, Product, Order, Payment</span>
+                                            </button>
+                                        </div>
+                                    </details>
+                                </template>
+
+                                <!-- Error -->
+                                <div x-show="mermaidError" x-cloak
+                                    class="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                    <p class="text-sm text-red-600 dark:text-red-400" x-text="mermaidError"></p>
+                                    <!-- Auto-fix button (only for syntax errors when we have code) -->
+                                    <button x-show="mermaidCode && mermaidError && mermaidError.includes('syntaxe')"
+                                        @click="fixMermaidWithAI()"
+                                        :disabled="mermaidLoading"
+                                        class="mt-2 flex items-center gap-2 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors disabled:opacity-50">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" :class="mermaidLoading && 'animate-spin'">
+                                            <template x-if="!mermaidLoading">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </template>
+                                            <template x-if="mermaidLoading">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </template>
+                                        </svg>
+                                        <span x-text="mermaidLoading ? 'Correction en cours...' : 'Corriger avec l\'IA'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ============ EXTRACTOR ============ -->
+                        <template x-if="currentTool === 'extractor'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Texte à analyser</label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Effacer">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici du texte brut, un email, une facture, des logs, un tableau copié..."></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Format de sortie</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="fmt in options.extract_formats || ['JSON', 'Tableau Markdown', 'CSV']" :key="fmt">
+                                            <button @click="extractFormat = fmt" type="button"
+                                                :class="extractFormat === fmt ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="fmt"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Extraction...' : 'Extraire les données'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ SIMPLIFY ============ -->
+                        <template x-if="currentTool === 'simplify'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Texte à simplifier</label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Effacer">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici un texte technique, juridique, scientifique à simplifier..."></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Niveau de simplification</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="lvl in options.simplify_levels || ['Enfant', 'Grand public', 'Expert d\'un autre domaine']" :key="lvl">
+                                            <button @click="simplifyLevel = lvl" type="button"
+                                                :class="simplifyLevel === lvl ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="lvl"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Simplification...' : 'Simplifier'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ EXPAND ============ -->
+                        <template x-if="currentTool === 'expand'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Ébauche à développer</label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Effacer">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Écrivez vos idées, notes ou points clés à développer en texte complet..."></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Ton</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="tone in ['Professionnel', 'Informatif', 'Décontracté', 'Académique']" :key="tone">
+                                                <button @click="expandTone = tone" type="button"
+                                                    :class="expandTone === tone ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors"
+                                                    x-text="tone"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Longueur</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="len in ['Court', 'Moyen', 'Long']" :key="len">
+                                                <button @click="expandLength = len" type="button"
+                                                    :class="expandLength === len ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2.5 py-1 text-xs font-medium rounded-md border transition-colors"
+                                                    x-text="len"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Développement...' : 'Développer le texte'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ TODOLIST ============ -->
+                        <template x-if="currentTool === 'todolist'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Notes / Compte-rendu</label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                        <button @click="inputText = ''"
+                                            class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Effacer">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici vos notes de réunion, idées en vrac, brainstorming, liste de tâches non structurée..."></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Extraction des actions...' : 'Extraire le plan d\'action'"></span>
+                                </button>
+                            </div>
+                        </template>
+                    </div>

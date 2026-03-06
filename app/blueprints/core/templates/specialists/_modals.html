@@ -1,0 +1,273 @@
+    <!-- Confirmation Modal -->
+    <div x-show="showConfirmModal" x-cloak
+        class="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="showConfirmModal = false"
+            class="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-2xl p-6">
+            <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-2" x-text="confirmTitle"></h3>
+            <p class="text-zinc-600 dark:text-zinc-400 mb-6 text-sm" x-text="confirmMessage"></p>
+            <div class="flex justify-end gap-3">
+                <button @click="showConfirmModal = false"
+                    class="px-4 py-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    Annuler
+                </button>
+                <button @click="confirmAction()"
+                    class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm shadow-red-600/20 transition-colors">
+                    Supprimer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div x-show="showCreateModal || showEditModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <div @click.outside="showCreateModal = false; showEditModal = false"
+            class="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+
+            <!-- Header -->
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100"
+                    x-text="showEditModal ? 'Modifier le spécialiste' : t('specialists.create', 'Nouveau spécialiste')">
+                </h2>
+            </div>
+
+            <!-- Form -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.name', 'Nom')"></label>
+                    <input type="text" x-model="form.name"
+                        :placeholder="t('specialists.form.namePlaceholder', 'Expert en...')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.description', 'Description')"></label>
+                    <input type="text" x-model="form.description"
+                        :placeholder="t('specialists.form.descriptionPlaceholder', 'Décrivez le rôle de cet assistant')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.systemPrompt', 'Instructions')"></label>
+                    <textarea x-model="form.system_prompt" rows="4"
+                        :placeholder="t('specialists.form.systemPromptPlaceholder', 'Tu es un expert en...')"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.provider', 'Fournisseur')"></label>
+                    <select x-model="form.provider_id" @change="loadModelsForProvider($event.target.value)"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Sélectionnez un fournisseur</option>
+                        <template x-for="prov in providers" :key="prov.id">
+                            <option :value="prov.id" x-text="prov.name + ' (' + prov.type + ')'"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+                        x-text="t('specialists.form.model', 'Modèle LLM')"></label>
+                    <select x-model="form.model" :disabled="!form.provider_id"
+                        class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50">
+                        <option value="">Modèle par défaut</option>
+                        <template x-for="model in availableModels" :key="model">
+                            <option :value="model" x-text="model"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Couleur</label>
+                    <div class="flex gap-2">
+                        <template
+                            x-for="color in ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#0ea5e9']">
+                            <button type="button" @click="form.color = color"
+                                class="w-8 h-8 rounded-full border-2 transition-all"
+                                :style="'background-color: ' + color"
+                                :class="form.color === color ? 'border-zinc-900 dark:border-white scale-110' : 'border-transparent'">
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Icône</label>
+                    <div class="grid grid-cols-7 gap-2">
+                        <template x-for="icon in availableIcons" :key="icon.id">
+                            <button type="button" @click="form.icon = icon.id"
+                                class="w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                :class="form.icon === icon.id ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30' : 'border-zinc-200 dark:border-zinc-700'"
+                                :title="icon.name">
+                                <svg class="w-5 h-5"
+                                    :class="form.icon === icon.id ? 'text-indigo-600' : 'text-zinc-500'" fill="none"
+                                    viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        :d="icon.path" />
+                                </svg>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showCreateModal = false; showEditModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
+                    Annuler
+                </button>
+                <button @click="showEditModal ? updateSpecialist() : createSpecialist()"
+                    :disabled="!form.name || !form.system_prompt"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg transition-colors">
+                    <span x-text="showEditModal ? 'Enregistrer' : 'Créer'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add URL Modal -->
+    <div x-show="showAddUrlModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div @click.outside="showAddUrlModal = false"
+            class="w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl">
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ajouter des URLs</h2>
+            </div>
+            <div class="p-6">
+                <textarea x-model="urlToAdd" placeholder="https://example.com/page&#10;https://another-site.com/doc"
+                    rows="5"
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+                <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">Une URL par ligne.</p>
+            </div>
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showAddUrlModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
+                    Annuler
+                </button>
+                <button @click="addUrl()" :disabled="!urlToAdd || addingUrl"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                    <span x-show="addingUrl"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Ajouter</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Text Modal -->
+    <div x-show="showAddTextModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div @click.outside="showAddTextModal = false"
+            class="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-700 shadow-2xl">
+            <div class="p-6 border-b border-zinc-200 dark:border-zinc-800">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ajouter du texte</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="text" x-model="textToAdd.name" placeholder="Nom de la connaissance"
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <textarea x-model="textToAdd.content" rows="6" placeholder="Contenu textuel..."
+                    class="w-full px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+            </div>
+            <div class="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                <button @click="showAddTextModal = false"
+                    class="px-4 py-2 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg">
+                    Annuler
+                </button>
+                <button @click="addText()" :disabled="!textToAdd.name || !textToAdd.content || addingText"
+                    class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg flex items-center gap-2">
+                    <span x-show="addingText"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span>Ajouter</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Chunks Viewer -->
+    <div x-show="showChunksModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click.self="showChunksModal = false"
+        @keydown.escape.window="showChunksModal = false">
+
+        <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-zinc-200 dark:border-zinc-800"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100">
+
+            <!-- Header -->
+            <div class="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100"
+                        x-text="currentDocName || 'Chunks'"></h3>
+                    <div class="flex items-center gap-4 mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        <span x-text="(currentDocStats.total_chunks || 0) + ' chunks'"></span>
+                        <span x-text="(currentDocStats.total_size || 0).toLocaleString() + ' caractères'"></span>
+                        <span
+                            x-text="'~' + (currentDocStats.estimated_tokens || 0).toLocaleString() + ' tokens'"></span>
+                    </div>
+                </div>
+                <button @click="showChunksModal = false"
+                    class="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Chunks List -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                <!-- Loading -->
+                <div x-show="loadingChunks" class="flex items-center justify-center py-12">
+                    <svg class="animate-spin h-8 w-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                </div>
+
+                <!-- Empty State -->
+                <div x-show="!loadingChunks && currentDocChunks.length === 0"
+                    class="text-center py-12 text-zinc-500 dark:text-zinc-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p>Aucun chunk trouvé</p>
+                </div>
+
+                <!-- Chunks -->
+                <template x-for="chunk in currentDocChunks" :key="chunk.id || chunk.chunk_index">
+                    <div
+                        class="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400"
+                                x-text="'Chunk #' + (chunk.chunk_index + 1)"></span>
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400"
+                                x-text="(chunk.size || chunk.content?.length || 0) + ' caractères'"></span>
+                        </div>
+                        <pre class="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words font-sans leading-relaxed max-h-48 overflow-y-auto custom-scrollbar"
+                            x-text="chunk.content"></pre>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Footer -->
+            <div class="p-4 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+                <button @click="showChunksModal = false"
+                    class="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-lg transition-colors">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>

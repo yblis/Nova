@@ -1,0 +1,110 @@
+        <!-- Debate Mode Participants Bar -->
+        <div x-show="debateMode" x-transition
+            class="px-4 py-3 border-b border-purple-200 dark:border-purple-800/50 bg-purple-50 dark:bg-purple-900/20">
+            <div class="max-w-3xl mx-auto">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span class="text-sm font-medium text-purple-700 dark:text-purple-300">Mode Débat</span>
+                        <span class="text-xs text-purple-500" x-text="participants.length + '/4 participants'"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select x-model="debateModeOption"
+                            class="text-xs bg-white dark:bg-zinc-800 border border-purple-200 dark:border-purple-700 rounded px-2 py-1 text-purple-700 dark:text-purple-300">
+                            <option value="parallel">Parallèle</option>
+                            <option value="sequential">Séquentiel</option>
+                        </select>
+                        <button @click="showDebateSettings = !showDebateSettings"
+                            class="text-xs px-2 py-1 border border-purple-300 dark:border-purple-600 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                            :class="showDebateSettings ? 'bg-purple-100 dark:bg-purple-900/30' : ''">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        <button @click="showParticipantSelector = !showParticipantSelector"
+                            class="text-xs px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded transition-colors">
+                            + Ajouter
+                        </button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="p in participants" :key="p.id">
+                        <div
+                            class="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span x-text="p.name"></span>
+                            <button @click="removeParticipant(p.id)" class="ml-1 hover:opacity-70">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </template>
+                    <div x-show="participants.length === 0" class="text-xs text-purple-500 italic">
+                        Sélectionnez au moins 2 participants
+                    </div>
+                </div>
+                <!-- Debate Settings Panel -->
+                <div x-show="showDebateSettings" x-transition
+                    class="mt-3 pt-3 border-t border-purple-200 dark:border-purple-700">
+                    <label class="text-xs font-medium text-purple-700 dark:text-purple-300 mb-1 block">Règles du débat
+                        (System Prompt)</label>
+                    <textarea x-model="debateSystemPrompt" rows="4"
+                        class="w-full text-xs bg-white dark:bg-zinc-800 border border-purple-200 dark:border-purple-700 rounded-lg p-2 text-zinc-700 dark:text-zinc-300 resize-none"
+                        placeholder="Instructions pour les participants du débat..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Participant Selector Dropdown -->
+        <div x-show="showParticipantSelector" @click.outside="showParticipantSelector = false" x-transition
+            class="absolute top-28 right-4 w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-xl z-50 overflow-hidden">
+            <div class="p-3 border-b border-zinc-100 dark:border-zinc-800">
+                <h4 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ajouter un participant</h4>
+            </div>
+            <div class="max-h-80 overflow-y-auto p-2">
+                <template x-for="provider in availableProviders" :key="provider.id">
+                    <div class="mb-2" x-data="{expanded: false, models: [], loadingModels: false}">
+                        <button
+                            @click="if (!expanded && models.length === 0) { loadingModels = true; loadProviderModels(provider.id).then(m => { models = m; loadingModels = false; }); } expanded = !expanded"
+                            class="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm transition-colors">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-purple-500"></span>
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100"
+                                    x-text="provider.name"></span>
+                                <span class="text-xs text-zinc-400" x-text="provider.type"></span>
+                            </div>
+                            <svg class="w-4 h-4 text-zinc-400 transition-transform"
+                                :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                        <div x-show="expanded" x-transition class="pl-8 pr-2 py-1">
+                            <div x-show="loadingModels" class="text-xs text-zinc-400 py-2">Chargement...</div>
+                            <template x-for="model in (Array.isArray(models) ? models : [])"
+                                :key="typeof model === 'string' ? model : model.id || model.name">
+                                <button
+                                    @click="addParticipant(provider, typeof model === 'string' ? model : model.id || model.name); showParticipantSelector = false"
+                                    class="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 truncate">
+                                    <span x-text="typeof model === 'string' ? model : model.id || model.name"></span>
+                                </button>
+                            </template>
+                            <div x-show="models.length === 0 && !loadingModels" class="text-xs text-zinc-400 py-1">Aucun
+                                modèle</div>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="availableProviders.length === 0" class="px-3 py-4 text-sm text-zinc-500 text-center">
+                    Aucun fournisseur configuré
+                </div>
+            </div>
+        </div>

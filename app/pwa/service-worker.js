@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate' ||
     event.request.headers.get('accept')?.includes('text/html') ||
     url.pathname === '/' ||
-    url.pathname.startsWith('/partials/') ||
+    url.pathname.startsWith('/spa/') ||
     url.pathname.startsWith('/chat') ||
     url.pathname.startsWith('/texts') ||
     url.pathname.startsWith('/specialists') ||

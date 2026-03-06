@@ -6,7 +6,7 @@ import json
 from flask import Blueprint, jsonify, request, Response, stream_with_context, current_app
 from flask_login import login_required, current_user
 
-from ...services import specialist_service as svc
+from ...services import specialist as svc
 from ...services.llm_clients import get_active_client
 from ...services.provider_manager import ProviderManager
 

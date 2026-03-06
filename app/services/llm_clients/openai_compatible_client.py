@@ -23,7 +23,9 @@ PROVIDER_CONFIGS = {
         "default_model": None,  # Dépend du modèle chargé
         "supports_vision": True,
         "default_api_key": "lm-studio",  # LM Studio n'a pas besoin de vraie clé
-        "requires_v1_suffix": True  # LM Studio nécessite /v1 dans l'URL
+        "requires_v1_suffix": True,  # LM Studio nécessite /v1 dans l'URL
+        "supports_model_management": True,  # Support load/unload/download via API v1
+        "api_version": "v1"  # Utilise l'API v1 en priorité (fallback v0)
     },
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
@@ -280,7 +282,10 @@ class OpenAICompatibleClient(BaseLLMClient):
             return [{"id": default, "name": default, "owned_by": "system"}] if default else []
     
     def _list_models_lmstudio_native(self) -> List[Dict[str, Any]]:
-        """Liste tous les modèles LM Studio via l'API native /api/v0/models."""
+        """Liste tous les modèles LM Studio via l'API native.
+        
+        Essaie d'abord l'API v1 (LM Studio 0.4.0+), puis fallback sur v0.
+        """
         try:
             import httpx
             
@@ -289,29 +294,58 @@ class OpenAICompatibleClient(BaseLLMClient):
             if base_url.endswith('/v1'):
                 base_url = base_url[:-3]
             
-            url = f"{base_url}/api/v0/models"
-            
             with httpx.Client(timeout=5.0) as http_client:
-                response = http_client.get(url)
+                # Essayer d'abord l'API v1 (LM Studio 0.4.0+)
+                url_v1 = f"{base_url}/api/v1/models"
+                response = http_client.get(url_v1)
+                
+                # Si v1 échoue avec 404, fallback sur v0
+                if response.status_code == 404:
+                    return self._list_models_lmstudio_v0(base_url, http_client)
+                
                 response.raise_for_status()
                 response_data = response.json()
             
-            # L'API retourne {"object": "list", "data": [...]}
-            models_list = response_data.get("data", []) if isinstance(response_data, dict) else response_data
+            # API v1 retourne {"models": [...]}
+            models_list = response_data.get("models", [])
             
             models = []
             for model in models_list:
                 if isinstance(model, dict):
+                    # Déterminer si le modèle est chargé via loaded_instances
+                    loaded_instances = model.get("loaded_instances", [])
+                    is_loaded = len(loaded_instances) > 0
+                    
+                    # Extraire les infos de quantization (format v1: objet)
+                    quant_info = model.get("quantization", {})
+                    quant_name = quant_info.get("name", "") if isinstance(quant_info, dict) else str(quant_info)
+                    quant_bits = quant_info.get("bits_per_weight") if isinstance(quant_info, dict) else None
+                    
+                    # Extraire capabilities
+                    capabilities = model.get("capabilities", {})
+                    
                     models.append({
-                        "id": model.get("id", ""),
-                        "name": model.get("id", "Unknown"),
-                        "quantization": model.get("quantization", ""),
-                        "arch": model.get("arch", ""),
+                        # Compatibilité: "id" utilise "key" de v1
+                        "id": model.get("key", ""),
+                        "name": model.get("display_name") or model.get("key", "Unknown"),
+                        "key": model.get("key", ""),
+                        "display_name": model.get("display_name", ""),
+                        "quantization": quant_name,
+                        "quantization_bits": quant_bits,
+                        "arch": model.get("architecture", ""),
                         "type": model.get("type", "llm"),
-                        "state": model.get("state", "not-loaded"),
+                        "state": "loaded" if is_loaded else "not-loaded",
+                        "loaded_instances": loaded_instances,
                         "max_context_length": model.get("max_context_length", 0),
                         "publisher": model.get("publisher", ""),
-                        "compatibility_type": model.get("compatibility_type", "")
+                        "format": model.get("format", ""),
+                        "size_bytes": model.get("size_bytes", 0),
+                        "params_string": model.get("params_string", ""),
+                        "capabilities": capabilities,
+                        "supports_vision": capabilities.get("vision", False) if isinstance(capabilities, dict) else False,
+                        "supports_tools": capabilities.get("trained_for_tool_use", False) if isinstance(capabilities, dict) else False,
+                        "description": model.get("description", ""),
+                        "api_version": "v1"
                     })
             
             # Trier par nom
@@ -321,20 +355,60 @@ class OpenAICompatibleClient(BaseLLMClient):
             
         except Exception as e:
             import logging
-            logging.getLogger(__name__).warning(f"Failed to list LM Studio models via native API: {e}")
+            logging.getLogger(__name__).warning(f"Failed to list LM Studio models via v1 API: {e}")
             # Fallback to OpenAI compatible API
             try:
                 client = self._get_client()
                 response = client.models.list()
-                return [{"id": m.id, "name": m.id} for m in response.data]
+                return [{"id": m.id, "name": m.id, "api_version": "openai"} for m in response.data]
             except Exception:
                 return []
+    
+    def _list_models_lmstudio_v0(self, base_url: str, http_client) -> List[Dict[str, Any]]:
+        """Fallback sur l'API v0 pour les anciennes versions de LM Studio (<0.4.0).
+        
+        Args:
+            base_url: URL de base sans /v1
+            http_client: Client HTTP actif
+            
+        Returns:
+            Liste des modèles au format normalisé
+        """
+        url = f"{base_url}/api/v0/models"
+        response = http_client.get(url)
+        response.raise_for_status()
+        response_data = response.json()
+        
+        # API v0 retourne {"object": "list", "data": [...]}
+        models_list = response_data.get("data", []) if isinstance(response_data, dict) else response_data
+        
+        models = []
+        for model in models_list:
+            if isinstance(model, dict):
+                models.append({
+                    "id": model.get("id", ""),
+                    "name": model.get("id", "Unknown"),
+                    "key": model.get("id", ""),
+                    "display_name": model.get("id", ""),
+                    "quantization": model.get("quantization", ""),
+                    "arch": model.get("arch", ""),
+                    "type": model.get("type", "llm"),
+                    "state": model.get("state", "not-loaded"),
+                    "max_context_length": model.get("max_context_length", 0),
+                    "publisher": model.get("publisher", ""),
+                    "compatibility_type": model.get("compatibility_type", ""),
+                    "api_version": "v0"
+                })
+        
+        models.sort(key=lambda x: x["name"])
+        return models
     
     def list_loaded_models(self) -> List[Dict[str, Any]]:
         """
         Liste les modèles actuellement chargés en mémoire.
         
-        Disponible uniquement pour LM Studio via l'API native /api/v0/models.
+        Pour LM Studio v1, utilise le champ loaded_instances de /api/v1/models.
+        Pour v0, filtre par state="loaded".
         
         Returns:
             Liste des modèles chargés avec leurs informations
@@ -343,50 +417,292 @@ class OpenAICompatibleClient(BaseLLMClient):
             return []
         
         try:
-            import httpx
+            # Récupérer tous les modèles avec leur état
+            all_models = self._list_models_lmstudio_native()
             
-            # Construire l'URL de base sans /v1 pour l'API native LM Studio
-            base_url = self._base_url
-            if base_url.endswith('/v1'):
-                base_url = base_url[:-3]
-            
-            url = f"{base_url}/api/v0/models"
-            
-            with httpx.Client(timeout=5.0) as http_client:
-                response = http_client.get(url)
-                response.raise_for_status()
-                response_data = response.json()
-            
-            # L'API retourne {"object": "list", "data": [...]}
-            models_list = response_data.get("data", []) if isinstance(response_data, dict) else response_data
-            
-            # Filtrer les modèles avec state="loaded"
             loaded_models = []
-            for model in models_list:
-                if isinstance(model, dict) and model.get("state") == "loaded":
+            for model in all_models:
+                # v1: vérifier loaded_instances, v0: vérifier state
+                if model.get("api_version") == "v1":
+                    loaded_instances = model.get("loaded_instances", [])
+                    for instance in loaded_instances:
+                        loaded_models.append({
+                            "name": model.get("display_name") or model.get("key", "Unknown"),
+                            "id": model.get("key", ""),
+                            "instance_id": instance.get("id", ""),
+                            "size": model.get("size_bytes", 0),
+                            "context_length": instance.get("config", {}).get("context_length", 0),
+                            "max_context_length": model.get("max_context_length", 0),
+                            "quantization": model.get("quantization", ""),
+                            "arch": model.get("arch", ""),
+                            "type": model.get("type", "llm"),
+                            "format": model.get("format", ""),
+                            "flash_attention": instance.get("config", {}).get("flash_attention", False),
+                            "capabilities": model.get("capabilities", {}),
+                            "provider": "lmstudio",
+                            "api_version": "v1"
+                        })
+                elif model.get("state") == "loaded":
+                    # Fallback v0
                     loaded_models.append({
-                        "name": model.get("id", "Unknown"),
+                        "name": model.get("name", "Unknown"),
                         "id": model.get("id", ""),
-                        "size": 0,  # L'API v0 ne retourne pas la taille en bytes
+                        "instance_id": model.get("id", ""),
+                        "size": 0,
                         "context_length": model.get("max_context_length", 0),
                         "quantization": model.get("quantization", ""),
                         "arch": model.get("arch", ""),
                         "type": model.get("type", "llm"),
-                        "provider": "lmstudio"
+                        "provider": "lmstudio",
+                        "api_version": "v0"
                     })
             
             return loaded_models
             
         except Exception as e:
-            # Log l'erreur mais ne pas lever d'exception
             import logging
             logging.getLogger(__name__).warning(f"Failed to list loaded LM Studio models: {e}")
             return []
+    
+    def load_model_lmstudio(
+        self,
+        model_key: str,
+        context_length: Optional[int] = None,
+        flash_attention: Optional[bool] = None,
+        eval_batch_size: Optional[int] = None,
+        num_experts: Optional[int] = None,
+        offload_kv_cache_to_gpu: Optional[bool] = None
+    ) -> Dict[str, Any]:
+        """Charge un modèle dans LM Studio via l'API v1.
+        
+        Requiert LM Studio 0.4.0+.
+        
+        Args:
+            model_key: Identifiant du modèle (champ "key" de l'API v1)
+            context_length: Longueur de contexte (optionnel)
+            flash_attention: Activer Flash Attention (optionnel)
+            eval_batch_size: Taille du batch d'évaluation (optionnel)
+            num_experts: Nombre d'experts MoE (optionnel)
+            offload_kv_cache_to_gpu: Décharger le cache KV sur GPU (optionnel)
+            
+        Returns:
+            Informations sur le modèle chargé:
+            - type: "llm" | "embedding"
+            - instance_id: Identifiant de l'instance
+            - load_time_seconds: Temps de chargement
+            - status: "loaded"
+            - load_config: Configuration appliquée
+            
+        Raises:
+            LLMError: Si le chargement échoue
+        """
+        if self._provider_type != "lmstudio":
+            raise LLMError(
+                "Cette méthode n'est disponible que pour LM Studio",
+                self._provider_type,
+                LLMErrorType.UNKNOWN
+            )
+        
+        try:
+            import httpx
+            
+            base_url = self._base_url.rstrip('/v1') if self._base_url.endswith('/v1') else self._base_url
+            url = f"{base_url}/api/v1/models/load"
+            
+            # Construire le payload
+            payload = {"model": model_key, "echo_load_config": True}
+            
+            if context_length is not None:
+                payload["context_length"] = context_length
+            if flash_attention is not None:
+                payload["flash_attention"] = flash_attention
+            if eval_batch_size is not None:
+                payload["eval_batch_size"] = eval_batch_size
+            if num_experts is not None:
+                payload["num_experts"] = num_experts
+            if offload_kv_cache_to_gpu is not None:
+                payload["offload_kv_cache_to_gpu"] = offload_kv_cache_to_gpu
+            
+            # Timeout plus long pour le chargement de gros modèles
+            with httpx.Client(timeout=120.0) as http_client:
+                response = http_client.post(url, json=payload)
+                response.raise_for_status()
+                return response.json()
+                
+        except Exception as e:
+            import httpx
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+                raise LLMError(
+                    "L'API v1 n'est pas disponible. Mettez à jour LM Studio vers 0.4.0+",
+                    self._provider_type,
+                    LLMErrorType.SERVER_ERROR
+                )
+            raise LLMError(
+                f"Erreur lors du chargement du modèle: {e}",
+                self._provider_type,
+                LLMErrorType.SERVER_ERROR
+            )
+    
+    def unload_model_lmstudio(self, instance_id: str) -> Dict[str, Any]:
+        """Décharge un modèle de LM Studio via l'API v1.
+        
+        Requiert LM Studio 0.4.0+.
+        
+        Args:
+            instance_id: Identifiant de l'instance à décharger
+                         (retourné par load ou dans loaded_instances)
+            
+        Returns:
+            {"instance_id": "..."} si succès
+            
+        Raises:
+            LLMError: Si le déchargement échoue
+        """
+        if self._provider_type != "lmstudio":
+            raise LLMError(
+                "Cette méthode n'est disponible que pour LM Studio",
+                self._provider_type,
+                LLMErrorType.UNKNOWN
+            )
+        
+        try:
+            import httpx
+            
+            base_url = self._base_url.rstrip('/v1') if self._base_url.endswith('/v1') else self._base_url
+            url = f"{base_url}/api/v1/models/unload"
+            
+            # ⚠️ v1 utilise "instance_id" et non "model"
+            payload = {"instance_id": instance_id}
+            
+            with httpx.Client(timeout=30.0) as http_client:
+                response = http_client.post(url, json=payload)
+                response.raise_for_status()
+                return response.json()
+                
+        except Exception as e:
+            import httpx
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+                raise LLMError(
+                    "L'API v1 n'est pas disponible. Mettez à jour LM Studio vers 0.4.0+",
+                    self._provider_type,
+                    LLMErrorType.SERVER_ERROR
+                )
+            raise LLMError(
+                f"Erreur lors du déchargement du modèle: {e}",
+                self._provider_type,
+                LLMErrorType.SERVER_ERROR
+            )
+    
+    def download_model_lmstudio(
+        self,
+        model: str,
+        quantization: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Télécharge un modèle via l'API v1 de LM Studio.
+        
+        Requiert LM Studio 0.4.0+.
+        
+        Args:
+            model: Identifiant du modèle (ex: "ibm/granite-4-micro")
+                   ou lien Hugging Face
+            quantization: Niveau de quantization (ex: "Q4_K_M")
+                          Seulement pour les liens Hugging Face
+            
+        Returns:
+            {
+                "job_id": "job_xxx",  # Absent si already_downloaded
+                "status": "downloading" | "already_downloaded",
+                "total_size_bytes": 12345,
+                "started_at": "2025-..."
+            }
+            
+        Raises:
+            LLMError: Si le téléchargement échoue
+        """
+        if self._provider_type != "lmstudio":
+            raise LLMError(
+                "Cette méthode n'est disponible que pour LM Studio",
+                self._provider_type,
+                LLMErrorType.UNKNOWN
+            )
+        
+        try:
+            import httpx
+            
+            base_url = self._base_url.rstrip('/v1') if self._base_url.endswith('/v1') else self._base_url
+            url = f"{base_url}/api/v1/models/download"
+            
+            payload = {"model": model}
+            if quantization:
+                payload["quantization"] = quantization
+            
+            with httpx.Client(timeout=30.0) as http_client:
+                response = http_client.post(url, json=payload)
+                response.raise_for_status()
+                return response.json()
+                
+        except Exception as e:
+            import httpx
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 404:
+                raise LLMError(
+                    "L'API v1 n'est pas disponible. Mettez à jour LM Studio vers 0.4.0+",
+                    self._provider_type,
+                    LLMErrorType.SERVER_ERROR
+                )
+            raise LLMError(
+                f"Erreur lors du téléchargement du modèle: {e}",
+                self._provider_type,
+                LLMErrorType.SERVER_ERROR
+            )
+    
+    def get_download_status_lmstudio(self, job_id: str) -> Dict[str, Any]:
+        """Récupère l'état d'un téléchargement en cours.
+        
+        Args:
+            job_id: Identifiant du job retourné par download_model_lmstudio
+            
+        Returns:
+            {
+                "job_id": "job_xxx",
+                "status": "downloading" | "paused" | "completed" | "failed",
+                "bytes_per_second": 12345,
+                "estimated_completion": "2025-...",
+                "total_size_bytes": 12345,
+                "downloaded_bytes": 1234,
+                "started_at": "2025-...",
+                "completed_at": "2025-..."  # Si completed
+            }
+        """
+        if self._provider_type != "lmstudio":
+            raise LLMError(
+                "Cette méthode n'est disponible que pour LM Studio",
+                self._provider_type,
+                LLMErrorType.UNKNOWN
+            )
+        
+        try:
+            import httpx
+            
+            base_url = self._base_url.rstrip('/v1') if self._base_url.endswith('/v1') else self._base_url
+            url = f"{base_url}/api/v1/models/download/status/{job_id}"
+            
+            with httpx.Client(timeout=10.0) as http_client:
+                response = http_client.get(url)
+                response.raise_for_status()
+                return response.json()
+                
+        except Exception as e:
+            raise LLMError(
+                f"Erreur lors de la récupération du statut: {e}",
+                self._provider_type,
+                LLMErrorType.UNKNOWN
+            )
     
     def chat(
         self,
         messages: List[Dict[str, str]],
         model: str,
+        images: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None,
         stream: bool = False
     ) -> Dict[str, Any]:
@@ -395,9 +711,12 @@ class OpenAICompatibleClient(BaseLLMClient):
             client = self._get_client()
             normalized_opts = self.normalize_options(options)
             
+            # Préparer les messages avec images si nécessaire
+            prepared_messages = self._prepare_messages_with_images(messages, images)
+            
             response = client.chat.completions.create(
                 model=model,
-                messages=messages,
+                messages=prepared_messages,
                 stream=False,
                 **normalized_opts
             )

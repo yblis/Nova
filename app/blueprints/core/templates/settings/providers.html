@@ -1,8 +1,3 @@
-{% extends 'settings/base.html' %}
-
-{% block settings_init %}loadProviders(){% endblock %}
-
-{% block settings_content %}
 <div class="mb-10">
     <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-1"
         x-text="t('providers.title', 'LLM Providers')"></h2>
@@ -44,14 +39,14 @@
                         <span x-show="provider.id === activeProviderId"
                             class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900 text-emerald-600 dark:text-emerald-300 text-xs font-bold">Actif</span>
                     </div>
-                    <div class="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+                    <div class="flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400 min-w-0 overflow-hidden">
                         <span x-show="provider.url" class="font-mono truncate" x-text="provider.url"></span>
-                        <span x-show="provider.has_api_key" class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <span x-show="provider.has_api_key" class="flex items-center gap-1 min-w-0 shrink-0 max-w-[200px]">
+                            <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                             </svg>
-                            <span x-text="provider.api_key_masked || '•••••'"></span>
+                            <span class="truncate" x-text="provider.api_key_masked || '•••••'"></span>
                         </span>
                     </div>
                     <!-- Test Result -->
@@ -61,7 +56,7 @@
                             x-text="testResult?.message"></span>
                     </div>
                     <!-- Default Model Selector -->
-                    <div x-show="testResult && testResult.id === provider.id && testResult.ok || provider.default_model"
+                    <div x-show="(testResult && testResult.id === provider.id && testResult.ok) || getModelsForProvider(provider.id).length > 0"
                         class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700">
                         <div class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
@@ -72,15 +67,14 @@
                                 par défaut</label>
                         </div>
                         <div class="mt-1.5 flex items-center gap-2">
-                            <select x-data="{ selectedModel: provider.default_model || '' }"
-                                x-init="$watch('providerModels[provider.id]', () => { selectedModel = provider.default_model || '' })"
-                                x-model="selectedModel"
-                                @change="setProviderDefaultModel(provider.id, selectedModel)"
+                            <select :value="provider.default_model || ''"
+                                @change="setProviderDefaultModel(provider.id, $event.target.value)"
                                 class="flex-1 text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                                 <option value="">-- Aucun --</option>
-                                <template x-for="m in (providerModels[provider.id] || [])"
-                                    :key="typeof m === 'string' ? m : m.id || m.name">
+                                <template x-for="(m, idx) in getModelsForProvider(provider.id)"
+                                    :key="(typeof m === 'string' ? m : m.id || m.name) + '-' + idx">
                                     <option :value="typeof m === 'string' ? m : m.id || m.name"
+                                        :selected="provider.default_model === (typeof m === 'string' ? m : m.id || m.name)"
                                         x-text="typeof m === 'string' ? m : m.id || m.name">
                                     </option>
                                 </template>
@@ -200,8 +194,9 @@
                         conserver)</span>
                 </label>
                 <div class="relative">
-                    <input x-model="formProvider.api_key" :type="showApiKey ? 'text' : 'password'"
-                        :placeholder="formProvider.type === 'openai_compatible' ? 'Clé API (si nécessaire)' : 'sk-...'"
+                    <input x-model="formProvider.api_key" type="text"
+                        :placeholder="formProvider.type === 'openai_compatible' ? 'Clé API (si nécessaire)' : 'sk-...'" autocomplete="off"
+                        :style="!showApiKey ? '-webkit-text-security: disc; text-security: disc;' : ''"
                         class="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 pr-10 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
                     <button type="button" @click="showApiKey = !showApiKey"
                         class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600">
@@ -260,4 +255,3 @@
         </div>
     </form>
 </div>
-{% endblock %}

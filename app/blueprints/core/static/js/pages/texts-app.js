@@ -8,7 +8,7 @@
         // Load current tool from URL hash, localStorage, or default
         currentTool: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
             if (hash && validTools.includes(hash)) return hash;
             const stored = localStorage.getItem('texts_current_tool');
             if (stored && validTools.includes(stored)) return stored;
@@ -21,7 +21,13 @@
             { id: 'correction', name: 'Correction' },
             { id: 'email', name: 'Email' },
             { id: 'prompt', name: 'Prompt IA' },
-            { id: 'resume', name: 'CV Generator' }
+            { id: 'extractor', name: 'Extracteur' },
+            { id: 'simplify', name: 'Simplificateur' },
+            { id: 'expand', name: 'Expandeur' },
+            { id: 'todolist', name: 'Plan d\'action' },
+            { id: 'documentation', name: 'Documentation' },
+            { id: 'resume', name: 'CV Generator' },
+            { id: 'mermaid', name: 'Diagramme' }
         ],
         processing: false,
         // RAG State
@@ -53,7 +59,7 @@
         // Input text - initialized from localStorage for current tool
         inputText: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
             let currentTool = 'reformulation';
             if (hash && validTools.includes(hash)) {
                 currentTool = hash;
@@ -66,13 +72,11 @@
         resultText: '',
         currentModel: localStorage.getItem('selected_model') || '',
         models: [],
-        showTools: true,
+        showTools: window.innerWidth >= 640,
         showHistory: false,
         showModelSelector: false,
         loadingFromHistory: false,
-        loadingFromHistory: false,
         history: [],
-        historySearchQuery: '',
         historySearchQuery: '',
         historyTypeFilter: '',
         synonyms: null,
@@ -85,12 +89,33 @@
         emailType: '',
         senderName: '',
         correctionOptions: { spelling: true, grammar: true, syntax: true, style: true },
+        // Documentation Writer state
+        docStyle: 'Technique',
+        docStyles: ['Technique', 'Fonctionnelle', 'Tutoriel', 'Procedure', 'Cheatsheet'],
+        docPreviousResult: '',
+        docImprovementPrompt: '',
+        docOriginalOutline: '',
+        docSourceImages: [],
+        docEmbedImages: [],
+        docPasteChoiceOpen: false,
+        _docPendingPasteFile: null,
         // New variables for redesigned UI
         showContext: false,
         contextText: '',
         showOptions: true,
         sidebarOpen: localStorage.getItem('texts_sidebar_open') !== 'false',
         mobileMenuOpen: false,
+
+        // New tools state
+        extractFormat: 'JSON',
+        simplifyLevel: 'Grand public',
+        expandTone: 'Professionnel',
+        expandLength: 'Moyen',
+        emailMode: 'generate',
+        emailReceived: '',
+        replyType: 'Réponse neutre',
+        coverLetterData: { job_title: '', company: '', profile: '' },
+        paraphraseMode: false,
 
         // Resume/CV Generator data
         resumeData: {
@@ -128,6 +153,10 @@
         // SPA lifecycle - stored handlers for cleanup
         _hashChangeHandler: null,
         _saveDebounceTimer: null,
+
+        // ============== Mixins ==============
+        ...window.TextsResumeMixin,
+        ...window.TextsMermaidMixin,
 
         get filteredHistory() {
             let filtered = this.history;
@@ -212,7 +241,7 @@
             // Listen for hash changes (browser back/forward)
             this._hashChangeHandler = () => {
                 const hash = window.location.hash.slice(1);
-                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume'];
+                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
                 if (hash && validTools.includes(hash) && hash !== this.currentTool) {
                     this.currentTool = hash;
                 }
@@ -240,7 +269,13 @@
                 'translation': 'Traduction',
                 'correction': 'Texte corrigé',
                 'email': 'Email généré',
-                'prompt': 'Prompt généré'
+                'prompt': 'Prompt généré',
+                'mermaid': 'Diagramme Mermaid',
+                'documentation': 'Documentation générée',
+                'extractor': 'Données extraites',
+                'simplify': 'Texte simplifié',
+                'expand': 'Texte développé',
+                'todolist': 'Plan d\'action'
             };
             return labels[this.currentTool] || 'Résultat';
         },
@@ -277,10 +312,35 @@
             if (this.currentTool === 'email') {
                 this.emailType = '';
                 this.senderName = '';
+                this.emailMode = 'generate';
+                this.emailReceived = '';
+                this.replyType = 'Réponse neutre';
+                this.coverLetterData = { job_title: '', company: '', profile: '' };
             }
             if (this.currentTool === 'reformulation') {
                 this.contextText = '';
                 this.showContext = false;
+                this.paraphraseMode = false;
+            }
+            if (this.currentTool === 'mermaid') {
+                this.resetMermaid();
+            }
+            if (this.currentTool === 'documentation') {
+                this.docPreviousResult = '';
+                this.docImprovementPrompt = '';
+                this.docOriginalOutline = '';
+                this.docSourceImages = [];
+                this.docEmbedImages = [];
+            }
+            if (this.currentTool === 'extractor') {
+                this.extractFormat = 'JSON';
+            }
+            if (this.currentTool === 'simplify') {
+                this.simplifyLevel = 'Grand public';
+            }
+            if (this.currentTool === 'expand') {
+                this.expandTone = 'Professionnel';
+                this.expandLength = 'Moyen';
             }
         },
 
@@ -417,17 +477,32 @@
                                 return !embeddingPatterns.some(pattern => lowerName.includes(pattern));
                             });
                         // Use provider_default_model if set, otherwise fallback to localStorage or first model
-                        // Logic:
-                        // 1. If we have a provider default, and current is empty/invalid, use default.
-                        // 2. If current is set but not in list, try default.
-                        // 3. If no default, use first.
                         const isValidCurrent = this.currentModel && this.models.includes(this.currentModel);
+                        const defaultModel = data.provider_default_model || '';
 
                         if (!isValidCurrent) {
-                            if (data.provider_default_model && this.models.includes(data.provider_default_model)) {
-                                this.currentModel = data.provider_default_model;
+                            console.log(`[textsApp] Provider default model: "${defaultModel}"`);
+                            
+                            // Try exact match first
+                            if (defaultModel && this.models.includes(defaultModel)) {
+                                this.currentModel = defaultModel;
+                                console.log(`[textsApp] Using exact match for default model: ${defaultModel}`);
+                            } else if (defaultModel) {
+                                // Try case-insensitive match
+                                const lowerDefault = defaultModel.toLowerCase();
+                                const match = this.models.find(m => m.toLowerCase() === lowerDefault);
+                                if (match) {
+                                    this.currentModel = match;
+                                    console.log(`[textsApp] Using case-insensitive match for default model: ${match}`);
+                                } else if (this.models.length > 0) {
+                                    this.currentModel = this.models[0];
+                                    console.log(`[textsApp] Default model "${defaultModel}" not found, using first: ${this.models[0]}`);
+                                } else {
+                                    this.currentModel = '';
+                                }
                             } else if (this.models.length > 0) {
                                 this.currentModel = this.models[0];
+                                console.log(`[textsApp] No default model set, using first: ${this.models[0]}`);
                             } else {
                                 this.currentModel = '';
                             }
@@ -476,14 +551,26 @@
         // Main processing function
         async process() {
             if (this.currentTool === 'resume') {
-                // For CV generation, use dedicated method
                 await this.generateResume();
+                return;
+            }
+
+            if (this.currentTool === 'mermaid') {
+                await this.generateMermaid();
+                return;
+            }
+
+            if (this.currentTool === 'documentation') {
+                await this.processDocumentation();
                 return;
             }
 
             // For other tools, use standard processing
             const hasValidFile = this.uploadedFile && this.uploadedFile.status === 'completed';
-            const hasContent = this.inputText || (this.currentTool === 'summarize' && hasValidFile);
+            let hasContent = this.inputText || (this.currentTool === 'summarize' && hasValidFile);
+            // For email reply/cover_letter modes, inputText is optional (instructions supplémentaires)
+            if (this.currentTool === 'email' && this.emailMode === 'reply' && this.emailReceived) hasContent = true;
+            if (this.currentTool === 'email' && this.emailMode === 'cover_letter' && this.coverLetterData.job_title && this.coverLetterData.company) hasContent = true;
             if (this.processing || !hasContent || !this.currentModel) return;
             this.processing = true;
             this.resultText = '';
@@ -499,6 +586,7 @@
                     payload.format = this.selectedFormat;
                     payload.length = this.selectedLength;
                     payload.add_emojis = this.addEmojis;
+                    payload.paraphrase = this.paraphraseMode;
                     break;
                 case 'translation':
                     endpoint = '/api/texts/translate';
@@ -511,11 +599,26 @@
                     break;
                 case 'email':
                     endpoint = '/api/texts/generate-email';
-                    delete payload.text;
-                    payload.content = this.inputText;
-                    payload.email_type = this.emailType;
-                    payload.sender_name = this.senderName;
-                    payload.tone = this.selectedTone;
+                    payload.mode = this.emailMode;
+                    if (this.emailMode === 'reply') {
+                        payload.email_received = this.emailReceived;
+                        payload.reply_type = this.replyType;
+                        payload.content = this.inputText;
+                        payload.sender_name = this.senderName;
+                        payload.tone = this.selectedTone;
+                    } else if (this.emailMode === 'cover_letter') {
+                        payload.job_title = this.coverLetterData.job_title;
+                        payload.company = this.coverLetterData.company;
+                        payload.profile = this.coverLetterData.profile;
+                        payload.content = this.inputText;
+                        payload.sender_name = this.senderName;
+                    } else {
+                        delete payload.text;
+                        payload.content = this.inputText;
+                        payload.email_type = this.emailType;
+                        payload.sender_name = this.senderName;
+                        payload.tone = this.selectedTone;
+                    }
                     break;
                 case 'prompt':
                     endpoint = '/api/texts/generate-prompt';
@@ -527,9 +630,22 @@
                     if (this.uploadedFile) {
                         payload.session_id = this.ragSessionId;
                     }
-                    if (!payload.text && !payload.session_id) {
-                        // Should be handled by backend, but safe measure
-                    }
+                    break;
+                case 'extractor':
+                    endpoint = '/api/texts/extract';
+                    payload.output_format = this.extractFormat;
+                    break;
+                case 'simplify':
+                    endpoint = '/api/texts/simplify';
+                    payload.level = this.simplifyLevel;
+                    break;
+                case 'expand':
+                    endpoint = '/api/texts/expand';
+                    payload.tone = this.expandTone;
+                    payload.length = this.expandLength;
+                    break;
+                case 'todolist':
+                    endpoint = '/api/texts/todolist';
                     break;
             }
 
@@ -554,6 +670,293 @@
 
         copyResult() {
             navigator.clipboard.writeText(this.resultText);
+        },
+
+        async copyResultAsHtml() {
+            if (!this.resultText) return;
+            try {
+                let html = typeof marked !== 'undefined' ? marked.parse(this.resultText) : this.resultText;
+                const blob = new Blob([html], { type: 'text/html' });
+                const plainBlob = new Blob([this.resultText], { type: 'text/plain' });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blob,
+                        'text/plain': plainBlob
+                    })
+                ]);
+            } catch (e) {
+                navigator.clipboard.writeText(this.resultText);
+            }
+        },
+
+        async processDocumentation() {
+            if (this.processing || !this.currentModel) return;
+            const hasContent = this.inputText.trim() || this.docSourceImages.length > 0 || this.docEmbedImages.length > 0 || (this.docPreviousResult && this.docImprovementPrompt.trim());
+            if (!hasContent) return;
+
+            this.processing = true;
+            this.resultText = '';
+
+            const payload = {
+                outline: this.inputText,
+                model: this.currentModel,
+                style: this.docStyle
+            };
+
+            if (this.docPreviousResult && this.docImprovementPrompt.trim()) {
+                payload.previous_doc = this.docPreviousResult;
+                payload.improvement_prompt = this.docImprovementPrompt;
+            }
+
+            if (this.docSourceImages.length > 0) {
+                payload.source_images = this.docSourceImages.map(img => img.base64);
+            }
+            if (this.docEmbedImages.length > 0) {
+                payload.embed_images = this.docEmbedImages.map((img, i) => ({ id: `IMAGE_${i + 1}`, base64: img.base64 }));
+            }
+
+            try {
+                const response = await fetch('/api/texts/generate-documentation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                this.resultText = data.result;
+                this.docPreviousResult = data.result;
+                this.docOriginalOutline = this.inputText;
+                this.docImprovementPrompt = '';
+                this.docSourceImages = [];
+                await this.loadHistory();
+            } catch (e) {
+                console.error('Documentation error:', e);
+                this.resultText = 'Erreur: ' + e.message;
+            } finally {
+                this.processing = false;
+            }
+        },
+
+        docRenderWithImages(markdown) {
+            if (!markdown) return '';
+            let html = typeof marked !== 'undefined' ? marked.parse(markdown) : markdown;
+            // Replace [IMAGE_N] markers with actual <img> tags from embed images
+            if (this.docEmbedImages.length > 0) {
+                html = html.replace(/\[IMAGE_(\d+)\]/g, (match, num) => {
+                    const idx = parseInt(num) - 1;
+                    if (idx >= 0 && idx < this.docEmbedImages.length) {
+                        return `<img src="${this.docEmbedImages[idx].base64}" alt="Capture ${num}" style="max-width:100%;border-radius:8px;margin:8px 0;border:1px solid #e4e4e7;">`;
+                    }
+                    return match;
+                });
+            }
+            // Add copy buttons to pre blocks
+            html = html.replace(/<pre>([\s\S]*?)<\/pre>/g, (match, codeContent) => {
+                return `<div class="code-block-wrapper"><button class="copy-code-btn" onclick="copyCodeBlock(this)" title="Copier le code"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button><pre>${codeContent}</pre></div>`;
+            });
+            return html;
+        },
+
+        async copyDocAsHtml() {
+            if (!this.resultText) return;
+            try {
+                let html = typeof marked !== 'undefined' ? marked.parse(this.resultText) : this.resultText;
+                // Replace [IMAGE_N] markers with embedded base64 images for Word paste
+                if (this.docEmbedImages.length > 0) {
+                    html = html.replace(/\[IMAGE_(\d+)\]/g, (match, num) => {
+                        const idx = parseInt(num) - 1;
+                        if (idx >= 0 && idx < this.docEmbedImages.length) {
+                            return `<img src="${this.docEmbedImages[idx].base64}" alt="Capture ${num}" style="max-width:600px;">`;
+                        }
+                        return match;
+                    });
+                }
+                const blob = new Blob([html], { type: 'text/html' });
+                const plainBlob = new Blob([this.resultText], { type: 'text/plain' });
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blob,
+                        'text/plain': plainBlob
+                    })
+                ]);
+            } catch (e) {
+                navigator.clipboard.writeText(this.resultText);
+            }
+        },
+
+        copyDocAsMarkdown() {
+            if (!this.resultText) return;
+            navigator.clipboard.writeText(this.resultText);
+        },
+
+        improveDoc() {
+            if (!this.docImprovementPrompt.trim() || !this.docPreviousResult) return;
+            this.processDocumentation();
+        },
+
+        _docReadImageFile(file, targetArray) {
+            if (!file.type.startsWith('image/')) return;
+            if (file.size > 10 * 1024 * 1024) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                targetArray.push({
+                    id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    base64: e.target.result,
+                    preview: e.target.result,
+                    name: file.name || 'Image'
+                });
+            };
+            reader.readAsDataURL(file);
+        },
+
+        docAddSourceImages(event) {
+            const files = event.target.files;
+            if (!files) return;
+            for (const file of files) {
+                this._docReadImageFile(file, this.docSourceImages);
+            }
+            event.target.value = '';
+        },
+
+        async docHandlePaste(event) {
+            const items = event?.clipboardData?.items || [];
+            const imageFiles = [];
+            let hasHtml = false;
+            let hasText = false;
+
+            // Synchronous scan: detect what's in clipboard BEFORE any await
+            for (const item of items) {
+                if (item.type === 'text/html') hasHtml = true;
+                if (item.type === 'text/plain') hasText = true;
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) imageFiles.push(file);
+                }
+            }
+
+            // Case 1: Direct image files (screenshot) — preventDefault synchronously
+            if (imageFiles.length > 0) {
+                event.preventDefault();
+                if (hasText) {
+                    // Read text async then add it
+                    for (const item of items) {
+                        if (item.type === 'text/plain') {
+                            item.getAsString((text) => {
+                                this.inputText = (this.inputText ? this.inputText + '\n' : '') + text;
+                            });
+                            break;
+                        }
+                    }
+                    for (const file of imageFiles) {
+                        this._docReadImageFile(file, this.docEmbedImages);
+                    }
+                } else {
+                    this._docPendingPasteFile = imageFiles[0];
+                    this.docPasteChoiceOpen = true;
+                }
+                return;
+            }
+
+            // Case 2: HTML content might contain <img> tags — preventDefault synchronously
+            if (hasHtml) {
+                event.preventDefault();
+
+                // Now read content async
+                let htmlContent = null;
+                let textContent = null;
+                const promises = [];
+                for (const item of items) {
+                    if (item.type === 'text/html') {
+                        promises.push(new Promise(resolve => item.getAsString(s => { htmlContent = s; resolve(); })));
+                    }
+                    if (item.type === 'text/plain') {
+                        promises.push(new Promise(resolve => item.getAsString(s => { textContent = s; resolve(); })));
+                    }
+                }
+                await Promise.all(promises);
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent || '', 'text/html');
+                const imgs = doc.querySelectorAll('img');
+
+                // Always put text in textarea
+                if (textContent) {
+                    this.inputText = (this.inputText ? this.inputText + '\n' : '') + textContent;
+                }
+
+                // Extract images if found
+                if (imgs.length > 0) {
+                    for (const img of imgs) {
+                        const src = img.getAttribute('src') || '';
+                        if (src.startsWith('data:image/')) {
+                            this.docEmbedImages.push({
+                                id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                                base64: src, preview: src, name: 'Capture'
+                            });
+                        } else if (src.startsWith('http')) {
+                            try {
+                                const base64 = await this._docLoadImageFromUrl(src);
+                                if (base64) {
+                                    this.docEmbedImages.push({
+                                        id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                                        base64, preview: base64, name: 'Capture'
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('Could not load pasted image:', src);
+                            }
+                        }
+                    }
+                }
+                return;
+            }
+
+            // Case 3: No images, no HTML — let default textarea paste handle it
+        },
+
+        async _docLoadImageFromUrl(url) {
+            try {
+                const resp = await fetch('/api/texts/proxy-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await resp.json();
+                return data.success ? data.base64 : null;
+            } catch (e) {
+                console.warn('Proxy image load failed:', url, e);
+                return null;
+            }
+        },
+
+        docPasteChoose(type) {
+            if (!this._docPendingPasteFile) return;
+            const target = type === 'source' ? this.docSourceImages : this.docEmbedImages;
+            this._docReadImageFile(this._docPendingPasteFile, target);
+            this._docPendingPasteFile = null;
+            this.docPasteChoiceOpen = false;
+        },
+
+        docPasteChoiceCancel() {
+            this._docPendingPasteFile = null;
+            this.docPasteChoiceOpen = false;
+        },
+
+        docRemoveSourceImage(index) {
+            this.docSourceImages.splice(index, 1);
+        },
+
+        docAddEmbedImages(event) {
+            const files = event.target.files;
+            if (!files) return;
+            for (const file of files) {
+                this._docReadImageFile(file, this.docEmbedImages);
+            }
+            event.target.value = '';
+        },
+
+        docRemoveEmbedImage(index) {
+            this.docEmbedImages.splice(index, 1);
         },
 
         async pasteFromClipboard() {
@@ -626,17 +1029,29 @@
                 })();
             }
             if (item.options) {
-                if (item.type === 'reformulation') {
+                if (item.type === 'reformulation' || item.type === 'paraphrase') {
+                    this.currentTool = 'reformulation';
                     this.selectedTone = item.options.tone || 'Professionnel';
                     this.selectedFormat = item.options.format || 'Paragraphe';
                     this.selectedLength = item.options.length || 'Moyen';
                     this.addEmojis = item.options.add_emojis || false;
+                    this.paraphraseMode = item.options.paraphrase || false;
                 } else if (item.type === 'translation') {
                     this.targetLanguage = item.options.target_language || 'Anglais';
                 } else if (item.type === 'email') {
+                    this.emailMode = item.options.mode || 'generate';
                     this.emailType = item.options.email_type || '';
                     this.senderName = item.options.sender_name || '';
                     this.selectedTone = item.options.tone || 'Professionnel';
+                    if (item.options.mode === 'reply') {
+                        this.replyType = item.options.reply_type || 'Réponse neutre';
+                    } else if (item.options.mode === 'cover_letter') {
+                        this.coverLetterData = {
+                            job_title: item.options.job_title || '',
+                            company: item.options.company || '',
+                            profile: ''
+                        };
+                    }
                 } else if (item.type === 'correction') {
                     this.correctionOptions = {
                         spelling: item.options.spelling ?? true,
@@ -644,6 +1059,21 @@
                         syntax: item.options.syntax ?? true,
                         style: item.options.style ?? false
                     };
+                } else if (item.type === 'mermaid') {
+                    this.mermaidCode = item.output || '';
+                    this.mermaidEditorCode = item.output || '';
+                    this.renderMermaidPreview();
+                } else if (item.type === 'documentation') {
+                    this.docStyle = item.options?.style || 'Technique';
+                    this.docPreviousResult = item.output || '';
+                    this.docOriginalOutline = item.options?.original_outline || item.input || '';
+                } else if (item.type === 'extractor') {
+                    this.extractFormat = item.options.output_format || 'JSON';
+                } else if (item.type === 'simplify') {
+                    this.simplifyLevel = item.options.level || 'Grand public';
+                } else if (item.type === 'expand') {
+                    this.expandTone = item.options.tone || 'Professionnel';
+                    this.expandLength = item.options.length || 'Moyen';
                 }
             }
         },
@@ -654,159 +1084,7 @@
             });
         },
 
-        // ========== CV Generator Methods ==========
-
-        // CRUD methods for CV sections
-        addExperience() { this.resumeData.experience.push({ role: '', company: '', date: '', description: '' }); },
-        removeExperience(index) { this.resumeData.experience.splice(index, 1); },
-        addEducation() { this.resumeData.education.push({ school: '', degree: '', date: '' }); },
-        removeEducation(index) { this.resumeData.education.splice(index, 1); },
-        addSkill() { this.resumeData.skills.push({ name: '' }); },
-        removeSkill(index) { this.resumeData.skills.splice(index, 1); },
-        addLanguage() { this.resumeData.languages.push({ name: '' }); },
-        removeLanguage(index) { this.resumeData.languages.splice(index, 1); },
-        addInterest() { this.resumeData.interests.push({ name: '' }); },
-        removeInterest(index) { this.resumeData.interests.splice(index, 1); },
-
-        // Reset all CV fields to empty
-        resetResume() {
-            this.resumeData = {
-                firstname: '',
-                lastname: '',
-                title: '',
-                email: '',
-                phone: '',
-                location: '',
-                website: '',
-                summary: '',
-                experience: [],
-                education: [],
-                skills: [],
-                languages: [],
-                interests: [],
-                instructions: ''
-            };
-            this.resumeGeneratedHtml = '';
-            this.resumeError = '';
-        },
-
-        // Generate CV
-        async generateResume() {
-            if (!this.currentModel) {
-                this.resumeError = 'Veuillez sélectionner un modèle IA en haut à gauche';
-                return;
-            }
-
-            this.resumeLoading = true;
-            this.resumeError = '';
-
-            try {
-                const response = await fetch('/api/resume/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        data: this.resumeData,
-                        style: this.resumeStyle,
-                        model: this.currentModel
-                    })
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    this.resumeGeneratedHtml = result.html;
-                    this.resumeError = '';
-                } else {
-                    this.resumeError = result.error || 'Erreur lors de la génération du CV';
-                    this.resumeGeneratedHtml = '';
-                }
-            } catch (err) {
-                console.error('CV Generation Error:', err);
-                this.resumeError = 'Erreur de connexion au serveur';
-                this.resumeGeneratedHtml = '';
-            } finally {
-                this.resumeLoading = false;
-            }
-        },
-
-        // Download HTML
-        downloadResumeHTML() {
-            if (!this.resumeGeneratedHtml) {
-                alert('Veuillez d\'abord générer le CV');
-                return;
-            }
-
-            const fullHTML = `<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CV - ${this.resumeData.firstname} ${this.resumeData.lastname}</title>
-    <script src="https://cdn.tailwindcss.com"><\/script>
-    <style>
-        body { background-color: #f3f4f6; display: flex; justify-content: center; padding: 40px; }
-        .cv-container { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); margin: 0 auto; }
-        @media print {
-            body { background: none; padding: 0; display: block; }
-            .cv-container { box-shadow: none; margin: 0; width: 100%; height: 100%; }
-        }
-    </style>
-</head>
-<body>
-    ${this.resumeGeneratedHtml}
-</body>
-</html>`;
-            const blob = new Blob([fullHTML], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cv-${this.resumeData.firstname.toLowerCase()}-${this.resumeData.lastname.toLowerCase()}.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        },
-
-        // Download PDF
-        async downloadResumePDF() {
-            if (!this.resumeGeneratedHtml) {
-                alert('Veuillez d\'abord générer le CV');
-                return;
-            }
-
-            // Check if jsPDF is loaded
-            if (typeof window.jspdf === 'undefined') {
-                alert('Bibliothèque PDF non chargée. Veuillez rafraîchir la page.');
-                return;
-            }
-
-            const { jsPDF } = window.jspdf;
-            const element = document.getElementById('cv-preview-resume');
-
-            if (!element) {
-                alert('Erreur: Zone de prévisualisation introuvable');
-                return;
-            }
-
-            try {
-                const canvas = await html2canvas(element, {
-                    scale: 2,
-                    useCORS: true,
-                    logging: false
-                });
-
-                const imgData = canvas.toDataURL('image/jpeg', 1.0);
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`cv-${this.resumeData.firstname.toLowerCase()}-${this.resumeData.lastname.toLowerCase()}.pdf`);
-            } catch (error) {
-                console.error('PDF Generation Error:', error);
-                alert('Erreur lors de la génération du PDF');
-            }
-        },
+        // CV Generator methods loaded from TextsResumeMixin
 
         /**
          * Destroy method for SPA lifecycle.

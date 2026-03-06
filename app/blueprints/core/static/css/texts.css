@@ -289,3 +289,70 @@ main {
         padding-bottom: env(safe-area-inset-bottom);
     }
 }
+
+/* ==============================
+   Mermaid Diagram Styles
+   ============================== */
+
+/* Preview container */
+.mermaid-preview-container {
+    min-height: 200px;
+    max-height: 70vh;
+    user-select: none;
+}
+
+.mermaid-preview-container svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* SVG wrapper for zoom/pan transform */
+.mermaid-svg-wrapper {
+    transition: transform 0.08s ease-out;
+    will-change: transform;
+    pointer-events: none;
+}
+
+/* Code editor */
+.mermaid-code-editor {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    line-height: 1.6;
+    tab-size: 4;
+    letter-spacing: 0.02em;
+}
+
+.mermaid-code-editor:focus {
+    outline: none;
+}
+
+/* Fullscreen overlay */
+.mermaid-fullscreen-overlay {
+    animation: mermaid-fade-in 0.2s ease-out;
+}
+
+@keyframes mermaid-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Toolbar button hover effect */
+.mermaid-toolbar-btn {
+    transition: all 0.15s ease;
+}
+
+.mermaid-toolbar-btn:active {
+    transform: scale(0.92);
+}
+
+/* Dark mode adjustments for mermaid diagrams */
+.dark .mermaid-preview-container .label,
+.dark .mermaid-preview-container .nodeLabel,
+.dark .mermaid-preview-container .edgeLabel {
+    color: #e5e7eb !important;
+}
+
+.dark .mermaid-fullscreen-overlay .label,
+.dark .mermaid-fullscreen-overlay .nodeLabel,
+.dark .mermaid-fullscreen-overlay .edgeLabel {
+    color: #e5e7eb !important;
+}

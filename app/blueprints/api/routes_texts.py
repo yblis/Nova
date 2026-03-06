@@ -31,7 +31,8 @@ def reformulate():
         add_emojis=data.get("add_emojis", False),
         tone=data.get("tone", "Professionnel"),
         format_type=data.get("format", "Paragraphe"),
-        length=data.get("length", "Moyen")
+        length=data.get("length", "Moyen"),
+        paraphrase=data.get("paraphrase", False)
     )
     
     if result.get("success"):
@@ -99,18 +100,30 @@ def correct():
 
 @api_texts_bp.route("/texts/generate-email", methods=["POST"])
 def generate_email():
-    """Génère un email structuré."""
+    """Génère un email, une réponse, ou une lettre de motivation."""
     from ...services.text_tools_service import generate_email as svc_generate_email
     
     data = request.json or {}
+    mode = data.get("mode", "generate")
     email_type = data.get("email_type", "").strip()
     content = data.get("content", "").strip()
     model = data.get("model", "")
     
-    if not email_type:
-        return jsonify({"error": "Le type d'email est requis"}), 400
-    if not content:
-        return jsonify({"error": "Le contenu est requis"}), 400
+    if mode == "reply":
+        email_received = data.get("email_received", "").strip()
+        if not email_received:
+            return jsonify({"error": "L'email reçu est requis"}), 400
+    elif mode == "cover_letter":
+        job_title = data.get("job_title", "").strip()
+        company = data.get("company", "").strip()
+        if not job_title or not company:
+            return jsonify({"error": "Le poste et l'entreprise sont requis"}), 400
+    else:
+        if not email_type:
+            return jsonify({"error": "Le type d'email est requis"}), 400
+        if not content:
+            return jsonify({"error": "Le contenu est requis"}), 400
+    
     if not model:
         return jsonify({"error": "Le modèle est requis"}), 400
     
@@ -119,7 +132,13 @@ def generate_email():
         content=content,
         model=model,
         sender_name=data.get("sender_name", ""),
-        tone=data.get("tone", "Professionnel")
+        tone=data.get("tone", "Professionnel"),
+        mode=mode,
+        email_received=data.get("email_received", ""),
+        reply_type=data.get("reply_type", "Réponse neutre"),
+        job_title=data.get("job_title", ""),
+        company=data.get("company", ""),
+        profile=data.get("profile", "")
     )
     
     if result.get("success"):
@@ -294,8 +313,186 @@ def remove_option():
         return jsonify({"status": "removed"})
     return jsonify({"error": "Type d'option invalide ou valeur non trouvée"}), 400
 
+# ========== Nouveaux outils texte ==========
+
+@api_texts_bp.route("/texts/extract", methods=["POST"])
+def extract_data():
+    """Extrait des données structurées depuis du texte brut."""
+    from ...services.text_tools_service import extract_data as svc_extract_data
+    
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    output_format = data.get("output_format", "JSON")
+    
+    if not text:
+        return jsonify({"error": "Le texte est requis"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+    
+    result = svc_extract_data(text=text, model=model, output_format=output_format)
+    
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+@api_texts_bp.route("/texts/simplify", methods=["POST"])
+def simplify_text():
+    """Simplifie un texte complexe."""
+    from ...services.text_tools_service import simplify_text as svc_simplify_text
+    
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    level = data.get("level", "Grand public")
+    
+    if not text:
+        return jsonify({"error": "Le texte est requis"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+    
+    result = svc_simplify_text(text=text, model=model, level=level)
+    
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+@api_texts_bp.route("/texts/expand", methods=["POST"])
+def expand_text():
+    """Développe une ébauche en texte complet."""
+    from ...services.text_tools_service import expand_text as svc_expand_text
+    
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    tone = data.get("tone", "Professionnel")
+    length = data.get("length", "Moyen")
+    
+    if not text:
+        return jsonify({"error": "Le texte est requis"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+    
+    result = svc_expand_text(text=text, model=model, tone=tone, length=length)
+    
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+@api_texts_bp.route("/texts/todolist", methods=["POST"])
+def generate_todolist():
+    """Extrait un plan d'action depuis des notes."""
+    from ...services.text_tools_service import generate_todolist as svc_generate_todolist
+    
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    
+    if not text:
+        return jsonify({"error": "Le texte est requis"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+    
+    result = svc_generate_todolist(text=text, model=model)
+    
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+# ========== Génération de diagrammes Mermaid ==========
+
+@api_texts_bp.route("/texts/generate-mermaid", methods=["POST"])
+def generate_mermaid():
+    from ...services.text_tools_service import generate_mermaid as svc_generate_mermaid
+
+    data = request.json or {}
+    description = data.get("description", "").strip()
+    model = data.get("model", "")
+    previous_code = data.get("previous_code", "").strip()
+    image_base64 = data.get("image_base64", "").strip()
+
+    # Strip data URI prefix if present (e.g. "data:image/png;base64,...")
+    if image_base64 and ";base64," in image_base64:
+        image_base64 = image_base64.split(";base64,", 1)[1]
+
+    if not description and not image_base64:
+        return jsonify({"error": "Une description ou une image est requise"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+
+    result = svc_generate_mermaid(
+        description=description or "Analyse cette image et génère un diagramme Mermaid correspondant.",
+        model=model,
+        previous_code=previous_code,
+        image_base64=image_base64
+    )
+
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
+
+# ========== Génération de documentation ==========
+
+@api_texts_bp.route("/texts/generate-documentation", methods=["POST"])
+def generate_documentation():
+    from ...services.text_tools_service import generate_documentation as svc_generate_documentation
+
+    data = request.json or {}
+
+    outline = data.get("outline", "").strip()
+    model = data.get("model", "")
+    style = data.get("style", "Technique")
+    previous_doc = data.get("previous_doc", "").strip()
+    improvement_prompt = data.get("improvement_prompt", "").strip()
+
+    # Process source images (for analysis context)
+    source_images_raw = data.get("source_images", [])
+    source_images = []
+    for img in source_images_raw:
+        img = img.strip() if isinstance(img, str) else ""
+        if img and ";base64," in img:
+            img = img.split(";base64,", 1)[1]
+        if img:
+            source_images.append(img)
+
+    # Process embed images (to place inline in doc)
+    embed_images_raw = data.get("embed_images", [])
+    embed_images = []
+    for item in embed_images_raw:
+        if isinstance(item, dict):
+            img_b64 = item.get("base64", "").strip()
+            if img_b64 and ";base64," in img_b64:
+                img_b64 = img_b64.split(";base64,", 1)[1]
+            if img_b64:
+                embed_images.append({"id": item.get("id", ""), "base64": img_b64})
+
+    if not outline and not source_images and not embed_images and not (previous_doc and improvement_prompt):
+        return jsonify({"error": "La trame, des images ou un prompt d'amélioration est requis"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+
+    result = svc_generate_documentation(
+        outline=outline,
+        model=model,
+        style=style,
+        previous_doc=previous_doc,
+        improvement_prompt=improvement_prompt,
+        source_images=source_images,
+        embed_images=embed_images
+    )
+
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
 
 # ========== Génération de CV ==========
+
 
 @api_texts_bp.route("/resume/generate", methods=["POST"])
 def generate_resume():
@@ -392,3 +589,36 @@ def generate_resume():
             "error": clean_error
         }), 500
 
+
+@api_texts_bp.route("/texts/proxy-image", methods=["POST"])
+def proxy_image():
+    """Proxy pour télécharger une image externe et la renvoyer en base64 (contourne CORS)."""
+    import requests as http_requests
+    import base64
+
+    data = request.json or {}
+    url = data.get("url", "").strip()
+
+    if not url or not url.startswith("http"):
+        return jsonify({"error": "URL invalide"}), 400
+
+    try:
+        resp = http_requests.get(url, timeout=10, stream=True)
+        resp.raise_for_status()
+
+        content_type = resp.headers.get("Content-Type", "image/png")
+        if not content_type.startswith("image/"):
+            return jsonify({"error": "Le contenu n'est pas une image"}), 400
+
+        # Limit to 10 MB
+        content = resp.content
+        if len(content) > 10 * 1024 * 1024:
+            return jsonify({"error": "Image trop volumineuse (max 10 Mo)"}), 400
+
+        b64 = base64.b64encode(content).decode("utf-8")
+        data_uri = f"data:{content_type};base64,{b64}"
+
+        return jsonify({"success": True, "base64": data_uri})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

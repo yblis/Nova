@@ -1,0 +1,88 @@
+        <!-- Header -->
+        <header
+            class="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-10">
+            <div class="flex items-center gap-3">
+                <button @click="showTools = !showTools"
+                    class="p-2 -ml-2 text-zinc-500 hover:text-brand-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                    :title="t('assistant.common.showTools', 'Afficher/Masquer les outils')">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div class="font-bold text-zinc-900 dark:text-zinc-100"
+                    x-text="currentTool ? t('assistant.tools.' + currentTool, 'Outils') : t('assistant.toolsTitle', 'Outils')">
+                </div>
+
+                <!-- Model Selector -->
+                <div class="relative hidden sm:block" x-data="{open:false}">
+                    <button @click="open=!open"
+                        class="flex items-center gap-2 font-semibold text-zinc-900 dark:text-zinc-100 hover:text-brand-600 transition-colors bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <span x-text="currentModel||t('assistant.common.selectModel', 'Sélectionner un modèle')"></span>
+                        <svg class="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div x-show="open" @click.outside="open=false"
+                        class="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden">
+                        <div class="max-h-64 overflow-y-auto p-1">
+                            <template x-for="m in models" :key="m">
+                                <button @click="currentModel=m; open=false"
+                                    class="w-full text-left px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
+                                    :class="currentModel===m ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20' : 'text-zinc-700 dark:text-zinc-300'"
+                                    x-text="m"></button>
+                            </template>
+                            <div x-show="models.length === 0" class="px-3 py-3 text-sm text-zinc-500 text-center"
+                                x-text="t('assistant.common.noModel', 'Aucun modèle disponible')">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Mobile Model Selector -->
+                <div class="relative sm:hidden">
+                    <button @click="showModelSelector = !showModelSelector"
+                        class="p-2 text-zinc-400 hover:text-brand-600 transition-colors"
+                        :title="t('models.model', 'Modèle')">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </button>
+                    <!-- Backdrop -->
+                    <div x-show="showModelSelector" @click="showModelSelector=false" class="fixed inset-0 z-[90]"></div>
+                    <!-- Dropdown -->
+                    <div x-show="showModelSelector" x-transition
+                        class="fixed top-20 left-4 right-4 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-2xl z-[100] overflow-hidden">
+                        <div class="p-2 border-b border-zinc-200 dark:border-zinc-700">
+                            <span class="text-xs font-medium text-zinc-500 uppercase tracking-wider"
+                                x-text="t('assistant.common.selectModel', 'Sélectionner un modèle')"></span>
+                        </div>
+                        <div class="max-h-64 overflow-y-auto p-1">
+                            <template x-for="m in models" :key="m">
+                                <button @click="currentModel=m; showModelSelector=false"
+                                    class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 text-sm font-medium transition-colors"
+                                    :class="currentModel===m ? 'text-brand-600 bg-brand-50 dark:bg-brand-900/20' : 'text-zinc-700 dark:text-zinc-300'"
+                                    x-text="m"></button>
+                            </template>
+                            <div x-show="models.length === 0" class="px-3 py-3 text-sm text-zinc-500 text-center"
+                                x-text="t('assistant.common.noModel', 'Aucun modèle disponible')">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Button -->
+                <button @click="showHistory = !showHistory"
+                    class="p-2 text-zinc-400 hover:text-brand-600 transition-colors rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    :class="showHistory ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-600' : ''"
+                    :title="t('assistant.common.history', 'Historique')">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+            </div>
+        </header>

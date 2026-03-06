@@ -67,6 +67,7 @@ class AnthropicClient(BaseLLMClient):
         self,
         messages: List[Dict[str, str]],
         model: str,
+        images: Optional[List[str]] = None,
         options: Optional[Dict[str, Any]] = None,
         stream: bool = False
     ) -> Dict[str, Any]:
@@ -76,6 +77,11 @@ class AnthropicClient(BaseLLMClient):
             
             # Séparer le system prompt des messages
             system_prompt, chat_messages = self._extract_system_prompt(messages)
+            
+            # Ajouter les images au dernier message si présentes
+            if images:
+                chat_messages = self._prepare_messages_with_images(chat_messages, images)
+            
             normalized_opts = self.normalize_options(options)
             
             response = client.messages.create(

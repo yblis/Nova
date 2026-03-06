@@ -94,7 +94,8 @@ def reformulate(
     add_emojis: bool = False,
     tone: str = "Professionnel",
     format_type: str = "Paragraphe",
-    length: str = "Moyen"
+    length: str = "Moyen",
+    paraphrase: bool = False
 ) -> Dict[str, Any]:
     """
     Reformule un texte selon les options spécifiées.
@@ -112,22 +113,47 @@ def reformulate(
         Dict avec le résultat et les métadonnées
     """
     client = _get_llm_client()
-    system_prompt = get_prompt("reformulation")
     
-    # Construire le user prompt avec les options
-    user_prompt_parts = [f"Texte à reformuler:\n{text}"]
+    # Calculer le nombre de mots et la cible selon la longueur
+    word_count = len(text.split())
+    if length.lower() == "court":
+        target_words = max(10, int(word_count * 0.4))
+        length_instruction = f"{length} (~{target_words} mots max, condense au maximum)"
+    elif length.lower() == "long":
+        target_words = int(word_count * 1.8)
+        length_instruction = f"{length} (~{target_words} mots min, développe avec des détails)"
+    else:
+        length_instruction = f"{length} (~{word_count} mots, longueur similaire)"
     
-    if context:
-        user_prompt_parts.append(f"\nContexte: {context}")
-    
-    user_prompt_parts.append(f"\nTon demandé: {tone}")
-    user_prompt_parts.append(f"Format: {format_type}")
-    user_prompt_parts.append(f"Longueur: {length}")
-    
-    if add_emojis:
-        user_prompt_parts.append("\nAjoute des emojis pertinents dans le texte reformulé.")
-    
-    user_prompt = "\n".join(user_prompt_parts)
+    if paraphrase:
+        system_prompt = get_prompt("paraphrase")
+        user_prompt_parts = []
+        user_prompt_parts.append("━━━ CONSIGNES OBLIGATOIRES ━━━")
+        user_prompt_parts.append(f"🎯 TON : {tone}")
+        user_prompt_parts.append(f"📐 FORMAT : {format_type}")
+        user_prompt_parts.append(f"📏 LONGUEUR : {length_instruction}")
+        if add_emojis:
+            user_prompt_parts.append("😀 EMOJIS : Oui, ajoute des emojis pertinents")
+        user_prompt_parts.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        user_prompt_parts.append(f"\nTexte à paraphraser ({word_count} mots) :\n{text}")
+        user_prompt = "\n".join(user_prompt_parts)
+    else:
+        system_prompt = get_prompt("reformulation")
+        
+        # Consignes AVANT le texte pour qu'elles soient prioritaires
+        user_prompt_parts = []
+        user_prompt_parts.append("━━━ CONSIGNES OBLIGATOIRES ━━━")
+        user_prompt_parts.append(f"🎯 TON : {tone}")
+        user_prompt_parts.append(f"📐 FORMAT : {format_type}")
+        user_prompt_parts.append(f"📏 LONGUEUR : {length_instruction}")
+        if add_emojis:
+            user_prompt_parts.append("😀 EMOJIS : Oui, ajoute des emojis pertinents")
+        if context:
+            user_prompt_parts.append(f"📝 CONTEXTE : {context}")
+        user_prompt_parts.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        user_prompt_parts.append(f"\nTexte à reformuler ({word_count} mots) :\n{text}")
+        
+        user_prompt = "\n".join(user_prompt_parts)
     
     try:
         response = client.chat(
@@ -143,7 +169,7 @@ def reformulate(
         
         # Sauvegarder dans l'historique
         _add_to_history({
-            "type": "reformulation",
+            "type": "paraphrase" if paraphrase else "reformulation",
             "input": text,
             "output": result,
             "options": {
@@ -151,7 +177,8 @@ def reformulate(
                 "add_emojis": add_emojis,
                 "tone": tone,
                 "format": format_type,
-                "length": length
+                "length": length,
+                "paraphrase": paraphrase
             },
             "model": model
         })
@@ -312,32 +339,64 @@ def generate_email(
     content: str,
     model: str,
     sender_name: str = "",
-    tone: str = "Professionnel"
+    tone: str = "Professionnel",
+    mode: str = "generate",
+    email_received: str = "",
+    reply_type: str = "Réponse neutre",
+    job_title: str = "",
+    company: str = "",
+    profile: str = ""
 ) -> Dict[str, Any]:
     """
-    Génère un email structuré.
+    Génère un email, une réponse à un email, ou une lettre de motivation.
     
     Args:
-        email_type: Type d'email (réclamation, demande de congés, etc.)
+        email_type: Type d'email (pour mode generate)
         content: Contenu et contexte
         model: Modèle LLM à utiliser
-        sender_name: Nom de l'expéditeur (optionnel)
+        sender_name: Nom de l'expéditeur
         tone: Ton de l'email
-    
-    Returns:
-        Dict avec l'email généré
+        mode: 'generate' | 'reply' | 'cover_letter'
+        email_received: Email reçu (pour mode reply)
+        reply_type: Type de réponse (pour mode reply)
+        job_title: Poste visé (pour mode cover_letter)
+        company: Entreprise (pour mode cover_letter)
+        profile: Profil/compétences (pour mode cover_letter)
     """
     client = _get_llm_client()
-    system_prompt = get_prompt("email")
     
-    user_prompt_parts = [
-        f"Type d'email: {email_type}",
-        f"Ton: {tone}",
-        f"\nContenu et contexte:\n{content}"
-    ]
-    
-    if sender_name:
-        user_prompt_parts.append(f"\nExpéditeur: {sender_name}")
+    if mode == "reply":
+        system_prompt = get_prompt("email_reply")
+        user_prompt_parts = [
+            f"Email reçu :\n{email_received}",
+            f"\nType de réponse souhaité : {reply_type}",
+            f"Ton : {tone}"
+        ]
+        if content:
+            user_prompt_parts.append(f"\nInstructions supplémentaires :\n{content}")
+        if sender_name:
+            user_prompt_parts.append(f"\nExpéditeur (pour la signature) : {sender_name}")
+    elif mode == "cover_letter":
+        system_prompt = get_prompt("cover_letter")
+        user_prompt_parts = [
+            f"Poste visé : {job_title}",
+            f"Entreprise : {company}"
+        ]
+        if profile:
+            user_prompt_parts.append(f"\nProfil et compétences :\n{profile}")
+        if content:
+            user_prompt_parts.append(f"\nInformations complémentaires :\n{content}")
+        if sender_name:
+            user_prompt_parts.append(f"\nNom du candidat : {sender_name}")
+    else:
+        system_prompt = get_prompt("email")
+        user_prompt_parts = [
+            f"Type d'email: {email_type}",
+            f"Ton: {tone}",
+            f"\nContenu et contexte:\n{content}"
+        ]
+        if sender_name:
+            user_prompt_parts.append(f"\nExpéditeur: {sender_name}")
     
     user_prompt = "\n".join(user_prompt_parts)
     
@@ -355,12 +414,16 @@ def generate_email(
         
         _add_to_history({
             "type": "email",
-            "input": content,
+            "input": content or email_received or f"{job_title} - {company}",
             "output": result,
             "options": {
                 "email_type": email_type,
                 "sender_name": sender_name,
-                "tone": tone
+                "tone": tone,
+                "mode": mode,
+                "reply_type": reply_type if mode == "reply" else None,
+                "job_title": job_title if mode == "cover_letter" else None,
+                "company": company if mode == "cover_letter" else None
             },
             "model": model
         })
@@ -411,9 +474,317 @@ def generate_prompt(description: str, model: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+def extract_data(text: str, model: str, output_format: str = "JSON") -> Dict[str, Any]:
+    """
+    Extrait des données structurées à partir de texte brut.
+    """
+    client = _get_llm_client()
+    system_prompt = get_prompt("extractor")
+    
+    user_prompt = f"Format de sortie demandé : {output_format}\n\nTexte à analyser :\n{text}"
+    
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+        
+        result = response.get("message", {}).get("content", "")
+        
+        _add_to_history({
+            "type": "extractor",
+            "input": text,
+            "output": result,
+            "options": {"output_format": output_format},
+            "model": model
+        })
+        
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def simplify_text(text: str, model: str, level: str = "Grand public") -> Dict[str, Any]:
+    """
+    Simplifie un texte complexe selon le niveau choisi.
+    """
+    client = _get_llm_client()
+    system_prompt = get_prompt("simplify")
+    
+    user_prompt = f"Niveau de simplification : {level}\n\nTexte à simplifier :\n{text}"
+    
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+        
+        result = response.get("message", {}).get("content", "")
+        
+        _add_to_history({
+            "type": "simplify",
+            "input": text,
+            "output": result,
+            "options": {"level": level},
+            "model": model
+        })
+        
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def expand_text(
+    text: str,
+    model: str,
+    tone: str = "Professionnel",
+    length: str = "Moyen"
+) -> Dict[str, Any]:
+    """
+    Développe une ébauche en texte complet et articulé.
+    """
+    client = _get_llm_client()
+    system_prompt = get_prompt("expand")
+    
+    user_prompt = f"Ton : {tone}\nLongueur : {length}\n\nÉbauche à développer :\n{text}"
+    
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+        
+        result = response.get("message", {}).get("content", "")
+        
+        _add_to_history({
+            "type": "expand",
+            "input": text,
+            "output": result,
+            "options": {"tone": tone, "length": length},
+            "model": model
+        })
+        
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_todolist(text: str, model: str) -> Dict[str, Any]:
+    """
+    Extrait un plan d'action structuré depuis des notes en vrac.
+    """
+    client = _get_llm_client()
+    system_prompt = get_prompt("todolist")
+    
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            model=model,
+            stream=False
+        )
+        
+        result = response.get("message", {}).get("content", "")
+        
+        _add_to_history({
+            "type": "todolist",
+            "input": text,
+            "output": result,
+            "options": {},
+            "model": model
+        })
+        
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_mermaid(
+    description: str,
+    model: str,
+    previous_code: str = "",
+    image_base64: str = ""
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("mermaid")
+
+    user_parts = []
+
+    if previous_code:
+        user_parts.append(f"Code Mermaid actuel :\n{previous_code}")
+        user_parts.append(f"\nModification demandée :\n{description}")
+    else:
+        if image_base64:
+            user_parts.append("Analyse l'image fournie et génère un diagramme Mermaid qui la représente fidèlement.")
+            if description.strip():
+                user_parts.append(f"\nInstructions supplémentaires : {description}")
+        else:
+            user_parts.append(description)
+
+    user_prompt = "\n".join(user_parts)
+
+    images = [image_base64] if image_base64 else None
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            images=images,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        result = _clean_mermaid_output(result)
+
+        _add_to_history({
+            "type": "mermaid",
+            "input": description,
+            "output": result,
+            "options": {
+                "previous_code": previous_code if previous_code else None,
+                "has_image": bool(image_base64)
+            },
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_documentation(
+    outline: str,
+    model: str,
+    style: str = "Technique",
+    previous_doc: str = "",
+    improvement_prompt: str = "",
+    source_images: list = None,
+    embed_images: list = None
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("documentation")
+
+    source_images = source_images or []
+    embed_images = embed_images or []
+
+    user_prompt_parts = []
+
+    if previous_doc and improvement_prompt:
+        user_prompt_parts.append(f"Documentation existante :\n{previous_doc}")
+        user_prompt_parts.append(f"\nModification demandee :\n{improvement_prompt}")
+        if style:
+            user_prompt_parts.append(f"\nStyle : {style}")
+        # Instruct to preserve image markers during improvement
+        if embed_images:
+            embed_ids = [img.get('id', f'IMAGE_{i+1}') for i, img in enumerate(embed_images)]
+            user_prompt_parts.append(
+                f"\nIMPORTANT : La documentation contient des marqueurs d'images ({', '.join(f'[{eid}]' for eid in embed_ids)}). "
+                f"Tu DOIS conserver TOUS ces marqueurs dans ta version amelioree, chacun sur sa propre ligne, "
+                f"a l'endroit le plus pertinent dans la procedure. Ne supprime aucun marqueur."
+            )
+    else:
+        user_prompt_parts.append(f"Style de documentation : {style}")
+
+        if source_images:
+            user_prompt_parts.append(f"\n{len(source_images)} image(s) source(s) fournie(s) pour analyse. Analyse ces images et redige une documentation detaillee basee sur leur contenu.")
+
+        if embed_images:
+            embed_ids = [img.get('id', f'IMAGE_{i+1}') for i, img in enumerate(embed_images)]
+            user_prompt_parts.append(
+                f"\n{len(embed_images)} image(s) a integrer dans la documentation. "
+                f"Tu DOIS placer les marqueurs suivants aux endroits pertinents dans le texte : {', '.join(f'[{eid}]' for eid in embed_ids)}. "
+                f"Chaque marqueur sera remplace par la capture d'ecran correspondante. "
+                f"Place chaque marqueur sur sa propre ligne, au bon endroit dans la procedure."
+            )
+
+        if outline.strip():
+            label = "Instructions supplementaires" if (source_images or embed_images) else "Trame / plan"
+            user_prompt_parts.append(f"\n{label} :\n{outline}")
+        elif not source_images and not embed_images:
+            user_prompt_parts.append("\nTrame / plan :\n(vide)")
+
+    user_prompt = "\n".join(user_prompt_parts)
+
+    # Combine all images for the LLM (source first, then embed)
+    all_images = list(source_images)
+    for img in embed_images:
+        all_images.append(img.get("base64", ""))
+    images_param = all_images if all_images else None
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            images=images_param,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "documentation",
+            "input": outline if not improvement_prompt else improvement_prompt,
+            "output": result,
+            "options": {
+                "style": style,
+                "is_improvement": bool(improvement_prompt),
+                "original_outline": outline,
+                "source_images_count": len(source_images),
+                "embed_images_count": len(embed_images)
+            },
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _clean_mermaid_output(raw: str) -> str:
+    cleaned = raw.strip()
+
+    if cleaned.startswith("```mermaid"):
+        cleaned = cleaned[len("```mermaid"):].strip()
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:].strip()
+
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3].strip()
+
+    return cleaned
+
+
 def generate_summary(text: str, model: str, session_id: str = None) -> Dict[str, Any]:
     """
     Génère un résumé du texte ou des documents RAG.
+
     
     Args:
         text: Texte à résumer (optionnel si session_id présent)

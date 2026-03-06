@@ -20,13 +20,13 @@ def users_list():
     users = user_service.get_all_users()
     return render_template('admin/users.html', users=users)
 
-@admin_bp.route('/partials/users')
+@admin_bp.route('/spa/users')
 @login_required
 @admin_required
 def users_partial():
     """Partial pour la navigation SPA"""
     users = user_service.get_all_users()
-    return render_template('admin/partials/users.html', users=users)
+    return render_template('admin/spa/users.html', users=users)
 
 
 @admin_bp.route('/users/create', methods=['POST'])
