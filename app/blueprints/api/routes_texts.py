@@ -402,6 +402,42 @@ def generate_todolist():
         return jsonify(result)
     return jsonify(result), 500
 
+# ========== Génération de scripts ==========
+
+@api_texts_bp.route("/texts/generate-script", methods=["POST"])
+def generate_script():
+    from ...services.text_tools_service import generate_script as svc_generate_script
+
+    data = request.json or {}
+    description = data.get("description", "").strip()
+    model = data.get("model", "")
+    language = data.get("language", "Bash")
+    commented = data.get("commented", False)
+    strict_mode = data.get("strict_mode", False)
+
+    if not description:
+        return jsonify({"error": "La description est requise"}), 400
+    if len(description) > 10000:
+        return jsonify({"error": "La description ne doit pas dépasser 10 000 caractères"}), 400
+    if not model:
+        return jsonify({"error": "Le modèle est requis"}), 400
+
+    allowed_languages = {"Bash", "Python", "PowerShell", "Auto"}
+    if language not in allowed_languages:
+        return jsonify({"error": f"Langage invalide. Valeurs acceptées : {', '.join(sorted(allowed_languages))}"}), 400
+
+    result = svc_generate_script(
+        description=description,
+        model=model,
+        language=language,
+        commented=bool(commented),
+        strict_mode=bool(strict_mode)
+    )
+
+    if result.get("success"):
+        return jsonify(result)
+    return jsonify(result), 500
+
 
 # ========== Génération de diagrammes Mermaid ==========
 

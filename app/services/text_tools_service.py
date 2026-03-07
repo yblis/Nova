@@ -617,6 +617,58 @@ def generate_todolist(text: str, model: str) -> Dict[str, Any]:
         return {"success": False, "error": str(e)}
 
 
+def generate_script(
+    description: str,
+    model: str,
+    language: str = "Bash",
+    commented: bool = False,
+    strict_mode: bool = False
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("script_generator")
+
+    user_prompt_parts = []
+    user_prompt_parts.append(f"Langage cible : {language}")
+
+    if commented:
+        user_prompt_parts.append("Mode commentaires : ACTIVE (ajoute des commentaires detailles)")
+    if strict_mode:
+        user_prompt_parts.append("Mode strict : ACTIVE (gestion d'erreurs robuste)")
+
+    user_prompt_parts.append(f"\nDescription du script a generer :\n{description}")
+
+    user_prompt = "\n".join(user_prompt_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "script",
+            "input": description,
+            "output": result,
+            "options": {
+                "language": language,
+                "commented": commented,
+                "strict_mode": strict_mode
+            },
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def generate_mermaid(
     description: str,
     model: str,

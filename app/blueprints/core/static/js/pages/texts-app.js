@@ -8,7 +8,7 @@
         // Load current tool from URL hash, localStorage, or default
         currentTool: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
             if (hash && validTools.includes(hash)) return hash;
             const stored = localStorage.getItem('texts_current_tool');
             if (stored && validTools.includes(stored)) return stored;
@@ -25,6 +25,7 @@
             { id: 'simplify', name: 'Simplificateur' },
             { id: 'expand', name: 'Expandeur' },
             { id: 'todolist', name: 'Plan d\'action' },
+            { id: 'script', name: 'Script' },
             { id: 'documentation', name: 'Documentation' },
             { id: 'resume', name: 'CV Generator' },
             { id: 'mermaid', name: 'Diagramme' }
@@ -59,7 +60,7 @@
         // Input text - initialized from localStorage for current tool
         inputText: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
             let currentTool = 'reformulation';
             if (hash && validTools.includes(hash)) {
                 currentTool = hash;
@@ -116,6 +117,11 @@
         replyType: 'Réponse neutre',
         coverLetterData: { job_title: '', company: '', profile: '' },
         paraphraseMode: false,
+
+        // Script Generator state
+        scriptLanguage: 'Bash',
+        scriptCommented: false,
+        scriptStrictMode: false,
 
         // Resume/CV Generator data
         resumeData: {
@@ -241,7 +247,7 @@
             // Listen for hash changes (browser back/forward)
             this._hashChangeHandler = () => {
                 const hash = window.location.hash.slice(1);
-                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist'];
+                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
                 if (hash && validTools.includes(hash) && hash !== this.currentTool) {
                     this.currentTool = hash;
                 }
@@ -341,6 +347,11 @@
             if (this.currentTool === 'expand') {
                 this.expandTone = 'Professionnel';
                 this.expandLength = 'Moyen';
+            }
+            if (this.currentTool === 'script') {
+                this.scriptLanguage = 'Bash';
+                this.scriptCommented = false;
+                this.scriptStrictMode = false;
             }
         },
 
@@ -647,6 +658,13 @@
                 case 'todolist':
                     endpoint = '/api/texts/todolist';
                     break;
+                case 'script':
+                    endpoint = '/api/texts/generate-script';
+                    payload.description = payload.text;
+                    payload.language = this.scriptLanguage;
+                    payload.commented = this.scriptCommented;
+                    payload.strict_mode = this.scriptStrictMode;
+                    break;
             }
 
             try {
@@ -687,6 +705,35 @@
             } catch (e) {
                 navigator.clipboard.writeText(this.resultText);
             }
+        },
+
+        getScriptExtension() {
+            const lang = this.scriptLanguage;
+            if (lang === 'Bash') return 'sh';
+            if (lang === 'Python') return 'py';
+            if (lang === 'PowerShell') return 'ps1';
+            // Auto: detect from result
+            if (this.resultText.includes('```bash') || this.resultText.includes('#!/bin/bash')) return 'sh';
+            if (this.resultText.includes('```python') || this.resultText.includes('#!/usr/bin/env python')) return 'py';
+            if (this.resultText.includes('```powershell')) return 'ps1';
+            return 'sh';
+        },
+
+        downloadScript() {
+            if (!this.resultText) return;
+            // Extract code from markdown code block
+            const codeMatch = this.resultText.match(/```(?:bash|python|powershell|sh|py|ps1)?\n([\s\S]*?)```/);
+            const code = codeMatch ? codeMatch[1].trim() : this.resultText;
+            const ext = this.getScriptExtension();
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `script.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         },
 
         async processDocumentation() {
