@@ -1965,4 +1965,408 @@
                                 </button>
                             </div>
                         </template>
+
+                        <!-- ============ RECIPE ============ -->
+                        <template x-if="currentTool === 'recipe'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🍳 Générateur de recettes</label>
+                                    <div class="flex items-center gap-1">
+                                        <button @click="pasteFromClipboard()"
+                                            class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                            title="Coller">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez votre idée de recette ou listez vos ingrédients...&#10;&#10;Exemples :&#10;• Poulet, brocoli, crème, ail&#10;• Un dessert rapide au chocolat&#10;• Repas équilibré pour 4 personnes"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Régime alimentaire -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Régime alimentaire</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="diet in options.recipe_diets || ['Sans restriction', 'Végétarien', 'Vegan', 'Sans gluten', 'Sans lactose', 'Keto']" :key="diet">
+                                            <button @click="recipeDiet = diet" type="button"
+                                                :class="recipeDiet === diet ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="diet"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Temps & Portions -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Temps max</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="t in options.recipe_times || ['15 min', '30 min', '45 min', '1h', '1h30', '2h+']" :key="t">
+                                                <button @click="recipeTime = (recipeTime === t ? '' : t)" type="button"
+                                                    :class="recipeTime === t ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="t"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Portions</label>
+                                        <input type="text" x-model="recipeServings"
+                                            class="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none text-sm"
+                                            placeholder="Ex: 4">
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Génération...' : '🍳 Générer la recette'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ FITNESS ============ -->
+                        <template x-if="currentTool === 'fitness'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🏋️ Coach sportif</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez votre objectif sportif...&#10;&#10;Exemples :&#10;• Programme full body 3x/semaine&#10;• Perdre du poids en 8 semaines&#10;• Préparer un semi-marathon"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Objectif -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Objectif</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="g in options.fitness_goals || ['Prise de masse', 'Perte de poids', 'Cardio', 'Mobilité', 'Force', 'Endurance']" :key="g">
+                                            <button @click="fitnessGoal = (fitnessGoal === g ? '' : g)" type="button"
+                                                :class="fitnessGoal === g ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="g"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <!-- Matériel & Niveau -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Matériel</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="eq in options.fitness_equipment || ['Salle complète', 'Maison (haltères)', 'Poids du corps', 'Extérieur']" :key="eq">
+                                                <button @click="fitnessEquipment = (fitnessEquipment === eq ? '' : eq)" type="button"
+                                                    :class="fitnessEquipment === eq ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="eq"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Niveau</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="lv in options.fitness_levels || ['Débutant', 'Intermédiaire', 'Avancé']" :key="lv">
+                                                <button @click="fitnessLevel = lv" type="button"
+                                                    :class="fitnessLevel === lv ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="lv"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Génération...' : '🏋️ Générer le programme'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ ADMIN LETTER ============ -->
+                        <template x-if="currentTool === 'admin_letter'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">📝 Lettre administrative</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez la situation en détail...&#10;&#10;Exemples :&#10;• Résiliation de mon abonnement Box internet chez Orange, numéro client 12345&#10;• Contestation d'une amende de stationnement reçue le 15 mars&#10;• Demande de remboursement pour un produit défectueux"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Type de lettre -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Type de lettre</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="lt in options.admin_letter_types || ['Résiliation', 'Réclamation', 'Remboursement', 'Contestation', 'Mise en demeure', 'Demande']" :key="lt">
+                                            <button @click="adminLetterType = (adminLetterType === lt ? '' : lt)" type="button"
+                                                :class="adminLetterType === lt ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="lt"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Rédaction...' : '📝 Rédiger la lettre'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ FLASHCARDS ============ -->
+                        <template x-if="currentTool === 'flashcards'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🎴 Flashcards / Fiches de révision</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici le contenu à transformer en flashcards...&#10;&#10;Cela peut être :&#10;• Un chapitre de cours&#10;• Des notes de révision&#10;• Un article ou texte technique"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Difficulté & Format -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Difficulté</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="d in options.flashcard_difficulties || ['Basique', 'Intermédiaire', 'Expert']" :key="d">
+                                                <button @click="flashcardDifficulty = d" type="button"
+                                                    :class="flashcardDifficulty === d ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="d"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Format</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="f in options.flashcard_formats || ['Question/Réponse', 'QCM', 'Vrai/Faux', 'Définition']" :key="f">
+                                                <button @click="flashcardFormat = f" type="button"
+                                                    :class="flashcardFormat === f ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="f"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Génération...' : '🎴 Générer les flashcards'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ ELI5 ============ -->
+                        <template x-if="currentTool === 'eli5'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">💡 Expliqueur universel</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Quel concept voulez-vous comprendre ?&#10;&#10;Exemples :&#10;• La mécanique quantique&#10;• Comment fonctionne la blockchain&#10;• Le théorème de Bayes&#10;• La photosynthèse"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Niveau d'explication -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Niveau d'explication</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="lv in options.eli5_levels || ['Enfant (5 ans)', 'Adolescent', 'Grand public', 'Étudiant']" :key="lv">
+                                            <button @click="eli5Level = lv" type="button"
+                                                :class="eli5Level === lv ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="lv"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Explication...' : '💡 Expliquer'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ SPEECH ============ -->
+                        <template x-if="currentTool === 'speech'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🎤 Générateur de discours</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez le contexte du discours, les points clés à aborder, les anecdotes à intégrer...&#10;&#10;Exemples :&#10;• Discours de témoin pour le mariage de Pierre et Marie, on se connaît depuis 15 ans&#10;• Pitch de 3 minutes pour présenter notre startup de livraison écologique&#10;• Discours de remerciement pour un départ à la retraite"></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Occasion & Ton -->
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Occasion</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="occ in options.speech_occasions || ['Mariage', 'Anniversaire', 'Départ/Retraite', 'Inauguration', 'Pitch', 'Funérailles', 'Remise de prix']" :key="occ">
+                                                <button @click="speechOccasion = (speechOccasion === occ ? '' : occ)" type="button"
+                                                    :class="speechOccasion === occ ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="occ"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Ton</label>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            <template x-for="tn in options.speech_tones || ['Émouvant', 'Drôle', 'Inspirant', 'Solennel', 'Décontracté']" :key="tn">
+                                                <button @click="speechTone = (speechTone === tn ? '' : tn)" type="button"
+                                                    :class="speechTone === tn ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                    class="px-2 py-1 text-xs font-medium rounded-lg border transition-colors"
+                                                    x-text="tn"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Rédaction...' : '🎤 Rédiger le discours'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ DECISION ============ -->
+                        <template x-if="currentTool === 'decision'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">⚖️ Aide à la décision</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez vos options et les critères importants...&#10;&#10;Exemples :&#10;• Acheter vs louer un appartement à Paris, budget 1500€/mois, famille de 3&#10;• Choisir entre React, Vue.js et Angular pour un nouveau projet SaaS&#10;• MacBook Pro vs ThinkPad X1 pour du développement web"></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Analyse...' : '⚖️ Analyser et comparer'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ REGEX ============ -->
+                        <template x-if="currentTool === 'regex'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🔣 Générateur de Regex</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Décrivez en langage naturel ce que la regex doit capturer...&#10;&#10;Exemples :&#10;• Une adresse email valide&#10;• Un numéro de téléphone français (fixe ou mobile)&#10;• Une date au format JJ/MM/AAAA&#10;• Un mot de passe avec au moins 8 caractères, une majuscule, un chiffre et un caractère spécial"></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Génération...' : '🔣 Générer la regex'"></span>
+                                </button>
+                            </div>
+                        </template>
+
+                        <!-- ============ FORMAT CONVERTER ============ -->
+                        <template x-if="currentTool === 'converter'">
+                            <div class="flex flex-col lg:h-full gap-3">
+                                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">🔄 Convertisseur de format</label>
+
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <div class="relative flex-1">
+                                        <textarea x-model="inputText"
+                                            class="texts-textarea w-full h-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 text-zinc-800 dark:text-zinc-200 focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none resize-none text-sm"
+                                            placeholder="Collez ici les données à convertir...&#10;&#10;Formats acceptés : JSON, YAML, XML, CSV, Tableau, Texte structuré"></textarea>
+                                    </div>
+                                    <div class="flex justify-between text-xs text-zinc-400 mt-2 px-1">
+                                        <span>Caractères: <span x-text="inputText.length"></span></span>
+                                        <span>Mots: <span x-text="inputText.trim() ? inputText.trim().split(/\s+/).length : 0"></span></span>
+                                    </div>
+                                </div>
+
+                                <!-- Format cible -->
+                                <div>
+                                    <label class="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">Format cible</label>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="fmt in options.convert_formats || ['JSON', 'YAML', 'XML', 'CSV', 'Tableau Markdown', 'Texte']" :key="fmt">
+                                            <button @click="convertTargetFormat = fmt" type="button"
+                                                :class="convertTargetFormat === fmt ? 'bg-brand-600 text-white border-brand-600' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-brand-400'"
+                                                class="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                                                x-text="fmt"></button>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <button @click="process" :disabled="processing || !inputText || !currentModel"
+                                    class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <svg x-show="processing" class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span x-text="processing ? 'Conversion...' : '🔄 Convertir'"></span>
+                                </button>
+                            </div>
+                        </template>
                     </div>

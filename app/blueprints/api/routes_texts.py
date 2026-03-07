@@ -626,6 +626,199 @@ def generate_resume():
         }), 500
 
 
+@api_texts_bp.route("/texts/generate-recipe", methods=["POST"])
+def generate_recipe():
+    """Génère une recette à partir d'ingrédients ou d'une idée."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    diet = data.get("diet", "")
+    time_limit = data.get("time", "")
+    servings = data.get("servings", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire votre idée de recette ou lister vos ingrédients"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_recipe as svc_generate_recipe
+    result = svc_generate_recipe(text, model, diet=diet, time=time_limit, servings=servings)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/generate-fitness", methods=["POST"])
+def generate_fitness():
+    """Génère un programme sportif personnalisé."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    goal = data.get("goal", "")
+    equipment = data.get("equipment", "")
+    level = data.get("level", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire votre objectif sportif"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_fitness as svc_generate_fitness
+    result = svc_generate_fitness(text, model, goal=goal, equipment=equipment, level=level)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/generate-admin-letter", methods=["POST"])
+def generate_admin_letter():
+    """Génère une lettre administrative formelle."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    letter_type = data.get("letter_type", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire la situation"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_admin_letter as svc_admin_letter
+    result = svc_admin_letter(text, model, letter_type=letter_type)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/generate-flashcards", methods=["POST"])
+def generate_flashcards():
+    """Génère des flashcards à partir de contenu."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    difficulty = data.get("difficulty", "Intermédiaire")
+    card_format = data.get("card_format", "Question/Réponse")
+
+    if not text:
+        return jsonify({"error": "Veuillez fournir un contenu à transformer en flashcards"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_flashcards as svc_flashcards
+    result = svc_flashcards(text, model, difficulty=difficulty, card_format=card_format)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/explain-eli5", methods=["POST"])
+def explain_eli5():
+    """Explique un concept de manière simplifiée."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    level = data.get("level", "Grand public")
+
+    if not text:
+        return jsonify({"error": "Veuillez fournir un concept à expliquer"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import explain_eli5 as svc_eli5
+    result = svc_eli5(text, model, level=level)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/generate-speech", methods=["POST"])
+def generate_speech():
+    """Génère un discours pour une occasion donnée."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    occasion = data.get("occasion", "")
+    tone = data.get("tone", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire le contexte du discours"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_speech as svc_speech
+    result = svc_speech(text, model, occasion=occasion, tone=tone)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/compare-decide", methods=["POST"])
+def compare_decide():
+    """Analyse comparative pour aide à la décision."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire les options à comparer"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import compare_decide as svc_decide
+    result = svc_decide(text, model)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/generate-regex", methods=["POST"])
+def generate_regex():
+    """Génère une regex à partir d'une description en langage naturel."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+
+    if not text:
+        return jsonify({"error": "Veuillez décrire ce que la regex doit capturer"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import generate_regex as svc_regex
+    result = svc_regex(text, model)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/texts/convert-format", methods=["POST"])
+def convert_format():
+    """Convertit des données entre formats (JSON, YAML, XML, CSV, Tableau)."""
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    target_format = data.get("target_format", "JSON")
+
+    if not text:
+        return jsonify({"error": "Veuillez fournir les données à convertir"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modèle sélectionné"}), 400
+
+    from app.services.text_tools_service import convert_format as svc_convert
+    result = svc_convert(text, model, target_format=target_format)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
 @api_texts_bp.route("/texts/proxy-image", methods=["POST"])
 def proxy_image():
     """Proxy pour télécharger une image externe et la renvoyer en base64 (contourne CORS)."""

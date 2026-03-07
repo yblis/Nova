@@ -8,28 +8,66 @@
         // Load current tool from URL hash, localStorage, or default
         currentTool: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
             if (hash && validTools.includes(hash)) return hash;
             const stored = localStorage.getItem('texts_current_tool');
             if (stored && validTools.includes(stored)) return stored;
             return 'reformulation';
         })(),
-        tools: [
-            { id: 'reformulation', name: 'Reformulation' },
-            { id: 'summarize', name: 'Résumer' },
-            { id: 'translation', name: 'Traduction' },
-            { id: 'correction', name: 'Correction' },
-            { id: 'email', name: 'Email' },
-            { id: 'prompt', name: 'Prompt IA' },
-            { id: 'extractor', name: 'Extracteur' },
-            { id: 'simplify', name: 'Simplificateur' },
-            { id: 'expand', name: 'Expandeur' },
-            { id: 'todolist', name: 'Plan d\'action' },
-            { id: 'script', name: 'Script' },
-            { id: 'documentation', name: 'Documentation' },
-            { id: 'resume', name: 'CV Generator' },
-            { id: 'mermaid', name: 'Diagramme' }
+        toolSections: [
+            {
+                id: 'redaction', name: 'Rédaction', icon: 'pencil',
+                tools: [
+                    { id: 'reformulation', name: 'Reformulation' },
+                    { id: 'email', name: 'Email' },
+                    { id: 'speech', name: 'Discours' },
+                    { id: 'admin_letter', name: 'Lettre admin.' }
+                ]
+            },
+            {
+                id: 'analyse', name: 'Analyse', icon: 'search',
+                tools: [
+                    { id: 'summarize', name: 'Résumer' },
+                    { id: 'correction', name: 'Correction' },
+                    { id: 'extractor', name: 'Extracteur' },
+                    { id: 'simplify', name: 'Simplificateur' },
+                    { id: 'expand', name: 'Expandeur' }
+                ]
+            },
+            {
+                id: 'technique', name: 'Technique', icon: 'code',
+                tools: [
+                    { id: 'script', name: 'Script' },
+                    { id: 'mermaid', name: 'Diagramme' },
+                    { id: 'documentation', name: 'Documentation' },
+                    { id: 'regex', name: 'Regex' },
+                    { id: 'converter', name: 'Convertisseur' }
+                ]
+            },
+            {
+                id: 'generateurs', name: 'Générateurs', icon: 'bolt',
+                tools: [
+                    { id: 'prompt', name: 'Prompt IA' },
+                    { id: 'todolist', name: 'Plan d\'action' },
+                    { id: 'flashcards', name: 'Flashcards' },
+                    { id: 'resume', name: 'CV Generator' }
+                ]
+            },
+            {
+                id: 'quotidien', name: 'Quotidien', icon: 'star',
+                tools: [
+                    { id: 'translation', name: 'Traduction' },
+                    { id: 'eli5', name: 'Expliqueur' },
+                    { id: 'recipe', name: 'Recettes' },
+                    { id: 'fitness', name: 'Coach sportif' },
+                    { id: 'decision', name: 'Aide décision' }
+                ]
+            }
         ],
+        // Flat tools list (computed from sections)
+        get tools() {
+            return this.toolSections.flatMap(s => s.tools);
+        },
         processing: false,
         // RAG State
         ragSessionId: localStorage.getItem('texts_rag_session_id') || 'gen-' + Date.now(),
@@ -60,7 +98,7 @@
         // Input text - initialized from localStorage for current tool
         inputText: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
             let currentTool = 'reformulation';
             if (hash && validTools.includes(hash)) {
                 currentTool = hash;
@@ -117,6 +155,24 @@
         replyType: 'Réponse neutre',
         coverLetterData: { job_title: '', company: '', profile: '' },
         paraphraseMode: false,
+        outputFullscreen: false,
+
+        // New tools state (9 new tools)
+        recipeDiet: 'Sans restriction',
+        recipeTime: '',
+        recipeServings: '',
+        fitnessGoal: '',
+        fitnessEquipment: '',
+        fitnessLevel: 'Débutant',
+        adminLetterType: '',
+        flashcardDifficulty: 'Intermédiaire',
+        flashcardFormat: 'Question/Réponse',
+        eli5Level: 'Grand public',
+        speechOccasion: '',
+        speechTone: '',
+        convertTargetFormat: 'JSON',
+        // Sidebar section collapse state
+        collapsedSections: JSON.parse(localStorage.getItem('texts_collapsed_sections') || '{}'),
 
         // Script Generator state
         scriptLanguage: 'Bash',
@@ -247,7 +303,7 @@
             // Listen for hash changes (browser back/forward)
             this._hashChangeHandler = () => {
                 const hash = window.location.hash.slice(1);
-                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script'];
+                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
                 if (hash && validTools.includes(hash) && hash !== this.currentTool) {
                     this.currentTool = hash;
                 }
@@ -281,9 +337,31 @@
                 'extractor': 'Données extraites',
                 'simplify': 'Texte simplifié',
                 'expand': 'Texte développé',
-                'todolist': 'Plan d\'action'
+                'todolist': 'Plan d\'action',
+                'recipe': 'Recette générée',
+                'fitness': 'Programme sportif',
+                'admin_letter': 'Lettre administrative',
+                'flashcards': 'Flashcards',
+                'eli5': 'Explication',
+                'speech': 'Discours',
+                'decision': 'Analyse comparative',
+                'regex': 'Expression régulière',
+                'converter': 'Données converties'
             };
             return labels[this.currentTool] || 'Résultat';
+        },
+
+        toggleSection(sectionId) {
+            this.collapsedSections[sectionId] = !this.collapsedSections[sectionId];
+            localStorage.setItem('texts_collapsed_sections', JSON.stringify(this.collapsedSections));
+        },
+
+        isSectionCollapsed(sectionId) {
+            return !!this.collapsedSections[sectionId];
+        },
+
+        toggleOutputFullscreen() {
+            this.outputFullscreen = !this.outputFullscreen;
         },
 
         toggleSidebar() {
@@ -352,6 +430,33 @@
                 this.scriptLanguage = 'Bash';
                 this.scriptCommented = false;
                 this.scriptStrictMode = false;
+            }
+            if (this.currentTool === 'recipe') {
+                this.recipeDiet = 'Sans restriction';
+                this.recipeTime = '';
+                this.recipeServings = '';
+            }
+            if (this.currentTool === 'fitness') {
+                this.fitnessGoal = '';
+                this.fitnessEquipment = '';
+                this.fitnessLevel = 'Débutant';
+            }
+            if (this.currentTool === 'admin_letter') {
+                this.adminLetterType = '';
+            }
+            if (this.currentTool === 'flashcards') {
+                this.flashcardDifficulty = 'Intermédiaire';
+                this.flashcardFormat = 'Question/Réponse';
+            }
+            if (this.currentTool === 'eli5') {
+                this.eli5Level = 'Grand public';
+            }
+            if (this.currentTool === 'speech') {
+                this.speechOccasion = '';
+                this.speechTone = '';
+            }
+            if (this.currentTool === 'converter') {
+                this.convertTargetFormat = 'JSON';
             }
         },
 
@@ -664,6 +769,46 @@
                     payload.language = this.scriptLanguage;
                     payload.commented = this.scriptCommented;
                     payload.strict_mode = this.scriptStrictMode;
+                    break;
+                case 'recipe':
+                    endpoint = '/api/texts/generate-recipe';
+                    payload.diet = this.recipeDiet;
+                    payload.time = this.recipeTime;
+                    payload.servings = this.recipeServings;
+                    break;
+                case 'fitness':
+                    endpoint = '/api/texts/generate-fitness';
+                    payload.goal = this.fitnessGoal;
+                    payload.equipment = this.fitnessEquipment;
+                    payload.level = this.fitnessLevel;
+                    break;
+                case 'admin_letter':
+                    endpoint = '/api/texts/generate-admin-letter';
+                    payload.letter_type = this.adminLetterType;
+                    break;
+                case 'flashcards':
+                    endpoint = '/api/texts/generate-flashcards';
+                    payload.difficulty = this.flashcardDifficulty;
+                    payload.card_format = this.flashcardFormat;
+                    break;
+                case 'eli5':
+                    endpoint = '/api/texts/explain-eli5';
+                    payload.level = this.eli5Level;
+                    break;
+                case 'speech':
+                    endpoint = '/api/texts/generate-speech';
+                    payload.occasion = this.speechOccasion;
+                    payload.tone = this.speechTone;
+                    break;
+                case 'decision':
+                    endpoint = '/api/texts/compare-decide';
+                    break;
+                case 'regex':
+                    endpoint = '/api/texts/generate-regex';
+                    break;
+                case 'converter':
+                    endpoint = '/api/texts/convert-format';
+                    payload.target_format = this.convertTargetFormat;
                     break;
             }
 

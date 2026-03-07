@@ -49,6 +49,14 @@
                                     </svg>
                                     <span x-text="'.' + getScriptExtension()"></span>
                                 </button>
+                                <button @click="toggleOutputFullscreen()"
+                                    class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                    title="Plein écran">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                                    </svg>
+                                </button>
                                 <button @click="resultText = ''"
                                     class="p-1.5 text-zinc-400 hover:text-red-500 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
                                     :title="t('assistant.common.clear', 'Effacer')">
@@ -95,6 +103,18 @@
                                     </svg>
                                 </button>
                             </div>
+                        </div>
+
+                        <!-- Documentation Fullscreen Button -->
+                        <div class="flex items-center gap-1 ml-auto" x-show="currentTool === 'documentation' && resultText">
+                            <button @click="toggleOutputFullscreen()"
+                                class="p-1.5 text-zinc-400 hover:text-brand-600 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                title="Plein écran">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                                </svg>
+                            </button>
                         </div>
 
                         <!-- Output Content (flex-grow) -->
@@ -195,6 +215,65 @@
                                         </svg>
                                         PDF
                                     </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- ====== OUTPUT FULLSCREEN OVERLAY (all tools except mermaid/resume) ====== -->
+                        <template x-teleport="body">
+                            <div x-show="outputFullscreen && resultText && currentTool !== 'mermaid' && currentTool !== 'resume'" x-cloak
+                                class="fixed inset-0 z-[9999] bg-white dark:bg-zinc-950 flex flex-col"
+                                @keydown.escape.window="outputFullscreen = false">
+
+                                <!-- Fullscreen Toolbar -->
+                                <div class="flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex-shrink-0 bg-zinc-50 dark:bg-zinc-900">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-semibold text-zinc-700 dark:text-zinc-200" x-text="getOutputLabel()"></span>
+                                        <span class="text-xs text-zinc-400">
+                                            <span x-text="resultText.length"></span> caractères · <span x-text="resultText.trim() ? resultText.trim().split(/\s+/).length : 0"></span> mots
+                                        </span>
+                                    </div>
+
+                                    <div class="flex items-center gap-1">
+                                        <button x-data="{ copied: false }"
+                                            @click="copyResultAsHtml(); copied = true; setTimeout(() => copied = false, 2000)"
+                                            class="flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                            :class="copied ? 'text-green-500' : 'text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800'">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                            <span x-text="copied ? 'Copié !' : 'Word'"></span>
+                                        </button>
+                                        <button x-data="{ copied: false }"
+                                            @click="copyResult(); copied = true; setTimeout(() => copied = false, 2000)"
+                                            class="flex items-center gap-1 px-3 py-2 text-xs font-medium rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                                            :class="copied ? 'text-green-500' : 'text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800'">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                            </svg>
+                                            <span x-text="copied ? 'Copié !' : 'Markdown'"></span>
+                                        </button>
+
+                                        <div class="w-px h-6 bg-zinc-300 dark:bg-zinc-700 mx-1"></div>
+
+                                        <button @click="outputFullscreen = false"
+                                            class="p-2 text-zinc-500 hover:text-red-500 bg-zinc-100 dark:bg-zinc-800 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                            title="Réduire">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Fullscreen Content -->
+                                <div class="flex-1 overflow-y-auto p-6 sm:p-8 lg:p-12">
+                                    <div class="max-w-4xl mx-auto">
+                                        <div class="markdown-content text-base text-zinc-800 dark:text-zinc-200 leading-relaxed"
+                                            x-html="currentTool === 'documentation' ? docRenderWithImages(resultText) : formatResult(resultText)"></div>
+                                    </div>
                                 </div>
                             </div>
                         </template>

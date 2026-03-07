@@ -819,6 +819,354 @@ def generate_documentation(
         return {"success": False, "error": str(e)}
 
 
+def generate_recipe(
+    text: str,
+    model: str,
+    diet: str = "",
+    time: str = "",
+    servings: str = ""
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("recipe")
+
+    user_parts = []
+    if diet and diet != "Sans restriction":
+        user_parts.append(f"Regime alimentaire : {diet}")
+    if time:
+        user_parts.append(f"Temps maximum : {time}")
+    if servings:
+        user_parts.append(f"Nombre de portions : {servings}")
+    user_parts.append(f"\n{text}")
+
+    user_prompt = "\n".join(user_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "recipe",
+            "input": text,
+            "output": result,
+            "options": {"diet": diet, "time": time, "servings": servings},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_fitness(
+    text: str,
+    model: str,
+    goal: str = "",
+    equipment: str = "",
+    level: str = ""
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("fitness")
+
+    user_parts = []
+    if goal:
+        user_parts.append(f"Objectif : {goal}")
+    if equipment:
+        user_parts.append(f"Materiel disponible : {equipment}")
+    if level:
+        user_parts.append(f"Niveau : {level}")
+    user_parts.append(f"\n{text}")
+
+    user_prompt = "\n".join(user_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "fitness",
+            "input": text,
+            "output": result,
+            "options": {"goal": goal, "equipment": equipment, "level": level},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_admin_letter(
+    text: str,
+    model: str,
+    letter_type: str = ""
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("admin_letter")
+
+    user_parts = []
+    if letter_type:
+        user_parts.append(f"Type de lettre : {letter_type}")
+    user_parts.append(f"\nSituation a decrire :\n{text}")
+
+    user_prompt = "\n".join(user_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "admin_letter",
+            "input": text,
+            "output": result,
+            "options": {"letter_type": letter_type},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_flashcards(
+    text: str,
+    model: str,
+    difficulty: str = "Intermédiaire",
+    card_format: str = "Question/Réponse"
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("flashcards")
+
+    user_prompt = f"Niveau de difficulte : {difficulty}\nFormat : {card_format}\n\nContenu source :\n{text}"
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "flashcards",
+            "input": text,
+            "output": result,
+            "options": {"difficulty": difficulty, "card_format": card_format},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def explain_eli5(
+    text: str,
+    model: str,
+    level: str = "Grand public"
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("eli5")
+
+    user_prompt = f"Niveau d'explication : {level}\n\nConcept a expliquer :\n{text}"
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "eli5",
+            "input": text,
+            "output": result,
+            "options": {"level": level},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_speech(
+    text: str,
+    model: str,
+    occasion: str = "",
+    tone: str = ""
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("speech")
+
+    user_parts = []
+    if occasion:
+        user_parts.append(f"Occasion : {occasion}")
+    if tone:
+        user_parts.append(f"Ton souhaite : {tone}")
+    user_parts.append(f"\nContexte et points cles :\n{text}")
+
+    user_prompt = "\n".join(user_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "speech",
+            "input": text,
+            "output": result,
+            "options": {"occasion": occasion, "tone": tone},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def compare_decide(text: str, model: str) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("decision")
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "decision",
+            "input": text,
+            "output": result,
+            "options": {},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_regex(text: str, model: str) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("regex_generator")
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "regex",
+            "input": text,
+            "output": result,
+            "options": {},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def convert_format(
+    text: str,
+    model: str,
+    target_format: str = "JSON"
+) -> Dict[str, Any]:
+    client = _get_llm_client()
+    system_prompt = get_prompt("format_converter")
+
+    user_prompt = f"Format cible : {target_format}\n\nDonnees source :\n{text}"
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "converter",
+            "input": text,
+            "output": result,
+            "options": {"target_format": target_format},
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def _clean_mermaid_output(raw: str) -> str:
     cleaned = raw.strip()
 
