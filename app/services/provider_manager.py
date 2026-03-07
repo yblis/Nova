@@ -687,36 +687,26 @@ def ensure_local_audio_providers():
     _migrate_deprecated_provider_urls(mgr)
 
 
-def _migrate_deprecated_provider_urls(mgr: ProviderManager):
+def _migrate_deprecated_provider_urls(mgr) -> None:
     """Migre les URLs dépréciées vers les nouvelles URLs.
-    
-    Cette fonction met à jour automatiquement les providers qui utilisent
-    des URLs dépréciées (ex: ancien endpoint Hugging Face).
+
+    Compatible avec ProviderManager (JSON) et ProviderManagerDB (SQLAlchemy).
+    Utilise uniquement l'API publique du manager.
     """
-    # URLs à migrer
     url_migrations = {
         "https://api-inference.huggingface.co/v1": "https://router.huggingface.co/v1",
         "https://api-inference.huggingface.co": "https://router.huggingface.co/v1",
         "https://router.huggingface.co/hf-inference/v1": "https://router.huggingface.co/v1",
     }
-    
-    data = mgr._load_data()
-    modified = False
-    
-    for provider in data.get("providers", []):
+
+    for provider in mgr.get_providers(include_api_key_masked=False):
         old_url = provider.get("url", "")
-        
-        # Check if this URL needs migration
         for deprecated_url, new_url in url_migrations.items():
             if old_url == deprecated_url or old_url.startswith(deprecated_url):
-                provider["url"] = new_url
-                provider["updated_at"] = int(__import__("time").time())
-                modified = True
+                mgr.update_provider(provider["id"], url=new_url)
                 print(f"[ProviderManager] Migrated {provider.get('name', 'Unknown')} URL: {old_url} -> {new_url}")
                 break
-    
-    if modified:
-        mgr._save_data(data)
+
 
 
 
