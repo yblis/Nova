@@ -605,15 +605,28 @@ class ProviderManager:
         return None
 
 
-def get_provider_manager() -> ProviderManager:
-    """Factory pour obtenir une instance du ProviderManager."""
+def get_provider_manager():
+    """
+    Factory pour obtenir une instance du gestionnaire de providers.
+
+    Retourne ProviderManagerDB (SQLAlchemy/PostgreSQL) si la base de données
+    est disponible, sinon fallback sur ProviderManager (JSON).
+    """
     try:
-        data_path = os.path.join(current_app.root_path, "data", "providers.json")
-    except RuntimeError:
-        # Hors contexte Flask
-        data_path = os.path.join(os.path.dirname(__file__), "..", "data", "providers.json")
-    
-    return ProviderManager(data_path)
+        from flask import current_app  # noqa: F401 — vérifie le contexte Flask
+        from .provider_manager_db import ProviderManagerDB
+        # Vérification légère : SQLAlchemy bind configuré ?
+        from ..extensions import db
+        db.session.execute(db.text("SELECT 1"))
+        return ProviderManagerDB()
+    except Exception:
+        # Fallback JSON (tests, dev sans DB, ou DB indisponible)
+        try:
+            data_path = os.path.join(current_app.root_path, "data", "providers.json")
+        except RuntimeError:
+            data_path = os.path.join(os.path.dirname(__file__), "..", "data", "providers.json")
+        return ProviderManager(data_path)
+
 
 def ensure_local_audio_providers():
     """Vérifie et ajoute les providers audio locaux si manquants.

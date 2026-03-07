@@ -273,28 +273,23 @@ def _ocr_with_mistral_ocr(config: dict, image_bytes: bytes, model: str = "") -> 
         image_bytes: Image brute (pas base64)
         model: Modèle OCR à utiliser (défaut: mistral-ocr-latest)
     """
-    import requests
+    import httpx
     import json
     
     api_key = config.get("api_key")
     if not api_key:
         raise ValueError("Clé API Mistral manquante")
     
-    # Modèle par défaut pour OCR
     model_name = model or "mistral-ocr-latest"
-    
-    # Encoder l'image en base64 avec le bon format
     image_base64 = base64.b64encode(image_bytes).decode('utf-8')
     
-    # Détecter le type MIME
     if image_bytes[:8] == b'\x89PNG\r\n\x1a\n':
         mime_type = "image/png"
     elif image_bytes[:2] == b'\xff\xd8':
         mime_type = "image/jpeg"
     else:
-        mime_type = "image/png"  # Défaut
+        mime_type = "image/png"
     
-    # API Mistral OCR
     url = "https://api.mistral.ai/v1/ocr"
     
     headers = {
@@ -302,19 +297,18 @@ def _ocr_with_mistral_ocr(config: dict, image_bytes: bytes, model: str = "") -> 
         "Content-Type": "application/json"
     }
     
-    # Payload pour l'API OCR
     payload = {
         "model": model_name,
         "document": {
             "type": "image_url",
             "image_url": f"data:{mime_type};base64,{image_base64}"
         },
-        "include_image_base64": False  # On veut juste le texte
+        "include_image_base64": False
     }
     
     current_app.logger.info(f"Calling Mistral OCR API with model: {model_name}")
     
-    response = requests.post(
+    response = httpx.post(
         url,
         headers=headers,
         json=payload,
@@ -461,14 +455,12 @@ def _ocr_with_anthropic(config: dict, image_base64: str, prompt: str, model: str
 
 def _ocr_with_ollama(config: dict, image_base64: str, prompt: str, model: str = "") -> str:
     """OCR avec Ollama (modèles Vision comme LLaVA, Bakllava)."""
-    import requests
+    import httpx
     
     base_url = config.get("url", "http://localhost:11434")
-    
-    # Modèle par défaut pour Vision
     model_name = model or "llava:latest"
     
-    response = requests.post(
+    response = httpx.post(
         f"{base_url}/api/generate",
         json={
             "model": model_name,
@@ -476,7 +468,7 @@ def _ocr_with_ollama(config: dict, image_base64: str, prompt: str, model: str = 
             "images": [image_base64],
             "stream": False,
             "options": {
-                "temperature": 0.1,  # Basse température pour plus de précision
+                "temperature": 0.1,
                 "num_predict": 4096
             }
         },

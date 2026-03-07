@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import Flask
 from flask_caching import Cache
 from flask_login import LoginManager
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 
 
@@ -11,6 +12,7 @@ login_manager = LoginManager()
 login_manager.login_view = "auth.login"
 login_manager.login_message_category = "info"
 csrf = CSRFProtect()
+db = SQLAlchemy()
 
 
 

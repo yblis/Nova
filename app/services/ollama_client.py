@@ -334,78 +334,62 @@ class OllamaClient:
         - progress_callback: Optional callback function(bytes_uploaded, total_bytes) for progress tracking
         """
         import os
-        import requests
 
         url = f"{self.base_url}/api/blobs/{digest}"
         file_size = os.path.getsize(file_path)
 
         print(f"DEBUG: Starting blob upload. File size: {file_size} bytes ({file_size / 1024 / 1024:.2f} MB)")
 
-        # Use requests library for better streaming support with progress tracking
-        class ProgressFileWrapper:
-            def __init__(self, file_path, callback=None):
-                self.file = open(file_path, 'rb')
-                self.file_size = os.path.getsize(file_path)
-                self.bytes_read = 0
-                self.callback = callback
-                self.last_log_mb = 0
+        def _iter_file_with_progress(file_path: str, file_size: int, callback):
+            bytes_sent = 0
+            last_log_mb = 0
+            with open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(1024 * 256)  # 256 KB chunks
+                    if not chunk:
+                        break
+                    bytes_sent += len(chunk)
 
-            def read(self, size=-1):
-                chunk = self.file.read(size)
-                if chunk:
-                    self.bytes_read += len(chunk)
+                    current_mb = bytes_sent / (1024 * 1024)
+                    if current_mb - last_log_mb >= 50:
+                        print(f"DEBUG: Upload progress: {current_mb:.2f} MB / {file_size / 1024 / 1024:.2f} MB")
+                        last_log_mb = current_mb
 
-                    # Log every 50 MB
-                    current_mb = self.bytes_read / (1024 * 1024)
-                    if current_mb - self.last_log_mb >= 50:
-                        print(f"DEBUG: Upload progress: {current_mb:.2f} MB / {self.file_size / 1024 / 1024:.2f} MB ({self.bytes_read * 100 / self.file_size:.1f}%)")
-                        self.last_log_mb = current_mb
-
-                    # Call progress callback
-                    if self.callback:
+                    if callback:
                         try:
-                            self.callback(self.bytes_read, self.file_size)
+                            callback(bytes_sent, file_size)
                         except Exception:
                             pass
-
-                return chunk
-
-            def __len__(self):
-                return self.file_size
-
-            def close(self):
-                self.file.close()
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *args):
-                self.close()
+                    yield chunk
 
         print(f"DEBUG: Starting POST request to {url}")
 
-        # Use requests with streaming upload
-        with ProgressFileWrapper(file_path, progress_callback) as file_wrapper:
-            r = requests.post(
+        upload_timeout = httpx.Timeout(
+            connect=self.timeout.connect,
+            read=3600,
+            write=3600,
+            pool=self.timeout.pool,
+        )
+
+        with httpx.Client(timeout=upload_timeout) as c:
+            r = c.post(
                 url,
-                data=file_wrapper,
-                headers={'Content-Length': str(file_size)},
-                timeout=(self.timeout.connect, 3600)  # connect timeout, read timeout
+                content=_iter_file_with_progress(file_path, file_size, progress_callback),
+                headers={"Content-Length": str(file_size), "Content-Type": "application/octet-stream"},
             )
 
-        print(f"DEBUG: Upload completed. Status: {r.status_code}, Total uploaded: {file_wrapper.bytes_read / 1024 / 1024:.2f} MB")
+        print(f"DEBUG: Upload completed. Status: {r.status_code}")
 
-        # Accept 200/201; include error body for diagnostics otherwise
         if r.status_code not in (200, 201):
-            # Use requests.HTTPError instead of httpx.HTTPStatusError
-            error = requests.HTTPError(f"Blob create failed {r.status_code}: {r.text}")
-            error.response = r
-            raise error
-        # Prefer path from headers if present
+            raise httpx.HTTPStatusError(
+                f"Blob create failed {r.status_code}: {r.text}",
+                request=r.request,
+                response=r,
+            )
+
         path = r.headers.get("Location") or r.headers.get("X-Ollama-Path")
         if path:
             return str(path)
-        # Try to parse JSON body with 'path' or similar
         try:
             data = r.json()
             if isinstance(data, dict):
@@ -414,17 +398,10 @@ class OllamaClient:
                     return str(p)
         except Exception:
             pass
-        # Fallback to raw text if provided
         t = (r.text or "").strip()
-        if t and not t.startswith('<!') and not t.startswith('{'):  # Éviter HTML et JSON vides
+        if t and not t.startswith("<!") and not t.startswith("{"):
             return t
 
-        # Si on arrive ici, l'upload semble avoir réussi (HTTP 200/201) mais sans chemin retourné.
-        # Certaines versions d'Ollama ou configurations peuvent ne pas retourner le chemin.
-        # Dans ce cas, on va lever une exception spéciale qui indique le succès de l'upload
-        # mais l'absence de chemin, permettant au code appelant de gérer ce cas.
-
-        # Collect a small subset of response headers for visibility
         interesting_headers = {}
         for k in ("Location", "X-Ollama-Path", "Content-Type", "Server", "Date"):
             if k in r.headers:
@@ -437,3 +414,4 @@ class OllamaClient:
             f"Headers={interesting_headers}. Body[0..512]={body_snippet}"
         )
         raise BlobUploadedWithoutPath(error_msg, digest, r.status_code)
+

@@ -41,7 +41,25 @@ from ._shared import (
 )
 
 
+def _db_available() -> bool:
+    try:
+        from app.extensions import db
+        db.session.execute(db.text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
 def get_history(filter_type=None, limit=50):
+    if _db_available():
+        try:
+            from app.models.text_tool_history import TextToolHistory
+            query = TextToolHistory.query.order_by(TextToolHistory.created_at.desc())
+            if filter_type:
+                query = query.filter_by(tool_type=filter_type)
+            return [r.to_dict() for r in query.limit(limit).all()]
+        except Exception:
+            pass
     history = _load_history()
     if filter_type:
         history = [h for h in history if h.get("type") == filter_type]
@@ -49,6 +67,13 @@ def get_history(filter_type=None, limit=50):
 
 
 def get_history_item(item_id):
+    if _db_available():
+        try:
+            from app.models.text_tool_history import TextToolHistory
+            r = TextToolHistory.query.get(item_id)
+            return r.to_dict() if r else None
+        except Exception:
+            pass
     history = _load_history()
     for item in history:
         if item.get("id") == item_id:
@@ -57,15 +82,37 @@ def get_history_item(item_id):
 
 
 def clear_history():
+    if _db_available():
+        try:
+            from app.extensions import db
+            from app.models.text_tool_history import TextToolHistory
+            TextToolHistory.query.delete()
+            db.session.commit()
+            return True
+        except Exception:
+            pass
     return _save_history([])
 
 
 def delete_history_item(item_id):
+    if _db_available():
+        try:
+            from app.extensions import db
+            from app.models.text_tool_history import TextToolHistory
+            r = TextToolHistory.query.get(item_id)
+            if r:
+                db.session.delete(r)
+                db.session.commit()
+                return True
+            return False
+        except Exception:
+            pass
     history = _load_history()
     new_history = [h for h in history if h.get("id") != item_id]
     if len(new_history) < len(history):
         return _save_history(new_history)
     return False
+
 
 
 __all__ = [

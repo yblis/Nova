@@ -822,7 +822,7 @@ def convert_format():
 @api_texts_bp.route("/texts/proxy-image", methods=["POST"])
 def proxy_image():
     """Proxy pour télécharger une image externe et la renvoyer en base64 (contourne CORS)."""
-    import requests as http_requests
+    import httpx
     import base64
 
     data = request.json or {}
@@ -832,7 +832,7 @@ def proxy_image():
         return jsonify({"error": "URL invalide"}), 400
 
     try:
-        resp = http_requests.get(url, timeout=10, stream=True)
+        resp = httpx.get(url, timeout=10, follow_redirects=True)
         resp.raise_for_status()
 
         content_type = resp.headers.get("Content-Type", "image/png")
@@ -851,3 +851,4 @@ def proxy_image():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+

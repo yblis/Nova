@@ -36,8 +36,14 @@ class Config:
     # Fallback base dir for Ollama blobs when /api/blobs doesn't return a path
     OLLAMA_BLOBS_BASE_DIR = os.getenv("OLLAMA_BLOBS_BASE_DIR", "")
 
-    # PostgreSQL for RAG
+    # PostgreSQL for RAG + SQLAlchemy ORM
     POSTGRES_URL = os.getenv("POSTGRES_URL", "postgresql://ollama:ollama_rag@localhost:5432/ollama_rag")
+    SQLALCHEMY_DATABASE_URI = os.getenv("POSTGRES_URL", "postgresql://ollama:ollama_rag@localhost:5432/ollama_rag")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
 
     # Qdrant for advanced RAG (hybrid search)
     QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")

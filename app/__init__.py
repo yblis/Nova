@@ -1,6 +1,6 @@
 from flask import Flask
 from .config import Config, INSECURE_DEFAULTS, SECURITY_HEADERS
-from .extensions import cache, csrf, init_redis_rq
+from .extensions import cache, csrf, db, init_redis_rq
 
 
 def create_app() -> Flask:
@@ -30,6 +30,15 @@ def create_app() -> Flask:
         cache.init_app(app)
 
     init_redis_rq(app)
+
+    # SQLAlchemy ORM
+    db.init_app(app)
+    with app.app_context():
+        try:
+            from .models import provider, text_tool_history  # noqa: F401 — enregistre les modèles
+            db.create_all()
+        except Exception as e:
+            app.logger.warning(f"SQLAlchemy table creation failed (will retry on next request): {e}")
 
     # CSRF Protection
     csrf.init_app(app)
