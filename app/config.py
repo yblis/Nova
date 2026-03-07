@@ -1,14 +1,24 @@
 import os
 
 
+INSECURE_DEFAULTS = {"change-me", "changeme", "change-me-to-a-secure-random-string", ""}
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+
+
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-    # Admin
     ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "changeme")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 
 
     # Flask-Caching

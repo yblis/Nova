@@ -1,5 +1,5 @@
 from flask import Flask
-from .config import Config
+from .config import Config, INSECURE_DEFAULTS, SECURITY_HEADERS
 from .extensions import cache, csrf, init_redis_rq
 
 
@@ -7,14 +7,18 @@ def create_app() -> Flask:
     app = Flask(__name__, static_folder=None)
     app.config.from_object(Config)
 
-    # Validate SECRET_KEY in production
-    if app.config.get('FLASK_ENV') == 'production' or not app.debug:
-        secret = app.config.get('SECRET_KEY', '')
-        if secret in ('change-me', '', 'change-me-to-a-secure-random-string'):
-            app.logger.warning(
-                "⚠️  SECRET_KEY is set to an insecure default. "
-                "Please set a strong SECRET_KEY in your .env file."
+    secret = app.config.get('SECRET_KEY', '')
+    is_production = app.config.get('FLASK_ENV') == 'production' or not app.debug
+    if secret in INSECURE_DEFAULTS:
+        if is_production:
+            raise RuntimeError(
+                "SECRET_KEY is set to an insecure default. "
+                "Set a strong SECRET_KEY in your .env file before running in production."
             )
+        app.logger.warning(
+            "SECRET_KEY is set to an insecure default. "
+            "Please set a strong SECRET_KEY in your .env file."
+        )
 
     # Extensions
     try:
@@ -145,7 +149,12 @@ def create_app() -> Flask:
             return login_manager.unauthorized()
 
 
-    # Template globals
+    @app.after_request
+    def set_security_headers(response):
+        for header_name, header_value in SECURITY_HEADERS.items():
+            response.headers.setdefault(header_name, header_value)
+        return response
+
     from .utils import get_effective_ollama_base_url
 
     @app.context_processor
