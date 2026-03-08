@@ -25,8 +25,34 @@ def get_history_service() -> ChatHistoryService:
     return ChatHistoryService()
 
 
-def get_llm_client():
-    """Retourne le client LLM pour le fournisseur actif."""
+def get_llm_client(model: str = None, provider_id: str = None):
+    """Retourne le client LLM approprié.
+    
+    Args:
+        model: Nom du modèle (si format Ollama 'name:tag', route vers Ollama)
+        provider_id: ID du provider spécifique à utiliser (optionnel)
+    """
+    from ....services.provider_manager import get_provider_manager
+    
+    mgr = get_provider_manager()
+    
+    # 1. Provider explicitement demandé
+    if provider_id:
+        provider = mgr.get_provider(provider_id, include_api_key=True)
+        if provider:
+            return get_client_for_provider(provider)
+    
+    # 2. Si le modèle ressemble à un modèle Ollama (contient ':' comme llama3:8b)
+    #    router vers le premier provider Ollama joignable
+    if model and ':' in model:
+        providers = mgr.get_providers(include_api_key_masked=False)
+        for p in providers:
+            if p.get("type") == "ollama" and p.get("url"):
+                full_provider = mgr.get_provider(p["id"], include_api_key=True)
+                if full_provider:
+                    return get_client_for_provider(full_provider)
+    
+    # 3. Provider actif par défaut
     try:
         return get_active_client()
     except ValueError:
@@ -42,7 +68,7 @@ def get_llm_client():
 def generate_title(first_message: str, model: str) -> str:
     """Génère un titre court basé sur le premier message de l'utilisateur."""
     try:
-        client = get_llm_client()
+        client = get_llm_client(model=model)
         prompt = f"Génère un titre court (maximum 5 mots) pour cette conversation. Réponds uniquement avec le titre, sans guillemets ni ponctuation. Message: {first_message[:200]}"
         messages = [{"role": "user", "content": prompt}]
         response = client.chat(messages=messages, model=model, stream=False)

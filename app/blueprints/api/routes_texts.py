@@ -537,10 +537,22 @@ def generate_resume():
     from ...services.text_prompts_service import get_prompt
     
     # Import LLM client helper
-    def _get_llm_client():
+    def _get_llm_client(model_name: str = None):
         """Retourne le client LLM actif (multi-provider)."""
-        from ...services.llm_clients import get_active_client
+        from ...services.llm_clients import get_active_client, get_client_for_provider
         from ...services.llm_error_handler import LLMError
+        from ...services.provider_manager import get_provider_manager
+        
+        mgr = get_provider_manager()
+        
+        # Si modèle Ollama (contient ':'), router vers un provider Ollama
+        if model_name and ':' in model_name:
+            providers = mgr.get_providers(include_api_key_masked=False)
+            for p in providers:
+                if p.get("type") == "ollama" and p.get("url"):
+                    full_provider = mgr.get_provider(p["id"], include_api_key=True)
+                    if full_provider:
+                        return get_client_for_provider(full_provider)
         
         try:
             client = get_active_client()
@@ -582,7 +594,7 @@ def generate_resume():
         )
         
         # Appeler le LLM
-        client = _get_llm_client()
+        client = _get_llm_client(model_name=model)
         response = client.chat(
             messages=[{"role": "user", "content": user_prompt}],
             model=model,

@@ -143,7 +143,7 @@ def generate_chat():
 
     def generate():
         try:
-            client = get_llm_client()
+            client = get_llm_client(model=current_model)
         except Exception as client_error:
             yield f"data: {json.dumps({'error': f'Erreur client LLM: {str(client_error)}'})}\n\n"
             return
