@@ -7,35 +7,8 @@ from flask import current_app
 
 
 def _get_llm_client(model: str = None):
-    from ..llm_clients import get_active_client, get_client_for_provider
-    from ..llm_error_handler import LLMError
-    from ..provider_manager import get_provider_manager
-
-    mgr = get_provider_manager()
-
-    # Si modèle Ollama (contient ':'), router vers un provider Ollama
-    if model and ':' in model:
-        providers = mgr.get_providers(include_api_key_masked=False)
-        for p in providers:
-            if p.get("type") == "ollama" and p.get("url"):
-                full_provider = mgr.get_provider(p["id"], include_api_key=True)
-                if full_provider:
-                    return get_client_for_provider(full_provider)
-
-    try:
-        client = get_active_client()
-        if client:
-            return client
-    except LLMError:
-        pass
-
-    from ..ollama_client import OllamaClient
-    from ...utils import get_effective_ollama_base_url
-    return OllamaClient(
-        base_url=get_effective_ollama_base_url(),
-        connect_timeout=current_app.config.get("HTTP_CONNECT_TIMEOUT", 10),
-        read_timeout=current_app.config.get("HTTP_READ_TIMEOUT", 120),
-    )
+    from ..model_router import get_client_for_model
+    return get_client_for_model(model)
 
 
 # ── Utilitaires backend ────────────────────────────────────────────────────────

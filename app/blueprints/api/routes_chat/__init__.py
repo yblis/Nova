@@ -29,40 +29,20 @@ def get_llm_client(model: str = None, provider_id: str = None):
     """Retourne le client LLM approprié.
     
     Args:
-        model: Nom du modèle (si format Ollama 'name:tag', route vers Ollama)
+        model: Nom du modèle (routé automatiquement vers le bon provider)
         provider_id: ID du provider spécifique à utiliser (optionnel)
     """
-    from ....services.provider_manager import get_provider_manager
-    
-    mgr = get_provider_manager()
-    
     # 1. Provider explicitement demandé
     if provider_id:
+        from ....services.provider_manager import get_provider_manager
+        mgr = get_provider_manager()
         provider = mgr.get_provider(provider_id, include_api_key=True)
         if provider:
             return get_client_for_provider(provider)
     
-    # 2. Si le modèle ressemble à un modèle Ollama (contient ':' comme llama3:8b)
-    #    router vers le premier provider Ollama joignable
-    if model and ':' in model:
-        providers = mgr.get_providers(include_api_key_masked=False)
-        for p in providers:
-            if p.get("type") == "ollama" and p.get("url"):
-                full_provider = mgr.get_provider(p["id"], include_api_key=True)
-                if full_provider:
-                    return get_client_for_provider(full_provider)
-    
-    # 3. Provider actif par défaut
-    try:
-        return get_active_client()
-    except ValueError:
-        from ....services.ollama_client import OllamaClient
-        from ....utils import get_effective_ollama_base_url
-        return OllamaClient(
-            base_url=get_effective_ollama_base_url(),
-            connect_timeout=current_app.config.get("HTTP_CONNECT_TIMEOUT", 10),
-            read_timeout=current_app.config.get("HTTP_READ_TIMEOUT", 300),
-        )
+    # 2. Routing automatique par modèle (cache modèle→provider)
+    from ....services.model_router import get_client_for_model
+    return get_client_for_model(model)
 
 
 def generate_title(first_message: str, model: str) -> str:

@@ -539,36 +539,8 @@ def generate_resume():
     # Import LLM client helper
     def _get_llm_client(model_name: str = None):
         """Retourne le client LLM actif (multi-provider)."""
-        from ...services.llm_clients import get_active_client, get_client_for_provider
-        from ...services.llm_error_handler import LLMError
-        from ...services.provider_manager import get_provider_manager
-        
-        mgr = get_provider_manager()
-        
-        # Si modèle Ollama (contient ':'), router vers un provider Ollama
-        if model_name and ':' in model_name:
-            providers = mgr.get_providers(include_api_key_masked=False)
-            for p in providers:
-                if p.get("type") == "ollama" and p.get("url"):
-                    full_provider = mgr.get_provider(p["id"], include_api_key=True)
-                    if full_provider:
-                        return get_client_for_provider(full_provider)
-        
-        try:
-            client = get_active_client()
-            if client:
-                return client
-        except LLMError:
-            pass
-        
-        # Fallback sur OllamaClient si aucun provider actif
-        from ...services.ollama_client import OllamaClient
-        from ...utils import get_effective_ollama_base_url
-        return OllamaClient(
-            base_url=get_effective_ollama_base_url(),
-            connect_timeout=current_app.config.get("HTTP_CONNECT_TIMEOUT", 10),
-            read_timeout=current_app.config.get("HTTP_READ_TIMEOUT", 120),
-        )
+        from ...services.model_router import get_client_for_model
+        return get_client_for_model(model_name)
     
     data = request.json or {}
     resume_data = data.get("data", {})
