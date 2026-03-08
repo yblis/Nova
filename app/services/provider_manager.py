@@ -629,13 +629,41 @@ def get_provider_manager():
 
 
 def ensure_local_audio_providers():
-    """Vérifie et ajoute les providers audio locaux si manquants.
+    """Vérifie et ajoute les providers locaux Docker si manquants.
+    
+    - Ollama Docker local (ollama:11434) si accessible
+    - Whisper STT (nova-whisper:8000)
+    - AllTalk TTS (nova-alltalk:7851)
     
     Also cleans up old provider URLs that used 'ollamanager-' prefix.
     """
     mgr = get_provider_manager()
     providers = mgr.get_providers(include_api_key_masked=False)
     
+    # ── Ollama Docker local ──
+    ollama_docker_url = "http://ollama:11434"
+    has_ollama_docker = any(
+        p.get("url", "").rstrip("/") == ollama_docker_url
+        for p in providers
+        if p.get("type") == "ollama"
+    )
+    
+    if not has_ollama_docker:
+        # Vérifier si le service est joignable avant de l'ajouter
+        try:
+            import httpx
+            r = httpx.get(f"{ollama_docker_url}/api/tags", timeout=3)
+            if r.status_code == 200:
+                mgr.add_provider(
+                    name="Ollama (Docker)",
+                    provider_type="ollama",
+                    url=ollama_docker_url,
+                )
+                print("Added Ollama (Docker) provider")
+        except Exception:
+            pass  # Service non disponible, on ne l'ajoute pas
+
+    # ── Audio providers ──
     # Old URLs to check for/cleanup
     old_whisper_url = "http://ollamanager-whisper:8000/v1"
     old_alltalk_url = "http://ollamanager-alltalk:7851/v1"
@@ -643,6 +671,9 @@ def ensure_local_audio_providers():
     # New URLs
     whisper_url = "http://nova-whisper:8000/v1"
     alltalk_url = "http://nova-alltalk:7851/v1"
+    
+    # Re-fetch providers (may have changed after adding Ollama)
+    providers = mgr.get_providers(include_api_key_masked=False)
     
     # Check if we have any Whisper provider (old or new)
     has_whisper = any(
