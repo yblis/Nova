@@ -11,7 +11,7 @@ def generate_script(
     commented: bool = False,
     strict_mode: bool = False
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("script_generator")
 
     user_prompt_parts = []
@@ -76,7 +76,7 @@ def generate_mermaid(
     previous_code: str = "",
     image_base64: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("mermaid")
 
     user_parts = []
@@ -129,7 +129,7 @@ def generate_mermaid(
 
 
 def generate_regex(text: str, model: str) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("regex_generator")
 
     try:
@@ -159,7 +159,7 @@ def generate_regex(text: str, model: str) -> Dict[str, Any]:
 
 
 def generate_prompt(description: str, model: str) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("prompt")
 
     try:

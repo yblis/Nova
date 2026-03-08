@@ -14,7 +14,7 @@ def reformulate(
     length: str = "Moyen",
     paraphrase: bool = False
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
 
     word_count = len(text.split())
     if length.lower() == "court":
@@ -89,7 +89,7 @@ def reformulate(
 
 
 def translate(text: str, target_language: str, model: str) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("translation").replace("{target_language}", target_language)
 
     try:
@@ -128,7 +128,7 @@ def correct(
     style: bool = False,
     synonyms: bool = False
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("correction")
 
     options_list = []
@@ -217,7 +217,7 @@ def generate_email(
     company: str = "",
     profile: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
 
     if mode == "reply":
         system_prompt = get_prompt("email_reply")
@@ -294,7 +294,7 @@ def expand_text(
     tone: str = "Professionnel",
     length: str = "Moyen"
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("expand")
 
     user_prompt = f"Ton : {tone}\nLongueur : {length}\n\nÉbauche à développer :\n{text}"

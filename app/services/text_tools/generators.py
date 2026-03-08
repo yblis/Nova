@@ -13,7 +13,7 @@ def generate_documentation(
     source_images: list = None,
     embed_images: list = None
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("documentation")
 
     source_images = source_images or []
@@ -95,7 +95,7 @@ def generate_documentation(
 
 
 def generate_todolist(text: str, model: str) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("todolist")
 
     try:
@@ -130,7 +130,7 @@ def generate_flashcards(
     difficulty: str = "Intermédiaire",
     card_format: str = "Question/Réponse"
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("flashcards")
 
     user_prompt = f"Niveau de difficulte : {difficulty}\nFormat : {card_format}\n\nContenu source :\n{text}"

@@ -5,7 +5,7 @@ from ._shared import _get_llm_client, _add_to_history
 
 
 def extract_data(text: str, model: str, output_format: str = "JSON") -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("extractor")
 
     user_prompt = f"Format de sortie demandé : {output_format}\n\nTexte à analyser :\n{text}"
@@ -37,7 +37,7 @@ def extract_data(text: str, model: str, output_format: str = "JSON") -> Dict[str
 
 
 def simplify_text(text: str, model: str, level: str = "Grand public") -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("simplify")
 
     user_prompt = f"Niveau de simplification : {level}\n\nTexte à simplifier :\n{text}"
@@ -69,7 +69,7 @@ def simplify_text(text: str, model: str, level: str = "Grand public") -> Dict[st
 
 
 def compare_decide(text: str, model: str) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("decision")
 
     try:
@@ -103,7 +103,7 @@ def explain_eli5(
     model: str,
     level: str = "Grand public"
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("eli5")
 
     user_prompt = f"Niveau d'explication : {level}\n\nConcept a expliquer :\n{text}"
@@ -136,7 +136,7 @@ def explain_eli5(
 
 def generate_summary(text: str, model: str, session_id: str = None) -> Dict[str, Any]:
     from flask import current_app
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("summarize")
 
     full_text = text or ""
@@ -206,7 +206,7 @@ def convert_format(
     model: str,
     target_format: str = "JSON"
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("format_converter")
 
     user_prompt = f"Format cible : {target_format}\n\nDonnees source :\n{text}"

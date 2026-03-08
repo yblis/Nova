@@ -11,7 +11,7 @@ def generate_recipe(
     time: str = "",
     servings: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("recipe")
 
     user_parts = []
@@ -58,7 +58,7 @@ def generate_fitness(
     equipment: str = "",
     level: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("fitness")
 
     user_parts = []
@@ -103,7 +103,7 @@ def generate_admin_letter(
     model: str,
     letter_type: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("admin_letter")
 
     user_parts = []
@@ -145,7 +145,7 @@ def generate_speech(
     occasion: str = "",
     tone: str = ""
 ) -> Dict[str, Any]:
-    client = _get_llm_client()
+    client = _get_llm_client(model)
     system_prompt = get_prompt("speech")
 
     user_parts = []
