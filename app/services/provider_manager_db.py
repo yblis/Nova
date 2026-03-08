@@ -23,66 +23,12 @@ class ProviderManagerDB:
     """
 
     def _ensure_default_provider(self) -> None:
-        """Peuple la DB depuis providers.json si la table est vide."""
-        if Provider.query.count() > 0:
-            return
-
-        # Tenter de migrer depuis le fichier JSON existant
-        import json
-        import os
-        try:
-            from flask import current_app
-            json_path = os.path.join(current_app.root_path, "data", "providers.json")
-        except RuntimeError:
-            json_path = os.path.join(os.path.dirname(__file__), "..", "data", "providers.json")
-
-        if os.path.exists(json_path):
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                active_id = data.get("active_provider_id")
-                for p in data.get("providers", []):
-                    pid = p.get("id") or str(uuid.uuid4())
-                    provider = Provider(
-                        id=pid,
-                        name=p.get("name", "Sans nom"),
-                        type=p.get("type", "ollama"),
-                        url=p.get("url", ""),
-                        api_key_encrypted=p.get("api_key_encrypted", ""),
-                        is_active=(pid == active_id),
-                    )
-                    provider.set_extra_headers(p.get("extra_headers", {}))
-                    db.session.add(provider)
-                db.session.commit()
-                count = Provider.query.count()
-                print(f"[ProviderManagerDB] Auto-migrated {count} providers from JSON")
-
-                # Si aucun provider actif, activer le premier
-                if not Provider.query.filter_by(is_active=True).first():
-                    first = Provider.query.first()
-                    if first:
-                        first.is_active = True
-                        db.session.commit()
-                return
-            except Exception as e:
-                db.session.rollback()
-                print(f"[ProviderManagerDB] JSON migration failed: {e}")
-
-        # Fallback : créer un provider Ollama par défaut
-        default = Provider(
-            id=str(uuid.uuid4()),
-            name="Ollama (localhost)",
-            type="ollama",
-            url="http://localhost:11434",
-            api_key_encrypted="",
-            is_active=True,
-        )
-        db.session.add(default)
-        db.session.commit()
-        print("Created default Ollama provider (http://localhost:11434)")
+        """Vérifie qu'au moins un provider existe. Migration JSON faite dans create_app()."""
+        # La migration JSON→DB est gérée dans app/__init__.py._auto_migrate_providers_json_to_db()
+        pass
 
     def get_providers(self, include_api_key_masked: bool = True) -> List[Dict]:
-        self._ensure_default_provider()
+
         providers = Provider.query.order_by(Provider.created_at.asc()).all()
         result = []
         for p in providers:

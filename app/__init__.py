@@ -37,6 +37,8 @@ def create_app() -> Flask:
         try:
             from .models import provider, text_tool_history  # noqa: F401 — enregistre les modèles
             db.create_all()
+            # Auto-migrate providers from JSON to DB on first boot
+            _auto_migrate_providers_json_to_db(app)
         except Exception as e:
             app.logger.warning(f"SQLAlchemy table creation failed (will retry on next request): {e}")
 
@@ -171,3 +173,76 @@ def create_app() -> Flask:
         return {"ollama_base_url": get_effective_ollama_base_url()}
 
     return app
+
+
+def _auto_migrate_providers_json_to_db(app):
+    """Importe les providers depuis providers.json si aucun provider LLM n'est en DB.
+    
+    Utilise un advisory lock PostgreSQL pour éviter les race conditions
+    entre les workers gunicorn qui démarrent en parallèle.
+    """
+    import json
+    import os
+    import uuid as _uuid
+    from .models.provider import Provider
+    from .extensions import db as _db
+    from sqlalchemy import text
+
+    try:
+        # Advisory lock pour éviter la race condition entre workers
+        _db.session.execute(text("SELECT pg_advisory_lock(42)"))
+    except Exception:
+        # Si l'advisory lock échoue (SQLite, etc.), on continue sans
+        pass
+
+    try:
+        # Vérifier s'il y a déjà des providers LLM (pas juste audio)
+        llm_types = {'ollama', 'groq', 'openai', 'anthropic', 'gemini', 'mistral',
+                     'huggingface', 'lmstudio', 'openrouter', 'deepseek', 'cerebras', 'sambanova'}
+        existing_llm = Provider.query.filter(Provider.type.in_(llm_types)).count()
+        if existing_llm > 0:
+            return
+
+        json_path = os.path.join(app.root_path, 'data', 'providers.json')
+        if not os.path.exists(json_path):
+            return
+
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        active_id = data.get('active_provider_id')
+        count = 0
+        for p in data.get('providers', []):
+            pid = p.get('id') or str(_uuid.uuid4())
+            # Éviter les doublons
+            if Provider.query.get(pid):
+                continue
+            provider = Provider(
+                id=pid,
+                name=p.get('name', 'Sans nom'),
+                type=p.get('type', 'ollama'),
+                url=p.get('url', ''),
+                api_key_encrypted=p.get('api_key_encrypted', ''),
+                is_active=(pid == active_id),
+            )
+            provider.set_extra_headers(p.get('extra_headers', {}))
+            _db.session.add(provider)
+            count += 1
+        _db.session.commit()
+        if count:
+            app.logger.info(f'[ProviderManagerDB] Auto-migrated {count} providers from JSON')
+            # Si aucun actif, activer le premier
+            if not Provider.query.filter_by(is_active=True).first():
+                first = Provider.query.first()
+                if first:
+                    first.is_active = True
+                    _db.session.commit()
+    except Exception as e:
+        _db.session.rollback()
+        app.logger.warning(f'[ProviderManagerDB] JSON migration failed: {e}')
+    finally:
+        try:
+            _db.session.execute(text("SELECT pg_advisory_unlock(42)"))
+            _db.session.commit()
+        except Exception:
+            pass
+
