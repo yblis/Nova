@@ -86,10 +86,18 @@ class OllamaAdapter(BaseLLMClient):
         messages: List[Dict[str, str]],
         model: str,
         options: Optional[Dict[str, Any]] = None,
-        stream: bool = False
+        stream: bool = False,
+        images: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """Envoie une requête de chat non-streaming."""
         url = f"{self.base_url}/api/chat"
+        
+        # Attacher les images au dernier message utilisateur
+        if images and messages:
+            for i in range(len(messages) - 1, -1, -1):
+                if messages[i].get("role") == "user":
+                    messages[i]["images"] = images
+                    break
         
         payload = {
             "model": model,
