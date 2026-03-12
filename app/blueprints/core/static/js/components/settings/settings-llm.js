@@ -57,7 +57,7 @@ window.SettingsLlmMixin = {
     async loadTextPromptsConfig() {
         this.textPromptsLoading = true;
         try {
-            const r = await fetch('/api/texts/prompts');
+            const r = await fetch('/api/tools/prompts');
             if (r.ok) {
                 const data = await r.json();
                 this.textPrompts = data.prompts || {};
@@ -73,7 +73,7 @@ window.SettingsLlmMixin = {
     async saveTextPromptsConfig() {
         this.textPromptsSaving = true;
         try {
-            const r = await fetch('/api/texts/prompts', {
+            const r = await fetch('/api/tools/prompts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompts: this.textPrompts })
@@ -95,7 +95,7 @@ window.SettingsLlmMixin = {
         if (!confirm('Voulez-vous vraiment réinitialiser tous les prompts aux valeurs par défaut ?')) return;
         this.textPromptsSaving = true;
         try {
-            const r = await fetch('/api/texts/prompts/reset', { method: 'POST' });
+            const r = await fetch('/api/tools/prompts/reset', { method: 'POST' });
             if (r.ok) {
                 showToast('Prompts réinitialisés !');
                 await this.loadTextPromptsConfig();

@@ -57,6 +57,8 @@ def add_provider():
     try:
         mgr = _get_provider_manager()
         provider = mgr.add_provider(name=name, provider_type=provider_type, url=url, api_key=api_key, extra_headers=extra_headers)
+        from ....services.model_router import invalidate_cache
+        invalidate_cache()
         return jsonify(provider)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -90,6 +92,8 @@ def update_provider(provider_id):
         )
         if not provider:
             return jsonify({"error": "Fournisseur non trouvé"}), 404
+        from ....services.model_router import invalidate_cache
+        invalidate_cache()
         return jsonify(provider)
     except Exception as e:
         current_app.logger.error(f"Error updating provider: {e}")
@@ -103,6 +107,8 @@ def delete_provider(provider_id):
     success = mgr.delete_provider(provider_id)
     if not success:
         return jsonify({"error": "Fournisseur non trouvé"}), 404
+    from ....services.model_router import invalidate_cache
+    invalidate_cache()
     return jsonify({"ok": True})
 
 
@@ -115,6 +121,8 @@ def set_active_provider():
         return jsonify({"error": "provider_id requis"}), 400
     mgr = _get_provider_manager()
     if mgr.set_active_provider(provider_id):
+        from ....services.model_router import invalidate_cache
+        invalidate_cache()
         return jsonify({"ok": True})
     return jsonify({"error": "Fournisseur non trouvé"}), 404
 

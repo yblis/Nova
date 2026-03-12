@@ -4,21 +4,15 @@ Client pour l'API Qwen (Alibaba DashScope).
 Utilise le SDK officiel dashscope.
 """
 
+import logging
 from typing import List, Dict, Any, Optional, Tuple, Iterable
 
 from .base_client import BaseLLMClient
 from ..llm_error_handler import LLMError, LLMErrorType
 
+logger = logging.getLogger(__name__)
 
-# Modèles Qwen disponibles
-QWEN_MODELS = [
-    {"id": "qwen-max", "name": "Qwen Max", "description": "Le plus puissant, idéal pour les tâches complexes"},
-    {"id": "qwen-plus", "name": "Qwen Plus", "description": "Équilibre performance/coût"},
-    {"id": "qwen-turbo", "name": "Qwen Turbo", "description": "Rapide et économique"},
-    {"id": "qwen-long", "name": "Qwen Long", "description": "Contexte très long (10M tokens)"},
-    {"id": "qwen-vl-max", "name": "Qwen VL Max", "description": "Vision-Language, multimodal avancé"},
-    {"id": "qwen-vl-plus", "name": "Qwen VL Plus", "description": "Vision-Language, équilibré"}
-]
+DASHSCOPE_OPENAI_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 
 class QwenClient(BaseLLMClient):
@@ -56,9 +50,35 @@ class QwenClient(BaseLLMClient):
         return "qwen"
     
     def list_models(self) -> List[Dict[str, Any]]:
-        """Retourne la liste des modèles Qwen disponibles."""
-        # DashScope ne fournit pas d'endpoint pour lister les modèles
-        return QWEN_MODELS.copy()
+        """Retourne la liste des modèles Qwen disponibles via l'API compatible OpenAI."""
+        try:
+            import httpx
+
+            headers = {"Authorization": f"Bearer {self._api_key}"}
+            url = f"{DASHSCOPE_OPENAI_BASE_URL}/models"
+
+            with httpx.Client(timeout=10.0) as http_client:
+                response = http_client.get(url, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+
+            models = []
+            for model in data.get("data", []):
+                model_id = model.get("id", "")
+                owned_by = model.get("owned_by", "")
+                models.append({
+                    "id": model_id,
+                    "name": model_id,
+                    "description": owned_by,
+                    "owned_by": owned_by
+                })
+
+            models.sort(key=lambda x: x["name"])
+            return models
+
+        except Exception as e:
+            logger.warning("Failed to list Qwen models from DashScope API: %s", e)
+            return []
     
     def chat(
         self,
@@ -260,25 +280,15 @@ class QwenClient(BaseLLMClient):
             return LLMErrorType.UNKNOWN
     
     def test_connection(self) -> Tuple[bool, str]:
-        """Teste la connexion en envoyant une requête minimale."""
+        """Teste la connexion en listant les modèles disponibles."""
         if not self._api_key:
             return False, "Clé API manquante"
         
         try:
-            self._configure()
-            from dashscope import Generation
-            
-            response = Generation.call(
-                model="qwen-turbo",
-                messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=5
-            )
-            
-            if response.status_code == 200:
-                return True, "Connecté à DashScope (Qwen)"
-            else:
-                return False, f"Erreur: {response.message}"
-                
+            models = self.list_models()
+            if models:
+                return True, f"Connecté - {len(models)} modèle(s) disponible(s)"
+            return False, "Aucun modèle disponible"
         except LLMError as e:
             return False, e.get_user_message()
         except Exception as e:
@@ -289,7 +299,7 @@ class QwenClient(BaseLLMClient):
         return True
     
     def get_default_model(self) -> Optional[str]:
-        return "qwen-plus"
+        return None
     
     def normalize_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Normalise les options (délégué à _make_generation_params)."""

@@ -4,20 +4,13 @@ Client pour l'API Google Gemini.
 Utilise le nouveau SDK officiel google-genai (anciennement google-generativeai).
 """
 
+import logging
 from typing import List, Dict, Any, Optional, Tuple, Iterable
 
 from .base_client import BaseLLMClient
 from ..llm_error_handler import LLMError, LLMErrorType, classify_gemini_error
 
-
-# Modèles Gemini disponibles (fallback)
-GEMINI_MODELS = [
-    {"id": "gemini-2.0-flash", "name": "Gemini 2.0 Flash", "description": "Dernière génération, rapide et puissant"},
-    {"id": "gemini-2.0-flash-lite", "name": "Gemini 2.0 Flash Lite", "description": "Version légère et économique"},
-    {"id": "gemini-1.5-pro", "name": "Gemini 1.5 Pro", "description": "Le plus puissant, contexte de 2M tokens"},
-    {"id": "gemini-1.5-flash", "name": "Gemini 1.5 Flash", "description": "Rapide et polyvalent"},
-    {"id": "gemini-1.5-flash-8b", "name": "Gemini 1.5 Flash 8B", "description": "Léger et économique"},
-]
+logger = logging.getLogger(__name__)
 
 
 class GeminiClient(BaseLLMClient):
@@ -59,13 +52,13 @@ class GeminiClient(BaseLLMClient):
         Retourne la liste des modèles Gemini disponibles.
         
         Utilise l'API pour lister les modèles dynamiquement.
+        Retourne une liste vide en cas d'échec.
         """
         try:
             client = self._get_client()
             
             models = []
             for model in client.models.list():
-                # Vérifier si le modèle supporte la génération de contenu
                 if hasattr(model, 'supported_actions') and model.supported_actions:
                     if 'generateContent' not in model.supported_actions:
                         continue
@@ -80,11 +73,11 @@ class GeminiClient(BaseLLMClient):
                     "description": description
                 })
             
-            return models if models else GEMINI_MODELS.copy()
+            return models
             
         except Exception as e:
-            # Fallback sur la liste statique
-            return GEMINI_MODELS.copy()
+            logger.warning("Failed to list Gemini models from API: %s", e)
+            return []
     
     def chat(
         self,
@@ -337,7 +330,7 @@ class GeminiClient(BaseLLMClient):
         return True
     
     def get_default_model(self) -> Optional[str]:
-        return "gemini-2.0-flash"
+        return None
     
     def normalize_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Normalise les options."""

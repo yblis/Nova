@@ -1,9 +1,11 @@
-/**
- * Tailwind CSS Configuration
- * This must be loaded after the Tailwind CDN script
- */
-tailwind.config = {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
     darkMode: 'class',
+    content: [
+        './app/blueprints/core/templates/**/*.html',
+        './app/templates/**/*.html',
+        './app/blueprints/core/static/js/**/*.js'
+    ],
     theme: {
         extend: {
             fontFamily: {
@@ -27,5 +29,6 @@ tailwind.config = {
                 card: '0 2px 10px rgba(0,0,0,0.06)'
             }
         }
-    }
+    },
+    plugins: []
 };

@@ -8,7 +8,7 @@
         // Load current tool from URL hash, localStorage, or default
         currentTool: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter', 'log_parser'];
             if (hash && validTools.includes(hash)) return hash;
             const stored = localStorage.getItem('texts_current_tool');
             if (stored && validTools.includes(stored)) return stored;
@@ -41,7 +41,8 @@
                     { id: 'mermaid', name: 'Diagramme' },
                     { id: 'documentation', name: 'Documentation' },
                     { id: 'regex', name: 'Regex' },
-                    { id: 'converter', name: 'Convertisseur' }
+                    { id: 'converter', name: 'Convertisseur' },
+                    { id: 'log_parser', name: 'Parseur Logs' }
                 ]
             },
             {
@@ -98,7 +99,7 @@
         // Input text - initialized from localStorage for current tool
         inputText: (() => {
             const hash = window.location.hash.slice(1);
-            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
+            const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter', 'log_parser'];
             let currentTool = 'reformulation';
             if (hash && validTools.includes(hash)) {
                 currentTool = hash;
@@ -173,6 +174,9 @@
         convertTargetFormat: 'JSON',
         // Sidebar section collapse state
         collapsedSections: JSON.parse(localStorage.getItem('texts_collapsed_sections') || '{}'),
+
+        // Log Parser state
+        logParserLanguage: 'Auto',
 
         // Script Generator state
         scriptLanguage: 'Bash',
@@ -303,7 +307,7 @@
             // Listen for hash changes (browser back/forward)
             this._hashChangeHandler = () => {
                 const hash = window.location.hash.slice(1);
-                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter'];
+                const validTools = ['reformulation', 'translation', 'correction', 'email', 'prompt', 'summarize', 'resume', 'mermaid', 'documentation', 'extractor', 'simplify', 'expand', 'todolist', 'script', 'recipe', 'fitness', 'admin_letter', 'flashcards', 'eli5', 'speech', 'decision', 'regex', 'converter', 'log_parser'];
                 if (hash && validTools.includes(hash) && hash !== this.currentTool) {
                     this.currentTool = hash;
                 }
@@ -345,8 +349,9 @@
                 'eli5': 'Explication',
                 'speech': 'Discours',
                 'decision': 'Analyse comparative',
-                'regex': 'Expression régulière',
-                'converter': 'Données converties'
+                'regex': 'Expression reguliere',
+                'converter': 'Donnees converties',
+                'log_parser': 'Diagnostic'
             };
             return labels[this.currentTool] || 'Résultat';
         },
@@ -457,6 +462,9 @@
             }
             if (this.currentTool === 'converter') {
                 this.convertTargetFormat = 'JSON';
+            }
+            if (this.currentTool === 'log_parser') {
+                this.logParserLanguage = 'Auto';
             }
         },
 
@@ -646,7 +654,7 @@
 
         async loadOptions() {
             try {
-                const response = await fetch('/api/texts/options');
+                const response = await fetch('/api/tools/options');
                 const data = await response.json();
                 if (data.options) this.options = data.options;
             } catch (e) {
@@ -656,7 +664,7 @@
 
         async loadHistory() {
             try {
-                const response = await fetch('/api/texts/history');
+                const response = await fetch('/api/tools/history');
                 const data = await response.json();
                 this.history = data.history || [];
             } catch (e) {
@@ -697,7 +705,7 @@
 
             switch (this.currentTool) {
                 case 'reformulation':
-                    endpoint = '/api/texts/reformulate';
+                    endpoint = '/api/tools/reformulate';
                     payload.tone = this.selectedTone;
                     payload.format = this.selectedFormat;
                     payload.length = this.selectedLength;
@@ -705,16 +713,16 @@
                     payload.paraphrase = this.paraphraseMode;
                     break;
                 case 'translation':
-                    endpoint = '/api/texts/translate';
+                    endpoint = '/api/tools/translate';
                     payload.target_language = this.targetLanguage;
                     break;
                 case 'correction':
-                    endpoint = '/api/texts/correct';
+                    endpoint = '/api/tools/correct';
                     Object.assign(payload, this.correctionOptions);
                     payload.synonyms = true;
                     break;
                 case 'email':
-                    endpoint = '/api/texts/generate-email';
+                    endpoint = '/api/tools/generate-email';
                     payload.mode = this.emailMode;
                     if (this.emailMode === 'reply') {
                         payload.email_received = this.emailReceived;
@@ -737,78 +745,82 @@
                     }
                     break;
                 case 'prompt':
-                    endpoint = '/api/texts/generate-prompt';
+                    endpoint = '/api/tools/generate-prompt';
                     delete payload.text;
                     payload.description = this.inputText;
                     break;
                 case 'summarize':
-                    endpoint = '/api/texts/summarize';
+                    endpoint = '/api/tools/summarize';
                     if (this.uploadedFile) {
                         payload.session_id = this.ragSessionId;
                     }
                     break;
                 case 'extractor':
-                    endpoint = '/api/texts/extract';
+                    endpoint = '/api/tools/extract';
                     payload.output_format = this.extractFormat;
                     break;
                 case 'simplify':
-                    endpoint = '/api/texts/simplify';
+                    endpoint = '/api/tools/simplify';
                     payload.level = this.simplifyLevel;
                     break;
                 case 'expand':
-                    endpoint = '/api/texts/expand';
+                    endpoint = '/api/tools/expand';
                     payload.tone = this.expandTone;
                     payload.length = this.expandLength;
                     break;
                 case 'todolist':
-                    endpoint = '/api/texts/todolist';
+                    endpoint = '/api/tools/todolist';
                     break;
                 case 'script':
-                    endpoint = '/api/texts/generate-script';
+                    endpoint = '/api/tools/generate-script';
                     payload.description = payload.text;
                     payload.language = this.scriptLanguage;
                     payload.commented = this.scriptCommented;
                     payload.strict_mode = this.scriptStrictMode;
                     break;
                 case 'recipe':
-                    endpoint = '/api/texts/generate-recipe';
+                    endpoint = '/api/tools/generate-recipe';
                     payload.diet = this.recipeDiet;
                     payload.time = this.recipeTime;
                     payload.servings = this.recipeServings;
                     break;
                 case 'fitness':
-                    endpoint = '/api/texts/generate-fitness';
+                    endpoint = '/api/tools/generate-fitness';
                     payload.goal = this.fitnessGoal;
                     payload.equipment = this.fitnessEquipment;
                     payload.level = this.fitnessLevel;
                     break;
                 case 'admin_letter':
-                    endpoint = '/api/texts/generate-admin-letter';
+                    endpoint = '/api/tools/generate-admin-letter';
                     payload.letter_type = this.adminLetterType;
                     break;
                 case 'flashcards':
-                    endpoint = '/api/texts/generate-flashcards';
+                    endpoint = '/api/tools/generate-flashcards';
                     payload.difficulty = this.flashcardDifficulty;
                     payload.card_format = this.flashcardFormat;
                     break;
                 case 'eli5':
-                    endpoint = '/api/texts/explain-eli5';
+                    endpoint = '/api/tools/explain-eli5';
                     payload.level = this.eli5Level;
                     break;
                 case 'speech':
-                    endpoint = '/api/texts/generate-speech';
+                    endpoint = '/api/tools/generate-speech';
                     payload.occasion = this.speechOccasion;
                     payload.tone = this.speechTone;
                     break;
                 case 'decision':
-                    endpoint = '/api/texts/compare-decide';
+                    endpoint = '/api/tools/compare-decide';
                     break;
                 case 'regex':
-                    endpoint = '/api/texts/generate-regex';
+                    endpoint = '/api/tools/generate-regex';
                     break;
                 case 'converter':
-                    endpoint = '/api/texts/convert-format';
+                    endpoint = '/api/tools/convert-format';
                     payload.target_format = this.convertTargetFormat;
+                    break;
+                case 'log_parser':
+                    endpoint = '/api/tools/parse-logs';
+                    payload.language = this.logParserLanguage;
                     break;
             }
 
@@ -908,7 +920,7 @@
             }
 
             try {
-                const response = await fetch('/api/texts/generate-documentation', {
+                const response = await fetch('/api/tools/generate-documentation', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1108,7 +1120,7 @@
 
         async _docLoadImageFromUrl(url) {
             try {
-                const resp = await fetch('/api/texts/proxy-image', {
+                const resp = await fetch('/api/tools/proxy-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url })
@@ -1163,7 +1175,7 @@
         async clearHistory() {
             if (!confirm('Supprimer tout l\'historique ?')) return;
             try {
-                await fetch('/api/texts/history', { method: 'DELETE' });
+                await fetch('/api/tools/history', { method: 'DELETE' });
                 this.history = [];
             } catch (e) {
                 console.error('Error clearing history:', e);
@@ -1172,7 +1184,7 @@
 
         async deleteHistoryItem(id) {
             try {
-                await fetch(`/api/texts/history/${id}`, { method: 'DELETE' });
+                await fetch(`/api/tools/history/${id}`, { method: 'DELETE' });
                 this.history = this.history.filter(h => h.id !== id);
             } catch (e) {
                 console.error('Error deleting item:', e);

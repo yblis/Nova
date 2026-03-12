@@ -186,3 +186,44 @@ def generate_prompt(description: str, model: str) -> Dict[str, Any]:
 
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+def parse_logs(text: str, model: str, language: str = "Auto") -> Dict[str, Any]:
+    client = _get_llm_client(model)
+    system_prompt = get_prompt("log_parser")
+
+    user_prompt_parts = []
+
+    if language and language != "Auto":
+        user_prompt_parts.append(f"Langage / Technologie : {language}")
+
+    user_prompt_parts.append(f"\nLog / Erreur a analyser :\n{text}")
+
+    user_prompt = "\n".join(user_prompt_parts)
+
+    try:
+        response = client.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            model=model,
+            stream=False
+        )
+
+        result = response.get("message", {}).get("content", "")
+
+        _add_to_history({
+            "type": "log_parser",
+            "input": text[:500],
+            "output": result,
+            "options": {
+                "language": language
+            },
+            "model": model
+        })
+
+        return {"success": True, "result": result}
+
+    except Exception as e:
+        return {"success": False, "error": str(e)}

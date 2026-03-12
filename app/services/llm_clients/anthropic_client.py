@@ -5,20 +5,13 @@ Utilise le SDK officiel anthropic.
 L'API Anthropic a un format différent d'OpenAI (system séparé des messages).
 """
 
+import logging
 from typing import List, Dict, Any, Optional, Tuple, Iterable
 
 from .base_client import BaseLLMClient
 from ..llm_error_handler import LLMError, LLMErrorType, classify_anthropic_error
 
-
-# Modèles Anthropic disponibles
-ANTHROPIC_MODELS = [
-    {"id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet", "description": "Le plus intelligent, idéal pour les tâches complexes"},
-    {"id": "claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku", "description": "Rapide et économique"},
-    {"id": "claude-3-opus-20240229", "name": "Claude 3 Opus", "description": "Le plus puissant de Claude 3"},
-    {"id": "claude-3-sonnet-20240229", "name": "Claude 3 Sonnet", "description": "Équilibre performance/coût"},
-    {"id": "claude-3-haiku-20240307", "name": "Claude 3 Haiku", "description": "Le plus rapide de Claude 3"}
-]
+logger = logging.getLogger(__name__)
 
 
 class AnthropicClient(BaseLLMClient):
@@ -58,10 +51,31 @@ class AnthropicClient(BaseLLMClient):
         """
         Retourne la liste des modèles Claude disponibles.
         
-        Note: L'API Anthropic n'a pas d'endpoint pour lister les modèles,
-        on retourne donc une liste statique.
+        Utilise l'endpoint /v1/models de l'API Anthropic.
+        Retourne une liste vide en cas d'échec.
         """
-        return ANTHROPIC_MODELS.copy()
+        try:
+            client = self._get_client()
+            response = client.models.list()
+
+            models = []
+            for model in response.data:
+                model_id = model.id
+                display_name = getattr(model, 'display_name', model_id) or model_id
+                description = getattr(model, 'description', "") or ""
+
+                models.append({
+                    "id": model_id,
+                    "name": display_name,
+                    "description": description
+                })
+
+            models.sort(key=lambda x: x["name"])
+            return models
+
+        except Exception as e:
+            logger.warning("Failed to list Anthropic models from API: %s", e)
+            return []
     
     def chat(
         self,
@@ -225,19 +239,13 @@ class AnthropicClient(BaseLLMClient):
         return prepared
     
     def test_connection(self) -> Tuple[bool, str]:
-        """Teste la connexion en vérifiant la clé API."""
+        """Teste la connexion en listant les modèles disponibles."""
         if not self._api_key:
             return False, "Clé API manquante"
         
         try:
-            # Tenter une requête minimale
-            client = self._get_client()
-            response = client.messages.create(
-                model="claude-3-haiku-20240307",
-                messages=[{"role": "user", "content": "Hi"}],
-                max_tokens=5
-            )
-            return True, "Connecté à Anthropic"
+            models = self.list_models()
+            return True, f"Connecté - {len(models)} modèle(s) disponible(s)"
         except LLMError as e:
             return False, e.get_user_message()
         except Exception as e:
@@ -251,7 +259,7 @@ class AnthropicClient(BaseLLMClient):
         return True
     
     def get_default_model(self) -> Optional[str]:
-        return "claude-3-5-sonnet-20241022"
+        return None
     
     def normalize_options(self, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         """Normalise les options pour l'API Anthropic."""

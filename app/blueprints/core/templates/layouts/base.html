@@ -16,21 +16,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script>(function () { try { const t = localStorage.getItem('theme'); const p = window.matchMedia('(prefers-color-scheme: dark)').matches; if (t === 'dark' || ((!t || t === 'system') && p)) document.documentElement.classList.add('dark'); } catch (e) { } })()</script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
-                    colors: {
-                        brand: { 50: '#eef6ff', 100: '#d9ebff', 200: '#b7d8ff', 300: '#8fc1ff', 400: '#64a6ff', 500: '#3c8dff', 600: '#1d74f0', 700: '#185ec4', 800: '#144e9f', 900: '#123f7f' }
-                    },
-                    boxShadow: { card: '0 2px 10px rgba(0,0,0,0.06)' } // Softer shadow for cards
-                }
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="{{ url_for('core.static', filename='css/tailwind.css') }}">
     <!-- Alpine.js Collapse plugin (must load before main Alpine) -->
     <script defer src="https://unpkg.com/@alpinejs/collapse@3.14.3/dist/cdn.min.js"></script>
     <!-- i18n translations (must load before Alpine) -->
@@ -297,10 +283,10 @@
                                 class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50"
                                 x-text="t('nav.chat', 'Chat')"></span>
                         </a>
-                        <a href="/texts" @click="openNav = false"
+                        <a href="/tools" @click="openNav = false"
                             class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
                             :class="[
-                path.startsWith('/texts') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
+                path.startsWith('/tools') ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400' : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-zinc-200',
                 sidebarCollapsed ? 'justify-center px-2' : ''
               ]">
                             <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">

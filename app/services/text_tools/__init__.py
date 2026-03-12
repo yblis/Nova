@@ -20,6 +20,7 @@ from .technical import (
     generate_mermaid,
     generate_regex,
     generate_prompt,
+    parse_logs,
 )
 
 from .generators import (
@@ -138,6 +139,7 @@ __all__ = [
     "generate_fitness",
     "generate_admin_letter",
     "generate_speech",
+    "parse_logs",
     "get_history",
     "get_history_item",
     "clear_history",

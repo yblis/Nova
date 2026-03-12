@@ -12,7 +12,7 @@ const SpaRouter = {
         '/discover': { partial: '/spa/discover', component: null, title: 'Découvrir' },
         '/downloads': { partial: '/spa/downloads', component: null, title: 'Téléchargements' },
         '/chat': { partial: '/spa/chat', component: 'chatApp', title: 'Chat' },
-        '/texts': { partial: '/spa/texts', component: 'textsApp', title: 'Assistant' },
+        '/tools': { partial: '/spa/tools', component: 'textsApp', title: 'Assistant' },
         '/settings': { partial: '/spa/settings', component: 'settingsPage', title: 'Paramètres' },
         '/admin/users': { partial: '/admin/spa/users', component: null, title: 'Utilisateurs' },
         '/specialists': { partial: '/spa/specialists', component: 'specialistsApp', title: 'Spécialistes' }

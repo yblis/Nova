@@ -93,7 +93,7 @@ window.TextsResumeMixin = {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CV - ${this.resumeData.firstname} ${this.resumeData.lastname}</title>
-    <script src="https://cdn.tailwindcss.com"><\/script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3/dist/tailwind.min.css" rel="stylesheet">
     <style>
         body { background-color: #f3f4f6; display: flex; justify-content: center; padding: 40px; }
         .cv-container { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); margin: 0 auto; }

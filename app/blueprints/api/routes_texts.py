@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request, current_app
 api_texts_bp = Blueprint("api_texts", __name__)
 
 
-@api_texts_bp.route("/texts/reformulate", methods=["POST"])
+@api_texts_bp.route("/tools/reformulate", methods=["POST"])
 def reformulate():
     """Reformule un texte selon les options spécifiées."""
     from ...services.text_tools_service import reformulate as svc_reformulate
@@ -40,7 +40,7 @@ def reformulate():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/translate", methods=["POST"])
+@api_texts_bp.route("/tools/translate", methods=["POST"])
 def translate():
     """Traduit un texte vers la langue cible."""
     from ...services.text_tools_service import translate as svc_translate
@@ -68,7 +68,7 @@ def translate():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/correct", methods=["POST"])
+@api_texts_bp.route("/tools/correct", methods=["POST"])
 def correct():
     """Corrige un texte selon les options spécifiées."""
     from ...services.text_tools_service import correct as svc_correct
@@ -98,7 +98,7 @@ def correct():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/generate-email", methods=["POST"])
+@api_texts_bp.route("/tools/generate-email", methods=["POST"])
 def generate_email():
     """Génère un email, une réponse, ou une lettre de motivation."""
     from ...services.text_tools_service import generate_email as svc_generate_email
@@ -146,7 +146,7 @@ def generate_email():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/generate-prompt", methods=["POST"])
+@api_texts_bp.route("/tools/generate-prompt", methods=["POST"])
 def generate_prompt():
     """Génère un prompt IA optimisé."""
     from ...services.text_tools_service import generate_prompt as svc_generate_prompt
@@ -170,7 +170,7 @@ def generate_prompt():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/summarize", methods=["POST"])
+@api_texts_bp.route("/tools/summarize", methods=["POST"])
 def summarize():
     """Génère un résumé du texte."""
     from ...services.text_tools_service import generate_summary as svc_generate_summary
@@ -198,7 +198,7 @@ def summarize():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/history", methods=["GET"])
+@api_texts_bp.route("/tools/history", methods=["GET"])
 def get_history():
     """Récupère l'historique des opérations."""
     from ...services.text_tools_service import get_history as svc_get_history
@@ -210,7 +210,7 @@ def get_history():
     return jsonify({"history": history})
 
 
-@api_texts_bp.route("/texts/history/<item_id>", methods=["GET"])
+@api_texts_bp.route("/tools/history/<item_id>", methods=["GET"])
 def get_history_item(item_id):
     """Récupère un élément spécifique de l'historique."""
     from ...services.text_tools_service import get_history_item as svc_get_history_item
@@ -221,7 +221,7 @@ def get_history_item(item_id):
     return jsonify({"error": "Élément non trouvé"}), 404
 
 
-@api_texts_bp.route("/texts/history", methods=["DELETE"])
+@api_texts_bp.route("/tools/history", methods=["DELETE"])
 def clear_history():
     """Efface tout l'historique."""
     from ...services.text_tools_service import clear_history as svc_clear_history
@@ -231,7 +231,7 @@ def clear_history():
     return jsonify({"error": "Erreur lors de la suppression"}), 500
 
 
-@api_texts_bp.route("/texts/history/<item_id>", methods=["DELETE"])
+@api_texts_bp.route("/tools/history/<item_id>", methods=["DELETE"])
 def delete_history_item(item_id):
     """Supprime un élément de l'historique."""
     from ...services.text_tools_service import delete_history_item as svc_delete_history_item
@@ -243,14 +243,14 @@ def delete_history_item(item_id):
 
 # ========== Configuration des prompts ==========
 
-@api_texts_bp.route("/texts/prompts", methods=["GET"])
+@api_texts_bp.route("/tools/prompts", methods=["GET"])
 def get_prompts():
     """Récupère tous les prompts configurés."""
     from ...services.text_prompts_service import get_prompts as svc_get_prompts
     return jsonify({"prompts": svc_get_prompts()})
 
 
-@api_texts_bp.route("/texts/prompts", methods=["POST"])
+@api_texts_bp.route("/tools/prompts", methods=["POST"])
 def set_prompts():
     """Met à jour les prompts."""
     from ...services.text_prompts_service import set_prompts as svc_set_prompts
@@ -263,7 +263,7 @@ def set_prompts():
     return jsonify({"error": "Erreur lors de la mise à jour"}), 500
 
 
-@api_texts_bp.route("/texts/prompts/reset", methods=["POST"])
+@api_texts_bp.route("/tools/prompts/reset", methods=["POST"])
 def reset_prompts():
     """Réinitialise tous les prompts aux valeurs par défaut."""
     from ...services.text_prompts_service import reset_prompts as svc_reset_prompts
@@ -273,14 +273,14 @@ def reset_prompts():
     return jsonify({"error": "Erreur lors de la réinitialisation"}), 500
 
 
-@api_texts_bp.route("/texts/options", methods=["GET"])
+@api_texts_bp.route("/tools/options", methods=["GET"])
 def get_options():
     """Récupère les options personnalisables."""
     from ...services.text_prompts_service import get_options as svc_get_options
     return jsonify({"options": svc_get_options()})
 
 
-@api_texts_bp.route("/texts/options", methods=["POST"])
+@api_texts_bp.route("/tools/options", methods=["POST"])
 def add_option():
     """Ajoute une option personnalisée."""
     from ...services.text_prompts_service import add_option as svc_add_option
@@ -297,7 +297,7 @@ def add_option():
     return jsonify({"error": "Type d'option invalide"}), 400
 
 
-@api_texts_bp.route("/texts/options", methods=["DELETE"])
+@api_texts_bp.route("/tools/options", methods=["DELETE"])
 def remove_option():
     """Retire une option personnalisée."""
     from ...services.text_prompts_service import remove_option as svc_remove_option
@@ -315,7 +315,7 @@ def remove_option():
 
 # ========== Nouveaux outils texte ==========
 
-@api_texts_bp.route("/texts/extract", methods=["POST"])
+@api_texts_bp.route("/tools/extract", methods=["POST"])
 def extract_data():
     """Extrait des données structurées depuis du texte brut."""
     from ...services.text_tools_service import extract_data as svc_extract_data
@@ -337,7 +337,7 @@ def extract_data():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/simplify", methods=["POST"])
+@api_texts_bp.route("/tools/simplify", methods=["POST"])
 def simplify_text():
     """Simplifie un texte complexe."""
     from ...services.text_tools_service import simplify_text as svc_simplify_text
@@ -359,7 +359,7 @@ def simplify_text():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/expand", methods=["POST"])
+@api_texts_bp.route("/tools/expand", methods=["POST"])
 def expand_text():
     """Développe une ébauche en texte complet."""
     from ...services.text_tools_service import expand_text as svc_expand_text
@@ -382,7 +382,7 @@ def expand_text():
     return jsonify(result), 500
 
 
-@api_texts_bp.route("/texts/todolist", methods=["POST"])
+@api_texts_bp.route("/tools/todolist", methods=["POST"])
 def generate_todolist():
     """Extrait un plan d'action depuis des notes."""
     from ...services.text_tools_service import generate_todolist as svc_generate_todolist
@@ -404,7 +404,7 @@ def generate_todolist():
 
 # ========== Génération de scripts ==========
 
-@api_texts_bp.route("/texts/generate-script", methods=["POST"])
+@api_texts_bp.route("/tools/generate-script", methods=["POST"])
 def generate_script():
     from ...services.text_tools_service import generate_script as svc_generate_script
 
@@ -441,7 +441,7 @@ def generate_script():
 
 # ========== Génération de diagrammes Mermaid ==========
 
-@api_texts_bp.route("/texts/generate-mermaid", methods=["POST"])
+@api_texts_bp.route("/tools/generate-mermaid", methods=["POST"])
 def generate_mermaid():
     from ...services.text_tools_service import generate_mermaid as svc_generate_mermaid
 
@@ -474,7 +474,7 @@ def generate_mermaid():
 
 # ========== Génération de documentation ==========
 
-@api_texts_bp.route("/texts/generate-documentation", methods=["POST"])
+@api_texts_bp.route("/tools/generate-documentation", methods=["POST"])
 def generate_documentation():
     from ...services.text_tools_service import generate_documentation as svc_generate_documentation
 
@@ -610,7 +610,7 @@ def generate_resume():
         }), 500
 
 
-@api_texts_bp.route("/texts/generate-recipe", methods=["POST"])
+@api_texts_bp.route("/tools/generate-recipe", methods=["POST"])
 def generate_recipe():
     """Génère une recette à partir d'ingrédients ou d'une idée."""
     data = request.json or {}
@@ -633,7 +633,7 @@ def generate_recipe():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/generate-fitness", methods=["POST"])
+@api_texts_bp.route("/tools/generate-fitness", methods=["POST"])
 def generate_fitness():
     """Génère un programme sportif personnalisé."""
     data = request.json or {}
@@ -656,7 +656,7 @@ def generate_fitness():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/generate-admin-letter", methods=["POST"])
+@api_texts_bp.route("/tools/generate-admin-letter", methods=["POST"])
 def generate_admin_letter():
     """Génère une lettre administrative formelle."""
     data = request.json or {}
@@ -677,7 +677,7 @@ def generate_admin_letter():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/generate-flashcards", methods=["POST"])
+@api_texts_bp.route("/tools/generate-flashcards", methods=["POST"])
 def generate_flashcards():
     """Génère des flashcards à partir de contenu."""
     data = request.json or {}
@@ -699,7 +699,7 @@ def generate_flashcards():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/explain-eli5", methods=["POST"])
+@api_texts_bp.route("/tools/explain-eli5", methods=["POST"])
 def explain_eli5():
     """Explique un concept de manière simplifiée."""
     data = request.json or {}
@@ -720,7 +720,7 @@ def explain_eli5():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/generate-speech", methods=["POST"])
+@api_texts_bp.route("/tools/generate-speech", methods=["POST"])
 def generate_speech():
     """Génère un discours pour une occasion donnée."""
     data = request.json or {}
@@ -742,7 +742,7 @@ def generate_speech():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/compare-decide", methods=["POST"])
+@api_texts_bp.route("/tools/compare-decide", methods=["POST"])
 def compare_decide():
     """Analyse comparative pour aide à la décision."""
     data = request.json or {}
@@ -762,7 +762,7 @@ def compare_decide():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/generate-regex", methods=["POST"])
+@api_texts_bp.route("/tools/generate-regex", methods=["POST"])
 def generate_regex():
     """Génère une regex à partir d'une description en langage naturel."""
     data = request.json or {}
@@ -782,7 +782,7 @@ def generate_regex():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/convert-format", methods=["POST"])
+@api_texts_bp.route("/tools/convert-format", methods=["POST"])
 def convert_format():
     """Convertit des données entre formats (JSON, YAML, XML, CSV, Tableau)."""
     data = request.json or {}
@@ -803,7 +803,29 @@ def convert_format():
     return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
 
 
-@api_texts_bp.route("/texts/proxy-image", methods=["POST"])
+@api_texts_bp.route("/tools/parse-logs", methods=["POST"])
+def parse_logs():
+    """Analyse un log, une stacktrace ou un message d'erreur."""
+    from ...services.text_tools_service import parse_logs as svc_parse_logs
+
+    data = request.json or {}
+    text = data.get("text", "").strip()
+    model = data.get("model", "")
+    language = data.get("language", "Auto")
+
+    if not text:
+        return jsonify({"error": "Veuillez coller un log ou une stacktrace a analyser"}), 400
+    if not model:
+        return jsonify({"error": "Aucun modele selectionne"}), 400
+
+    result = svc_parse_logs(text=text, model=model, language=language)
+
+    if result.get("success"):
+        return jsonify({"result": result["result"]})
+    return jsonify({"error": result.get("error", "Erreur inconnue")}), 500
+
+
+@api_texts_bp.route("/tools/proxy-image", methods=["POST"])
 def proxy_image():
     """Proxy pour télécharger une image externe et la renvoyer en base64 (contourne CORS)."""
     import httpx

@@ -55,7 +55,7 @@ window.TextsMermaidMixin = {
                 payload.image_base64 = this.mermaidImageBase64;
             }
 
-            const response = await fetch('/api/texts/generate-mermaid', {
+            const response = await fetch('/api/tools/generate-mermaid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -98,7 +98,7 @@ window.TextsMermaidMixin = {
                 previous_code: codeToFix
             };
 
-            const response = await fetch('/api/texts/generate-mermaid', {
+            const response = await fetch('/api/tools/generate-mermaid', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

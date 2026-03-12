@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname === '/' ||
     url.pathname.startsWith('/spa/') ||
     url.pathname.startsWith('/chat') ||
-    url.pathname.startsWith('/texts') ||
+    url.pathname.startsWith('/tools') ||
     url.pathname.startsWith('/specialists') ||
     url.pathname.startsWith('/models') ||
     url.pathname.startsWith('/settings') ||

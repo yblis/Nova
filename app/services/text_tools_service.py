@@ -23,6 +23,7 @@ from .text_tools import (  # noqa: F401
     generate_fitness,
     generate_admin_letter,
     generate_speech,
+    parse_logs,
     get_history,
     get_history_item,
     clear_history,

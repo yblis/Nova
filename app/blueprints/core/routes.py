@@ -56,13 +56,13 @@ def chat():
     return render_template("pages/chat.html")
 
 
-@core_bp.route("/texts")
+@core_bp.route("/tools")
 def texts_page():
     """
     Texts tool page with dynamic content.
     The tool selection is managed client-side via Alpine.js and URL hash.
     """
-    return render_template("pages/texts.html")
+    return render_template("pages/tools.html")
 
 
 @core_bp.route("/specialists")
@@ -91,7 +91,7 @@ def spa_partial(page: str):
     """
     from flask import abort
     
-    valid_pages = ["index", "models", "discover", "downloads", "chat", "texts", "settings", "specialists"]
+    valid_pages = ["index", "models", "discover", "downloads", "chat", "tools", "settings", "specialists"]
     
     if page not in valid_pages:
         abort(404)
