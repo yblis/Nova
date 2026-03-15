@@ -41,6 +41,7 @@
     {% block styles %}
     <link rel="stylesheet" href="{{ url_for('core.static', filename='css/base-mobile.css') }}">
     <link rel="stylesheet" href="{{ url_for('core.static', filename='css/markdown.css') }}">
+    <link rel="stylesheet" href="{{ url_for('core.static', filename='css/command-palette.css') }}">
     {% endblock %}
 </head>
 
@@ -368,6 +369,19 @@
                         x-text="t('nav.expand', 'Étendre')"></span>
                 </button>
 
+                <button @click="window.dispatchEvent(new CustomEvent('command-palette:open'))"
+                    class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700/50 relative group"
+                    :class="sidebarCollapsed ? 'justify-center px-2' : ''">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span x-show="!sidebarCollapsed">Recherche</span>
+                    <span x-show="!sidebarCollapsed" class="cmd-palette-sidebar-hint">&#8984;K</span>
+                    <span x-show="sidebarCollapsed" x-cloak
+                        class="absolute left-full ml-2 px-2 py-1 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-50">Recherche (&#8984;K)</span>
+                </button>
+
                 <a href="/settings" @click="openNav = false"
                     class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors relative group"
                     :class="[
@@ -429,6 +443,71 @@
                     {% block content %}{% endblock %}
                 </div>
             </main>
+        </div>
+
+        <!-- Command Palette -->
+        <div x-data="commandPalette()" x-show="isOpen" x-cloak
+            class="cmd-palette-overlay"
+            @click.self="close()"
+            @keydown.window="if (isOpen) handleKeydown($event)">
+            <div class="cmd-palette-modal" @click.stop>
+                <div class="cmd-palette-input-wrap">
+                    <svg class="cmd-palette-input-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input x-ref="commandInput"
+                        x-model="query"
+                        @input="onQueryChange()"
+                        class="cmd-palette-input"
+                        type="text"
+                        placeholder="Rechercher une page, un paramètre, une action..."
+                        autocomplete="off"
+                        spellcheck="false" />
+                    <span class="cmd-palette-kbd">Esc</span>
+                </div>
+
+                <div x-ref="commandList" class="cmd-palette-list">
+                    <template x-if="flatFiltered.length === 0">
+                        <div class="cmd-palette-empty">Aucun résultat</div>
+                    </template>
+
+                    <template x-for="group in groupedCommands" :key="group.section">
+                        <div>
+                            <div class="cmd-palette-section-label" x-text="group.section"></div>
+                            <template x-for="(cmd, idx) in group.items" :key="cmd.id">
+                                <div class="cmd-palette-item"
+                                    :data-active="flatFiltered.indexOf(cmd) === selectedIndex"
+                                    @click="executeCommand(cmd)"
+                                    @mouseenter="selectedIndex = flatFiltered.indexOf(cmd)">
+                                    <svg class="cmd-palette-item-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            :d="getSvgIcon(cmd)" />
+                                    </svg>
+                                    <span class="cmd-palette-item-title" x-text="cmd.title"></span>
+                                    <span class="cmd-palette-item-badge" x-text="cmd.section"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="cmd-palette-footer">
+                    <span class="cmd-palette-footer-hint">
+                        <span class="cmd-palette-footer-kbd">&uarr;</span>
+                        <span class="cmd-palette-footer-kbd">&darr;</span>
+                        naviguer
+                    </span>
+                    <span class="cmd-palette-footer-hint">
+                        <span class="cmd-palette-footer-kbd">&crarr;</span>
+                        ouvrir
+                    </span>
+                    <span class="cmd-palette-footer-hint">
+                        <span class="cmd-palette-footer-kbd">Esc</span>
+                        fermer
+                    </span>
+                </div>
+            </div>
         </div>
 
         <!-- Toast -->
@@ -499,6 +578,7 @@
     <script src="{{ url_for('core.static', filename='js/utilities/toast.js') }}"></script>
     <script src="{{ url_for('core.static', filename='js/utilities/copy-code.js') }}"></script>
     <script src="{{ url_for('core.static', filename='js/components/ui-state.js') }}"></script>
+    <script src="{{ url_for('core.static', filename='js/components/command-palette.js') }}?v={{ range(1, 10000) | random }}"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -540,14 +620,9 @@
                     break;
 
                 case 'k':
-                    // Focus Search (⌘/Ctrl+K)
+                    // Command Palette (⌘/Ctrl+K)
                     e.preventDefault();
-                    // Find any search input on the page
-                    const searchInputs = document.querySelectorAll('input[type="text"][placeholder*="echerche"], input[type="search"], input[x-model*="Search"]');
-                    if (searchInputs.length > 0) {
-                        searchInputs[0].focus();
-                        searchInputs[0].select();
-                    }
+                    window.dispatchEvent(new CustomEvent('command-palette:open'));
                     break;
 
                 case ',':

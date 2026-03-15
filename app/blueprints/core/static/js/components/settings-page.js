@@ -13,7 +13,7 @@
             // Load active tab from URL hash, localStorage, or default
             activeTab: (() => {
                 const hash = window.location.hash.slice(1);
-                const validTabs = ['general', 'providers', 'shortcuts', 'rag', 'llm', 'about', 'websearch', 'textprompts', 'audio', 'email', 'bookstack'];
+                const validTabs = ['general', 'providers', 'shortcuts', 'rag', 'llm', 'about', 'websearch', 'prompts', 'audio', 'email', 'bookstack'];
                 if (hash && validTabs.includes(hash)) return hash;
                 const stored = localStorage.getItem('settings_active_tab');
                 if (stored && validTabs.includes(stored)) return stored;
@@ -154,7 +154,7 @@
                 // Listen for hash changes (browser back/forward)
                 window.addEventListener('hashchange', () => {
                     const hash = window.location.hash.slice(1);
-                    const validTabs = ['general', 'providers', 'shortcuts', 'rag', 'llm', 'about', 'websearch', 'textprompts', 'audio', 'email'];
+                    const validTabs = ['general', 'providers', 'shortcuts', 'rag', 'llm', 'about', 'websearch', 'prompts', 'audio', 'email', 'bookstack'];
                     if (hash && validTabs.includes(hash) && hash !== this.activeTab) {
                         this.activeTab = hash;
                     }
