@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-LOCAL_PROVIDER_TYPES = {"ollama", "lmstudio", "openai_compatible"}
+LOCAL_PROVIDER_TYPES = {"ollama", "lmstudio", "openai_compatible", "swama"}
 
 _model_provider_cache: Dict[str, dict] = {}
 _cache_ts: float = 0
@@ -51,7 +51,7 @@ def _index_local_provider(p: dict, new_cache: Dict[str, dict]) -> None:
                 if model_id:
                     new_cache[model_id] = {"id": provider_id, "type": provider_type}
 
-    elif provider_type == "openai_compatible":
+    elif provider_type in ("openai_compatible", "swama"):
         endpoint = base_url
         if not endpoint.endswith("/v1"):
             endpoint = f"{endpoint}/v1"

@@ -144,6 +144,15 @@ PROVIDER_TYPES = {
         "icon": "sparkles",
         "description": "API Cohere (Command R+, Embed, etc.)"
     },
+    "swama": {
+        "name": "Swama",
+        "requires_api_key": False,
+        "requires_url": True,
+        "default_url": "http://localhost:28100",
+        "color": "sky",
+        "icon": "cpu-chip",
+        "description": "Serveur LLM local macOS optimisé Apple Silicon (MLX)"
+    },
     "openai_compatible": {
         "name": "OpenAI Compatible",
         "requires_api_key": False,

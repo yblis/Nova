@@ -67,12 +67,19 @@ PROVIDER_CONFIGS = {
         "supports_vision": False,
         "unsupported_params": ["frequency_penalty", "presence_penalty"]
     },
-    "openai_compatible": {
-        "base_url": "",  # L'utilisateur doit fournir l'URL
-        "default_model": None,  # Dépend du provider
+    "swama": {
+        "base_url": "http://localhost:28100",
+        "default_model": None,
         "supports_vision": True,
-        "default_api_key": "not-needed",  # Certains providers locaux n'ont pas besoin de clé
-        "requires_v1_suffix": True  # La plupart des API compatibles OpenAI utilisent /v1
+        "default_api_key": "not-needed",
+        "requires_v1_suffix": True
+    },
+    "openai_compatible": {
+        "base_url": "",
+        "default_model": None,
+        "supports_vision": True,
+        "default_api_key": "not-needed",
+        "requires_v1_suffix": True
     }
 }
 
