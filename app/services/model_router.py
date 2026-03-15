@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-LOCAL_PROVIDER_TYPES = {"ollama", "lmstudio"}
+LOCAL_PROVIDER_TYPES = {"ollama", "lmstudio", "openai_compatible"}
 
 _model_provider_cache: Dict[str, dict] = {}
 _cache_ts: float = 0
@@ -45,6 +45,17 @@ def _index_local_provider(p: dict, new_cache: Dict[str, dict]) -> None:
 
     elif provider_type == "lmstudio":
         r = httpx.get(f"{base_url}/models", timeout=3)
+        if r.status_code == 200:
+            for m in r.json().get("data", []):
+                model_id = m.get("id", "")
+                if model_id:
+                    new_cache[model_id] = {"id": provider_id, "type": provider_type}
+
+    elif provider_type == "openai_compatible":
+        endpoint = base_url
+        if not endpoint.endswith("/v1"):
+            endpoint = f"{endpoint}/v1"
+        r = httpx.get(f"{endpoint}/models", timeout=3)
         if r.status_code == 200:
             for m in r.json().get("data", []):
                 model_id = m.get("id", "")
